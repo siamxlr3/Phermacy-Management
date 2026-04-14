@@ -8,6 +8,7 @@ use App\Http\Resources\Api\ShiftResource;
 use App\Services\ShiftService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ShiftController extends Controller
 {
@@ -18,7 +19,7 @@ class ShiftController extends Controller
         $this->shiftService = $shiftService;
     }
 
-    public function index(Request $request)
+    public function index(Request $request): AnonymousResourceCollection
     {
         $perPage = $request->get('per_page', 10);
         $search = $request->get('search');

@@ -24,9 +24,16 @@ class LeaveService
         ?string $toDate = null
     ) {
         $cacheKey = "leave_list_{$perPage}_{$search}_{$status}_{$fromDate}_{$toDate}";
-        return Cache::remember($cacheKey, 3600, function () use ($perPage, $search, $status, $fromDate, $toDate) {
+        
+        $query = function () use ($perPage, $search, $status, $fromDate, $toDate) {
             return $this->leaveRepository->getAll($perPage, $search, $status, $fromDate, $toDate);
-        });
+        };
+
+        if (config('cache.default') !== 'file') {
+            return Cache::tags(['leaves'])->remember($cacheKey, 3600, $query);
+        }
+
+        return Cache::remember($cacheKey, 3600, $query);
     }
 
     public function createLeave(array $data): Leave
@@ -59,6 +66,11 @@ class LeaveService
 
     private function clearCache(): void
     {
-        // Cache clearing logic
+        if (config('cache.default') !== 'file') {
+            Cache::tags(['leaves'])->flush();
+        } else {
+            // For file driver, we must be aggressive
+            Cache::flush();
+        }
     }
 }

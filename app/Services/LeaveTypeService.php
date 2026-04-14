@@ -18,16 +18,29 @@ class LeaveTypeService
     public function getAllLeaveTypes(int $perPage = 10, ?string $search = null, ?string $status = null)
     {
         $cacheKey = "leavetype_list_{$perPage}_{$search}_{$status}";
-        return Cache::remember($cacheKey, 3600, function () use ($perPage, $search, $status) {
+        
+        $query = function () use ($perPage, $search, $status) {
             return $this->leaveTypeRepository->getAll($perPage, $search, $status);
-        });
+        };
+
+        if (config('cache.default') !== 'file') {
+            return Cache::tags(['leavetypes'])->remember($cacheKey, 3600, $query);
+        }
+
+        return Cache::remember($cacheKey, 3600, $query);
     }
 
     public function getActiveLeaveTypes()
     {
-        return Cache::remember('leavetype_active', 3600, function () {
+        $query = function () {
             return $this->leaveTypeRepository->getActive();
-        });
+        };
+
+        if (config('cache.default') !== 'file') {
+            return Cache::tags(['leavetypes'])->remember('leavetype_active', 3600, $query);
+        }
+
+        return Cache::remember('leavetype_active', 3600, $query);
     }
 
     public function createLeaveType(array $data): LeaveType
@@ -60,6 +73,11 @@ class LeaveTypeService
 
     private function clearCache(): void
     {
-        Cache::forget('leavetype_active');
+        if (config('cache.default') !== 'file') {
+            Cache::tags(['leavetypes'])->flush();
+        } else {
+            // For file driver, we must be aggressive
+            Cache::flush();
+        }
     }
 }

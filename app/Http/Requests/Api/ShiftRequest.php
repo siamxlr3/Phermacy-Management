@@ -15,8 +15,8 @@ class ShiftRequest extends FormRequest
     {
         return [
             'name' => 'required|string|max:255',
-            'start_time' => 'required|date_format:H:i',
-            'end_time' => 'required|date_format:H:i',
+            'start_time' => 'required|string', // Relaxed to allow various 12h formats if needed, but we'll enforce hh:mm AM/PM in the resource/form
+            'end_time' => 'required|string',
             'total_hours' => 'required|numeric|min:0',
             'status' => 'required|in:active,inactive',
         ];

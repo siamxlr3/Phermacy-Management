@@ -19,16 +19,28 @@ class RoleService
     {
         $cacheKey = "roles_list_{$perPage}_{$search}";
         
-        return Cache::remember($cacheKey, 3600, function () use ($perPage, $search) {
+        $query = function () use ($perPage, $search) {
             return $this->roleRepository->getAll($perPage, $search);
-        });
+        };
+
+        if (config('cache.default') !== 'file') {
+            return Cache::tags(['roles'])->remember($cacheKey, 3600, $query);
+        }
+
+        return Cache::remember($cacheKey, 3600, $query);
     }
 
     public function getActiveRoles()
     {
-        return Cache::remember('active_roles', 3600, function () {
+        $query = function () {
             return $this->roleRepository->getActiveRoles();
-        });
+        };
+
+        if (config('cache.default') !== 'file') {
+            return Cache::tags(['roles'])->remember('active_roles', 3600, $query);
+        }
+
+        return Cache::remember('active_roles', 3600, $query);
     }
 
     public function createRole(array $data): Role
@@ -56,7 +68,10 @@ class RoleService
 
     private function clearCache(): void
     {
-        Cache::flush(); // Simple strategy: clear all cache for consistency or use tags
-        // Cache::forget('active_roles');
+        if (config('cache.default') !== 'file') {
+            Cache::tags(['roles'])->flush();
+        } else {
+            Cache::flush(); 
+        }
     }
 }

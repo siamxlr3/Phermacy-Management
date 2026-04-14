@@ -102,6 +102,7 @@ const PayrollTable = ({ onAdd, onEdit }) => {
               <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Breakdown</th>
               <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Net Amount</th>
               <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Status</th>
+              <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Created At</th>
               <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
             </tr>
           </thead>
@@ -119,7 +120,7 @@ const PayrollTable = ({ onAdd, onEdit }) => {
               ))
             ) : payrolls.length === 0 ? (
               <tr>
-                <td colSpan="6" className="px-6 py-20 text-center">
+                <td colSpan="7" className="px-6 py-20 text-center">
                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No payroll records found</p>
                 </td>
               </tr>
@@ -168,6 +169,11 @@ const PayrollTable = ({ onAdd, onEdit }) => {
                       <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${config.color}`}>
                         {config.icon}
                         {p.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <span className="text-xs font-bold text-slate-600">
+                        {p.created_at ? format(new Date(p.created_at), 'dd MMM, yyyy') : 'N/A'}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">

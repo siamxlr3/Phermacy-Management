@@ -17,8 +17,8 @@ class ShiftResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'start_time' => $this->start_time,
-            'end_time' => $this->end_time,
+            'start_time' => \Carbon\Carbon::parse($this->start_time)->format('h:i A'),
+            'end_time' => \Carbon\Carbon::parse($this->end_time)->format('h:i A'),
             'total_hours' => $this->total_hours,
             'status' => $this->status,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),

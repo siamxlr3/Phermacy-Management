@@ -112,6 +112,7 @@ const StaffTable = ({ onAdd, onEdit }) => {
               <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Contact Info</th>
               <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Designation & Role</th>
               <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Shift</th>
+              <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">National ID</th>
               <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Basic Salary</th>
               <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Join Date</th>
               <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Status</th>
@@ -134,7 +135,7 @@ const StaffTable = ({ onAdd, onEdit }) => {
               ))
             ) : staffList.length === 0 ? (
               <tr>
-                <td colSpan="8" className="px-6 py-20 text-center">
+                <td colSpan="9" className="px-6 py-20 text-center">
                   <div className="flex flex-col items-center justify-center">
                     <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 border border-slate-100 text-slate-300">
                       <User size={24} />
@@ -180,6 +181,9 @@ const StaffTable = ({ onAdd, onEdit }) => {
                     <span className="text-xs font-medium text-slate-600 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded">
                       {staff.shift_name}
                     </span>
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <span className="text-xs font-medium text-slate-500 font-mono tracking-tight">{staff.nid_number}</span>
                   </td>
                   <td className="px-6 py-4 text-center">
                     <span className="text-sm font-bold text-slate-900 tracking-tight">৳{parseFloat(staff.basic_salary).toLocaleString()}</span>

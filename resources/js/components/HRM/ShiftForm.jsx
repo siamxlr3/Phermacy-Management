@@ -15,12 +15,30 @@ const ShiftForm = ({ shift, onClose }) => {
   const [createShift, { isLoading: isCreating }] = useCreateShiftMutation();
   const [updateShift, { isLoading: isUpdating }] = useUpdateShiftMutation();
 
+  const t24To12 = (time24) => {
+    if (!time24) return '';
+    const [hours, mins] = time24.split(':');
+    const h = parseInt(hours);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12.toString().padStart(2, '0')}:${mins} ${ampm}`;
+  };
+
+  const t12To24 = (time12) => {
+     if (!time12) return '';
+     const [time, modifier] = time12.split(' ');
+     let [hours, minutes] = time.split(':');
+     if (hours === '12') hours = '00';
+     if (modifier === 'PM') hours = parseInt(hours, 10) + 12;
+     return `${hours.toString().padStart(2, '0')}:${minutes}`;
+  };
+
   useEffect(() => {
     if (shift) {
       setFormData({
         name: shift.name,
-        start_time: shift.start_time,
-        end_time: shift.end_time,
+        start_time: t12To24(shift.start_time),
+        end_time: t12To24(shift.end_time),
         total_hours: shift.total_hours,
         status: shift.status
       });
@@ -30,20 +48,13 @@ const ShiftForm = ({ shift, onClose }) => {
   // Handle automatic calculation of total hours if times change
   useEffect(() => {
      if (formData.start_time && formData.end_time) {
-        const start = formData.start_time.split(':');
-        const end = formData.end_time.split(':');
+        const [startH, startM] = formData.start_time.split(':').map(Number);
+        const [endH, endM] = formData.end_time.split(':').map(Number);
         
-        let hours = parseInt(end[0]) - parseInt(start[0]);
-        let mins = parseInt(end[1]) - parseInt(start[1]);
+        let diffMins = (endH * 60 + endM) - (startH * 60 + startM);
+        if (diffMins < 0) diffMins += 24 * 60; // Night shift
         
-        if (mins < 0) {
-           hours--;
-           mins += 60;
-        }
-        
-        if (hours < 0) hours += 24; // Handle night shifts
-        
-        const total = (hours + mins / 60).toFixed(2);
+        const total = (diffMins / 60).toFixed(2);
         if (total !== formData.total_hours) {
            setFormData(prev => ({...prev, total_hours: total}));
         }
@@ -52,9 +63,15 @@ const ShiftForm = ({ shift, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const payload = {
+       ...formData,
+       start_time: t24To12(formData.start_time),
+       end_time: t24To12(formData.end_time)
+    };
+
     try {
-      if (shift) await updateShift({ id: shift.id, ...formData }).unwrap();
-      else await createShift(formData).unwrap();
+      if (shift) await updateShift({ id: shift.id, ...payload }).unwrap();
+      else await createShift(payload).unwrap();
       toast.success(`Shift ${shift ? 'updated' : 'created'} successfully`);
       onClose();
     } catch (err) {

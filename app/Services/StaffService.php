@@ -27,16 +27,20 @@ class StaffService
         // Caching list queries with parameters
         $cacheKey = "staff_list_{$perPage}_{$search}_{$status}_{$fromDate}_{$toDate}";
         
-        return Cache::remember($cacheKey, 3600, function () use ($perPage, $search, $status, $fromDate, $toDate) {
+        $query = function () use ($perPage, $search, $status, $fromDate, $toDate) {
             return $this->staffRepository->getAll($perPage, $search, $status, $fromDate, $toDate);
-        });
+        };
+
+        if (config('cache.default') !== 'file') {
+            return Cache::tags(['staff'])->remember($cacheKey, 3600, $query);
+        }
+
+        return Cache::remember($cacheKey, 3600, $query);
     }
 
     public function createStaff(array $data): Staff
     {
         return DB::transaction(function () use ($data) {
-            $data['employee_id'] = $this->generateEmployeeId();
-            
             $staff = $this->staffRepository->create($data);
             $this->clearCache();
             return $staff;
@@ -61,9 +65,15 @@ class StaffService
 
     public function getActiveStaff()
     {
-        return Cache::remember('staff_active', 3600, function () {
+        $query = function () {
             return $this->staffRepository->getActive();
-        });
+        };
+
+        if (config('cache.default') !== 'file') {
+            return Cache::tags(['staff'])->remember('staff_active', 3600, $query);
+        }
+
+        return Cache::remember('staff_active', 3600, $query);
     }
 
     public function getStaffById(int $id): Staff
@@ -71,29 +81,13 @@ class StaffService
         return $this->staffRepository->findById($id);
     }
 
-    /**
-     * Logic: EMP-YEAR-SERIAL (e.g. EMP-2026-001)
-     */
-    protected function generateEmployeeId(): string
-    {
-        $year = date('Y');
-        $prefix = "EMP-{$year}-";
-        
-        $lastId = $this->staffRepository->getLastEmployeeId();
-        
-        $serial = 1;
-        if ($lastId && str_starts_with($lastId, $prefix)) {
-            $lastSerial = (int) substr($lastId, strlen($prefix));
-            $serial = $lastSerial + 1;
-        }
-
-        return $prefix . str_pad($serial, 3, '0', STR_PAD_LEFT);
-    }
-
     private function clearCache(): void
     {
-        // In a production environment with Redis, you'd use tags
-        // For now, simplicity or flush if allowed
-        // Cache::tags(['staff'])->flush(); 
+        if (config('cache.default') !== 'file') {
+            Cache::tags(['staff'])->flush();
+        } else {
+            // For file driver, we must be aggressive
+            Cache::flush();
+        }
     }
 }

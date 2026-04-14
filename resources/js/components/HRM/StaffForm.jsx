@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 
 const initialForm = {
   full_name: '',
+  employee_id: '',
   phone: '',
   email: '',
   address: '',
@@ -32,6 +33,7 @@ const StaffForm = ({ staff, onClose }) => {
     if (staff) {
       setFormData({
         full_name: staff.full_name || '',
+        employee_id: staff.employee_id || '',
         phone: staff.phone || '',
         email: staff.email || '',
         address: staff.address || '',
@@ -117,6 +119,21 @@ const StaffForm = ({ staff, onClose }) => {
               </div>
 
               <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Employee ID</label>
+                <div className="relative">
+                  <BadgeCheck size={14} className="absolute left-3.5 top-3.5 text-slate-400" />
+                  <input
+                    type="text"
+                    required
+                    value={formData.employee_id}
+                    onChange={(e) => setFormData({...formData, employee_id: e.target.value})}
+                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-400 outline-none transition-all"
+                    placeholder="e.g. EMP-2024-001"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">National ID (NID)</label>
                 <div className="relative">
                   <ShieldCheck size={14} className="absolute left-3.5 top-3.5 text-slate-400" />
@@ -187,17 +204,7 @@ const StaffForm = ({ staff, onClose }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Designation</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.designation}
-                  onChange={(e) => setFormData({...formData, designation: e.target.value})}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 focus:ring-2 focus:ring-blue-500/10 focus:border-blue-400 outline-none transition-all"
-                  placeholder="e.g. Sales Officer"
-                />
-              </div>
+
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Basic Salary</label>

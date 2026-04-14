@@ -133,7 +133,6 @@ const LeaveTable = ({ onAdd, onEdit }) => {
                         </div>
                         <div className="flex flex-col">
                           <span className="text-sm font-bold text-slate-700">{l.staff_name}</span>
-                          <span className="text-[10px] font-medium text-slate-400 uppercase tracking-widest">#{l.employee_id || l.staff_id}</span>
                         </div>
                       </div>
                     </td>

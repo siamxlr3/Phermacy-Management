@@ -25,9 +25,15 @@ class AttendanceService
     ) {
         $cacheKey = "attendance_list_{$perPage}_{$search}_{$status}_{$fromDate}_{$toDate}";
         
-        return Cache::remember($cacheKey, 3600, function () use ($perPage, $search, $status, $fromDate, $toDate) {
+        $query = function () use ($perPage, $search, $status, $fromDate, $toDate) {
             return $this->attendanceRepository->getAll($perPage, $search, $status, $fromDate, $toDate);
-        });
+        };
+
+        if (config('cache.default') !== 'file') {
+            return Cache::tags(['attendance'])->remember($cacheKey, 3600, $query);
+        }
+
+        return Cache::remember($cacheKey, 3600, $query);
     }
 
     public function createAttendance(array $data): Attendance
@@ -60,8 +66,11 @@ class AttendanceService
 
     private function clearCache(): void
     {
-        // Simple strategy: Clear keys matching prefix if using Redis, 
-        // or just clear specific list patterns if known.
-        // For local development, simpler to clear just list-related ones.
+        if (config('cache.default') !== 'file') {
+            Cache::tags(['attendance'])->flush();
+        } else {
+            // For file driver, we must be aggressive
+            Cache::flush();
+        }
     }
 }

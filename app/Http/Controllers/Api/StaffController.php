@@ -9,6 +9,7 @@ use App\Http\Resources\Api\StaffResource;
 use App\Services\StaffService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class StaffController extends Controller
 {
@@ -19,7 +20,7 @@ class StaffController extends Controller
         $this->staffService = $staffService;
     }
 
-    public function index(Request $request)
+    public function index(Request $request): AnonymousResourceCollection
     {
         $perPage = $request->get('per_page', 10);
         $search = $request->get('search');

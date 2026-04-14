@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useGetShiftsQuery, useDeleteShiftMutation } from '../../store/api/hrmApi';
-import { Search, Plus, Clock, Trash2, Edit2, Timer } from 'lucide-react';
+import { Search, Plus, Clock, Trash2, Edit2, Timer, ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 

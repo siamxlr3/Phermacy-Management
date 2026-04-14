@@ -3,47 +3,92 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Api\LeaveRequest;
+use App\Http\Resources\Api\LeaveResource;
+use App\Services\LeaveService;
 use Illuminate\Http\Request;
+use Exception;
 
 class LeaveController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    protected $leaveService;
+
+    public function __construct(LeaveService $leaveService)
     {
-        //
+        $this->leaveService = $leaveService;
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function index(Request $request)
     {
-        //
+        try {
+            $perPage = $request->get('per_page', 10);
+            $search = $request->get('search');
+            $status = $request->get('status');
+            $fromDate = $request->get('from_date');
+            $toDate = $request->get('to_date');
+
+            $leaves = $this->leaveService->getAllLeaves($perPage, $search, $status, $fromDate, $toDate);
+            return LeaveResource::collection($leaves);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch leave records: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
+    public function store(LeaveRequest $request)
     {
-        //
+        try {
+            $leave = $this->leaveService->createLeave($request->validated());
+            return new LeaveResource($leave);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to submit leave application: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
+    public function show($id)
     {
-        //
+        try {
+            $leave = $this->leaveService->getLeaveById($id);
+            return new LeaveResource($leave);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Leave record not found.'
+            ], 404);
+        }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
+    public function update(LeaveRequest $request, $id)
     {
-        //
+        try {
+            $leave = $this->leaveService->updateLeave($id, $request->validated());
+            return new LeaveResource($leave);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update leave record: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function destroy($id)
+    {
+        try {
+            $this->leaveService->deleteLeave($id);
+            return response()->json([
+                'success' => true,
+                'message' => 'Leave record deleted successfully'
+            ]);
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete record: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

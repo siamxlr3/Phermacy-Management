@@ -17,11 +17,17 @@ class PayrollService
 
     public function getAllPayroll(int $perPage = 10, ?string $search = null, ?string $status = null, ?string $fromDate = null, ?string $toDate = null)
     {
-        $cacheKey = "payroll_list_{$perPage}_{$search}_{$status}_{$fromDate}_{$toDate}_" . request('page', 1);
-
-        return Cache::remember($cacheKey, 3600, function () use ($perPage, $search, $status, $fromDate, $toDate) {
+        $cacheKey = "payroll_list_{$perPage}_{$search}_{$status}_{$fromDate}_{$toDate}";
+        
+        $query = function () use ($perPage, $search, $status, $fromDate, $toDate) {
             return $this->payrollRepository->getAll($perPage, $search, $status, $fromDate, $toDate);
-        });
+        };
+
+        if (config('cache.default') !== 'file') {
+            return Cache::tags(['payroll'])->remember($cacheKey, 3600, $query);
+        }
+
+        return Cache::remember($cacheKey, 3600, $query);
     }
 
     public function getPayrollById(int $id): Payroll
@@ -68,7 +74,10 @@ class PayrollService
 
     protected function clearCache(): void
     {
-        // Simple cache clearing for demo; in production use tags or specific keys
-        Cache::flush(); 
+        if (config('cache.default') !== 'file') {
+            Cache::tags(['payroll'])->flush();
+        } else {
+            Cache::flush(); 
+        }
     }
 }

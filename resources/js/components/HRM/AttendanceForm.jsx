@@ -3,6 +3,15 @@ import { useCreateAttendanceMutation, useUpdateAttendanceMutation, useGetActiveS
 import { X, Save, Clock, User, Calendar as CalendarIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const t12To24 = (time12) => {
+  if (!time12) return '';
+  const [time, modifier] = time12.split(' ');
+  let [hours, minutes] = time.split(':');
+  if (hours === '12') hours = '00';
+  if (modifier === 'PM') hours = parseInt(hours, 10) + 12;
+  return `${hours.toString().padStart(2, '0')}:${minutes}`;
+};
+
 const AttendanceForm = ({ attendance, onClose }) => {
   const [formData, setFormData] = useState({
     staff_id: '',
@@ -32,6 +41,22 @@ const AttendanceForm = ({ attendance, onClose }) => {
       });
     }
   }, [attendance]);
+
+  const handleStaffChange = (staffId) => {
+    const staff = staffOptions.find(s => s.id.toString() === staffId);
+    if (staff) {
+      const shift = shiftOptions.find(sh => sh.id === staff.shift_id);
+      setFormData(prev => ({
+        ...prev,
+        staff_id: staffId,
+        shift_id: staff.shift_id || '',
+        check_in: shift ? t12To24(shift.start_time) : prev.check_in,
+        check_out: shift ? t12To24(shift.end_time) : prev.check_out,
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, staff_id: staffId }));
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,7 +97,7 @@ const AttendanceForm = ({ attendance, onClose }) => {
             <select
               required
               value={formData.staff_id}
-              onChange={(e) => setFormData({...formData, staff_id: e.target.value})}
+              onChange={(e) => handleStaffChange(e.target.value)}
               className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-400 appearance-none cursor-pointer"
             >
               <option value="">Select Personnel</option>

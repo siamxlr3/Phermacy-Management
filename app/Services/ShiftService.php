@@ -19,21 +19,32 @@ class ShiftService
     {
         $cacheKey = "shifts_list_{$perPage}_{$search}";
         
-        return Cache::remember($cacheKey, 3600, function () use ($perPage, $search) {
+        $query = function () use ($perPage, $search) {
             return $this->shiftRepository->getAll($perPage, $search);
-        });
+        };
+
+        if (config('cache.default') !== 'file') {
+            return Cache::tags(['shifts'])->remember($cacheKey, 3600, $query);
+        }
+
+        return Cache::remember($cacheKey, 3600, $query);
     }
 
     public function getActiveShifts()
     {
-        return Cache::remember('active_shifts', 3600, function () {
+        $query = function () {
             return $this->shiftRepository->getActiveShifts();
-        });
+        };
+
+        if (config('cache.default') !== 'file') {
+            return Cache::tags(['shifts'])->remember('active_shifts', 3600, $query);
+        }
+
+        return Cache::remember('active_shifts', 3600, $query);
     }
 
     public function createShift(array $data): Shift
     {
-        // Calculate total_hours if needed, though usually entered
         $shift = $this->shiftRepository->create($data);
         $this->clearCache();
         return $shift;
@@ -57,7 +68,11 @@ class ShiftService
 
     private function clearCache(): void
     {
-        // Targeted clear or flush if using tags
-        Cache::forget('active_shifts');
+        if (config('cache.default') !== 'file') {
+            Cache::tags(['shifts'])->flush();
+        } else {
+            // For file driver, we must be aggressive as we can't easily track dynamic keys
+            Cache::flush();
+        }
     }
 }

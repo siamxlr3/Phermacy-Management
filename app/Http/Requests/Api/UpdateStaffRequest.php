@@ -16,10 +16,11 @@ class UpdateStaffRequest extends FormRequest
         $id = $this->route('staff');
         return [
             'full_name' => 'required|string|max:255',
+            'employee_id' => 'required|string|max:255|unique:staff_management,employee_id,' . $id,
             'phone' => 'required|string|max:20',
             'email' => 'required|email|unique:staff_management,email,' . $id,
             'address' => 'nullable|string',
-            'designation' => 'required|string|max:255',
+            'designation' => 'nullable|string|max:255',
             'join_date' => 'required|date',
             'basic_salary' => 'required|numeric|min:0',
             'nid_number' => 'required|string|unique:staff_management,nid_number,' . $id,
