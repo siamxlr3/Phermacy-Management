@@ -30,9 +30,20 @@ const ExpenseForm = ({ onClose, expense }) => {
                 address: expense.address || '',
                 expense_date: expense.expense_date || new Date().toISOString().split('T')[0],
                 status: expense.status || 'Unpaid',
-                items: expense.items && expense.items.length > 0 
-                    ? expense.items.map(i => ({...i})) 
+                items: expense.items && expense.items.length > 0
+                    ? expense.items.map(i => ({...i}))
                     : [{ items_name: '', category: 'Piece', qty: 1, price: 0, total_price: 0 }]
+            });
+        } else {
+            // Reset to a completely clean state when opening for a new entry
+            setFormData({
+                supplier_name: '',
+                contact_person: '',
+                phone: '',
+                address: '',
+                expense_date: new Date().toISOString().split('T')[0],
+                status: 'Unpaid',
+                items: [{ items_name: '', category: 'Piece', qty: 1, price: 0, total_price: 0 }]
             });
         }
     }, [expense]);

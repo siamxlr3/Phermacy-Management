@@ -93,10 +93,12 @@ class ExpenseService
             if (Cache::supportsTags()) {
                 Cache::tags(['Expense'])->flush();
             } else {
-                Cache::forget('expenses_summary');
+                // If tags are not supported (e.g. file driver), flush everything 
+                // to avoid stale lists with dynamic cache keys
+                Cache::flush();
             }
         } catch (\Exception $e) {
-            //
+            // Silence cache errors
         }
     }
 }

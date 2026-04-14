@@ -20,7 +20,7 @@ class ExpenseController extends Controller
         $this->expenseService = $expenseService;
     }
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
     {
         try {
             $perPage = $request->get('per_page', 10);
@@ -31,17 +31,7 @@ class ExpenseController extends Controller
 
             $expenses = $this->expenseService->getExpenses($perPage, $search, $status, $fromDate, $toDate);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Expenses fetched successfully',
-                'data' => ExpenseResource::collection($expenses),
-                'meta' => [
-                    'current_page' => $expenses->currentPage(),
-                    'last_page' => $expenses->lastPage(),
-                    'per_page' => $expenses->perPage(),
-                    'total' => $expenses->total(),
-                ]
-            ]);
+            return ExpenseResource::collection($expenses);
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
         }
