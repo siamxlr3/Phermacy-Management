@@ -16,8 +16,8 @@ class AttendanceRequest extends FormRequest
         return [
             'staff_id' => 'required|exists:staff_management,id',
             'date' => 'required|date',
-            'check_in' => 'nullable|date_format:H:i',
-            'check_out' => 'nullable|date_format:H:i',
+            'check_in' => 'nullable|string',
+            'check_out' => 'nullable|string',
             'status' => 'required|in:present,absent,late,half_day,leave',
             'shift_id' => 'nullable|exists:shifts,id',
             'note' => 'nullable|string'

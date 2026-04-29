@@ -11,6 +11,7 @@ const initialState = {
   grand_total: 0,
   status: 'idle',
   payment_method: 'Cash',
+  heldSells: [],
 };
 
 const posSlice = createSlice({
@@ -75,7 +76,50 @@ const posSlice = createSlice({
       posSlice.caseReducers.calculateTotals(state);
     },
     clearCart: (state) => {
+      const heldSells = state.heldSells;
       Object.assign(state, initialState);
+      state.heldSells = heldSells;
+    },
+    holdCurrentCart: (state) => {
+      if (state.cart.length === 0) return;
+      
+      const heldSell = {
+        id: Date.now(),
+        label: `Order #${String(state.heldSells.length + 1).padStart(3, '0')}`,
+        items: [...state.cart],
+        subtotal: state.subtotal,
+        tax_total: state.tax_total,
+        tax_rate: state.tax_rate,
+        tax_name: state.tax_name,
+        discount_total: state.discount_total,
+        grand_total: state.grand_total,
+        payment_method: state.payment_method,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      
+      state.heldSells.push(heldSell);
+      // Clear current cart but keep heldSells
+      const heldSellsBackup = state.heldSells;
+      Object.assign(state, initialState);
+      state.heldSells = heldSellsBackup;
+    },
+    resumeHeldSell: (state, action) => {
+      const index = action.payload;
+      const heldSell = state.heldSells[index];
+      if (heldSell) {
+        state.cart = heldSell.items;
+        state.subtotal = heldSell.subtotal;
+        state.tax_total = heldSell.tax_total;
+        state.tax_rate = heldSell.tax_rate;
+        state.tax_name = heldSell.tax_name;
+        state.discount_total = heldSell.discount_total;
+        state.grand_total = heldSell.grand_total;
+        state.payment_method = heldSell.payment_method;
+        state.heldSells.splice(index, 1);
+      }
+    },
+    removeHeldSell: (state, action) => {
+      state.heldSells.splice(action.payload, 1);
     }
   },
 });
@@ -94,5 +138,9 @@ const calculateUnitPrice = (unit, medicine) => {
   return basePrice;
 };
 
-export const { addItem, removeItem, updateQuantity, setDiscount, clearCart, setCustomer, setTaxConfig, setPaymentMethod } = posSlice.actions;
+export const { 
+  addItem, removeItem, updateQuantity, setDiscount, clearCart, 
+  setCustomer, setTaxConfig, setPaymentMethod,
+  holdCurrentCart, resumeHeldSell, removeHeldSell
+} = posSlice.actions;
 export default posSlice.reducer;

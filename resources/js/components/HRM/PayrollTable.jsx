@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useGetPayrollsQuery, useDeletePayrollMutation } from '../../store/api/hrmApi';
-import { Search, Plus, DollarSign, User, Calendar, Trash2, Edit2, CheckCircle2, XCircle, Clock, FileText, Download } from 'lucide-react';
+import { Search, Plus, DollarSign, User, Calendar, Trash2, Edit2, CheckCircle2, XCircle, Clock, FileText, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import DateRangeFilter from '../Shared/DateRangeFilter';
 import toast from 'react-hot-toast';
 
 const PayrollTable = ({ onAdd, onEdit }) => {
+  const [page, setPage] = useState(1);
+  const [perPage, setPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [status, setStatus] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -13,11 +15,16 @@ const PayrollTable = ({ onAdd, onEdit }) => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
   useEffect(() => {
-    const handler = setTimeout(() => setDebouncedSearch(searchTerm), 500);
+    const handler = setTimeout(() => {
+        setDebouncedSearch(searchTerm);
+        setPage(1);
+    }, 500);
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
   const { data, isLoading, isFetching } = useGetPayrollsQuery({
+    page,
+    per_page: perPage,
     search: debouncedSearch,
     status,
     from_date: fromDate,
@@ -37,6 +44,7 @@ const PayrollTable = ({ onAdd, onEdit }) => {
   };
 
   const payrolls = data?.data || [];
+  const meta = data?.meta || {};
   const isLoadingState = isLoading || isFetching;
 
   const getStatusConfig = (status) => {
@@ -57,13 +65,13 @@ const PayrollTable = ({ onAdd, onEdit }) => {
             toDate={toDate} 
             hideLabel={true}
             hidePresets={true}
-            onChange={(from, to) => { setFromDate(from); setToDate(to); }}
+            onChange={(from, to) => { setFromDate(from); setToDate(to); setPage(1); }}
             onReset={() => { setFromDate(''); setToDate(''); }}
           />
           
           <select 
             value={status}
-            onChange={(e) => setStatus(e.target.value)}
+            onChange={(e) => { setStatus(e.target.value); setPage(1); }}
             className="px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/10 focus:border-blue-400 outline-none min-w-[140px] font-medium text-slate-600"
           >
             <option value="">All Statuses</option>
@@ -188,6 +196,45 @@ const PayrollTable = ({ onAdd, onEdit }) => {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination Footer */}
+      <div className="shrink-0 flex items-center justify-between px-6 py-4 bg-slate-50/30 border-t border-slate-100">
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Rows per page:</span>
+          <select
+            value={perPage}
+            onChange={(e) => {
+              setPerPage(Number(e.target.value));
+              setPage(1);
+            }}
+            className="bg-white border border-slate-200 text-xs font-black text-slate-600 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/10 cursor-pointer shadow-sm"
+          >
+            {[10, 25, 50, 100].map(v => <option key={v} value={v}>{v}</option>)}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] font-bold text-slate-500 px-3 py-1.5 bg-white rounded-xl border border-slate-200 shadow-sm">
+            PAGE <span className="text-slate-900 font-black">{meta.current_page || 1}</span> OF <span className="text-slate-900 font-black">{meta.last_page || 1}</span>
+          </span>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setPage(page - 1)}
+              disabled={page === 1}
+              className="p-2 ml-2 rounded-xl border border-slate-200 hover:bg-white text-slate-400 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm active:scale-95"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={() => setPage(page + 1)}
+              disabled={page >= (meta.last_page || 1)}
+              className="p-2 rounded-xl border border-slate-200 hover:bg-white text-slate-400 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm active:scale-95"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

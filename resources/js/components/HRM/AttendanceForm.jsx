@@ -5,11 +5,21 @@ import toast from 'react-hot-toast';
 
 const t12To24 = (time12) => {
   if (!time12) return '';
-  const [time, modifier] = time12.split(' ');
-  let [hours, minutes] = time.split(':');
+  const match = time12.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return time12;
+  
+  let [_, hours, minutes, modifier] = match;
   if (hours === '12') hours = '00';
-  if (modifier === 'PM') hours = parseInt(hours, 10) + 12;
+  if (modifier.toUpperCase() === 'PM') hours = parseInt(hours, 10) + 12;
   return `${hours.toString().padStart(2, '0')}:${minutes}`;
+};
+
+const t24To12 = (time24) => {
+  if (!time24) return '';
+  let [hours, minutes] = time24.split(':');
+  const modifier = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12;
+  return `${hours.toString().padStart(2, '0')}:${minutes} ${modifier}`;
 };
 
 const AttendanceForm = ({ attendance, onClose }) => {
@@ -33,8 +43,8 @@ const AttendanceForm = ({ attendance, onClose }) => {
       setFormData({
         staff_id: attendance.staff_id,
         date: attendance.date,
-        check_in: attendance.check_in?.substring(0, 5) || '09:00',
-        check_out: attendance.check_out?.substring(0, 5) || '17:00',
+        check_in: t12To24(attendance.check_in),
+        check_out: t12To24(attendance.check_out),
         status: attendance.status,
         shift_id: attendance.shift_id || '',
         note: attendance.note || ''
@@ -60,9 +70,14 @@ const AttendanceForm = ({ attendance, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const payload = {
+      ...formData,
+      check_in: t24To12(formData.check_in),
+      check_out: t24To12(formData.check_out)
+    };
     try {
-      if (attendance) await updateAttendance({ id: attendance.id, ...formData }).unwrap();
-      else await createAttendance(formData).unwrap();
+      if (attendance) await updateAttendance({ id: attendance.id, ...payload }).unwrap();
+      else await createAttendance(payload).unwrap();
       toast.success(`Attendance ${attendance ? 'updated' : 'recorded'} successfully`);
       onClose();
     } catch (err) {
