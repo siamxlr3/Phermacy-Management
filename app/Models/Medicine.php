@@ -12,37 +12,35 @@ class Medicine extends Model
     protected $fillable = [
         'name',
         'generic_name',
-        'category_id',
-        'manufacturer_id',
-        'tablets_per_strip',
-        'strips_per_box',
-        'sale_unit',
+        'category_name',
+        'manufacturer_name',
+        'dosage_form',
+        'strength',
+        'tablet_per_stripe',
+        'stripe_per_box',
         'price_per_tablet',
-        'cost_price',
+        'price_per_stripe',
+        'price_per_box',
+        'volume',
+        'price',
         'reorder_level',
         'status',
         'stock',
     ];
 
     protected $casts = [
+        'tablet_per_stripe' => 'integer',
+        'stripe_per_box' => 'integer',
         'price_per_tablet' => 'decimal:2',
-        'cost_price' => 'decimal:2',
-        'tablets_per_strip' => 'integer',
-        'strips_per_box' => 'integer',
+        'price_per_stripe' => 'decimal:2',
+        'price_per_box' => 'decimal:2',
+        'price' => 'decimal:2',
         'reorder_level' => 'integer',
         'stock' => 'integer',
     ];
 
-    public function category()
-    {
-        return $this->belongsTo(Category::class);
-    }
-
-    public function manufacturer()
-    {
-        return $this->belongsTo(Manufacturer::class);
-    }
-
+    // Removed category() and manufacturer() relationships as they are now plain strings
+    
     public function stockBatches()
     {
         return $this->hasMany(StockBatch::class);

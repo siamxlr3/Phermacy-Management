@@ -18,6 +18,13 @@ export const purchaseApi = createApi({
         body: data,
       }),
       invalidatesTags: ['PurchaseOrder'],
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch({ type: 'grnApi/invalidateTags', payload: ['GRN'] });
+          dispatch({ type: 'stockApi/invalidateTags', payload: ['Stock', 'Batch'] });
+        } catch {}
+      }
     }),
 
     updatePurchaseOrder: builder.mutation({
@@ -27,6 +34,13 @@ export const purchaseApi = createApi({
         body: data,
       }),
       invalidatesTags: ['PurchaseOrder'],
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch({ type: 'grnApi/invalidateTags', payload: ['GRN'] });
+          dispatch({ type: 'stockApi/invalidateTags', payload: ['Stock', 'Batch'] });
+        } catch {}
+      }
     }),
     updatePurchaseOrderStatus: builder.mutation({
       query: ({ id, status }) => ({
@@ -35,6 +49,13 @@ export const purchaseApi = createApi({
         body: { status },
       }),
       invalidatesTags: (result, error, { id }) => ['PurchaseOrder', { type: 'PurchaseOrder', id }],
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch({ type: 'grnApi/invalidateTags', payload: ['GRN'] });
+          dispatch({ type: 'stockApi/invalidateTags', payload: ['Stock', 'Batch'] });
+        } catch {}
+      }
     }),
     deletePurchaseOrder: builder.mutation({
       query: (id) => ({
@@ -42,6 +63,13 @@ export const purchaseApi = createApi({
         method: 'DELETE',
       }),
       invalidatesTags: ['PurchaseOrder'],
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch({ type: 'grnApi/invalidateTags', payload: ['GRN'] });
+          dispatch({ type: 'stockApi/invalidateTags', payload: ['Stock', 'Batch'] });
+        } catch {}
+      }
     }),
   }),
 });

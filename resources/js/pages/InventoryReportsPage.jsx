@@ -1,24 +1,29 @@
 import React, { useState } from 'react';
 import DashboardLayout from '../layouts/DashboardLayout';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Calendar, 
-    Truck, 
     RefreshCw, 
-    PackageSearch, 
     Database, 
+    Bell,
+    Zap,
+    Clock,
     AlertTriangle,
-    Download,
-    Clock
+    ShieldCheck,
+    CreditCard,
+    Package
 } from 'lucide-react';
 import { useGetInventoryReportQuery, useRefreshInventoryReportsMutation } from '../store/api/inventoryReportsApi';
+import { useRunProcessMutation, useGetAlertSummaryQuery } from '../store/api/alertsApi';
 import StockValuationCards from '../components/Reports/StockValuationCards';
 import ExpiryRiskTable from '../components/Reports/ExpiryRiskTable';
 import SupplierDebtList from '../components/Reports/SupplierDebtList';
+import AlertTable from '../components/Alerts/AlertTable';
 import { Toaster, toast } from 'react-hot-toast';
 
 const InventoryReportsPage = () => {
-    // Default to a 90-day lookup for expiry tracking
+    const [activeTab, setActiveTab] = useState('alerts'); // alerts, expiry, debts
+
     const [dateRange, setDateRange] = useState({
         from_date: new Date().toISOString().split('T')[0],
         to_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
@@ -26,6 +31,8 @@ const InventoryReportsPage = () => {
 
     const { data: reportData, isLoading, isFetching } = useGetInventoryReportQuery(dateRange);
     const [refreshReports, { isLoading: isRefreshing }] = useRefreshInventoryReportsMutation();
+    const [runProcess, { isLoading: isRunning }] = useRunProcessMutation();
+    const { data: alertSummary } = useGetAlertSummaryQuery();
 
     const handleRefresh = async () => {
         try {
@@ -36,175 +43,111 @@ const InventoryReportsPage = () => {
         }
     };
 
-    const quickFilters = [
-        { label: 'Today', days: 0 },
-        { label: 'Last 7 Days', days: 7 },
-        { label: 'Last 30 Days', days: 30 },
-        { label: 'Year to date', type: 'ytd' }
-    ];
-
-    const applyQuickFilter = (filter) => {
-        const to = new Date().toISOString().split('T')[0];
-        let from;
-        
-        if (filter.type === 'ytd') {
-            from = `${new Date().getFullYear()}-01-01`;
-        } else {
-            from = new Date(Date.now() - filter.days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const handleRunScan = async () => {
+        try {
+            const res = await runProcess().unwrap();
+            toast.success(`Inventory scan complete: Found ${res.data?.expiry_alerts || 0} issues.`);
+        } catch (err) {
+            toast.error('Failed to run system scan');
         }
-        
-        setDateRange({ from_date: from, to_date: to });
     };
+
+    const tabs = [
+        { id: 'alerts', label: 'Low Stock Items', icon: AlertTriangle, color: 'rose' },
+        { id: 'expiry', label: 'Expiring Soon & Expired', icon: Clock, color: 'amber' },
+        { id: 'debts', label: 'Unpaid Supplier Bills', icon: CreditCard, color: 'indigo' },
+    ];
 
     return (
         <DashboardLayout noScroll>
             <Toaster position="top-right" />
             
-            <div className="flex flex-col h-full min-h-0 bg-slate-50/50 -m-6 p-6 overflow-hidden">
+            <div className="flex flex-col h-full min-h-0 premium-gradient-bg jakarta-sans -m-6 p-8 overflow-hidden">
                 
-                {/* Page Header */}
-                <div className="shrink-0 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div>
-                        <div className="flex items-center gap-3 mb-1">
-                            <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
-                                <Database size={16} className="text-emerald-600" />
-                            </div>
-                            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Stock & Purchases</h1>
-                        </div>
-                        <p className="text-sm text-slate-500 ml-11">General Stock Status & Supplier Bills</p>
-                    </div>
 
-                    <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2 p-1.5 bg-white border border-slate-200 rounded-2xl shadow-sm">
-                            {quickFilters.map((f, idx) => (
+                {/* Dashboard Header & Refresh */}
+                <div className="flex items-center justify-between mb-6">
+                    <h1 className="text-2xl font-black text-[#0f1923] tracking-tight">Inventory Analytics</h1>
+                    <button 
+                        onClick={handleRefresh} 
+                        disabled={isRefreshing}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200/60 rounded-xl shadow-sm hover:shadow-md hover:border-slate-300 text-slate-700 font-bold text-sm transition-all active:scale-95 disabled:opacity-50"
+                    >
+                        <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+                        Sync Data
+                    </button>
+                </div>
+
+                {/* Dashboard Summary & View Toggles */}
+                <div className="shrink-0 space-y-7 mb-7">
+                    <StockValuationCards 
+                        summaries={reportData?.data.summaries} 
+                        alertSummary={alertSummary}
+                        isLoading={isLoading || isFetching} 
+                    />
+
+                    {/* Tab Navigation */}
+                    <div className="flex items-center gap-1.5 p-1.5 premium-glass rounded-2xl shadow-sm w-fit border border-slate-200/40">
+                        {tabs.map((tab) => {
+                            const isActive = activeTab === tab.id;
+                            const dotColors = { alerts: 'bg-red-500', expiry: 'bg-amber-500', debts: 'bg-blue-500' };
+                            return (
                                 <button
-                                    key={idx}
-                                    onClick={() => applyQuickFilter(f)}
-                                    className="px-4 py-2 text-[10px] font-black uppercase tracking-wider text-slate-500 hover:text-emerald-600 hover:bg-slate-50 rounded-xl transition-all"
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`flex items-center gap-2.5 px-5 py-2.5 rounded-xl transition-all duration-300 relative ${
+                                        isActive 
+                                            ? 'bg-[#0f1923] text-white shadow-lg shadow-slate-900/10' 
+                                            : 'text-slate-500 hover:bg-black/5 font-bold'
+                                    }`}
                                 >
-                                    {f.label}
+                                    {!isActive && <div className={`w-1.5 h-1.5 rounded-full ${dotColors[tab.id]}`} />}
+                                    <span className="text-[12px] font-bold uppercase tracking-wide">{tab.label}</span>
                                 </button>
-                            ))}
-                        </div>
-                        
-                        <button 
-                            onClick={handleRefresh}
-                            className="w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-slate-400 hover:text-emerald-600 transition-all shadow-sm"
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Main Content Area */}
+                <div className="flex-1 min-h-0 overflow-hidden flex flex-col premium-glass rounded-[20px] shadow-xl border border-slate-200/50">
+                    <AnimatePresence mode="wait">
+                        <motion.div
+                            key={activeTab}
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -12 }}
+                            transition={{ duration: 0.3 }}
+                            className="flex-1 h-full min-h-0 flex flex-col"
                         >
-                            <RefreshCw size={20} className={isRefreshing ? 'animate-spin' : ''} />
-                        </button>
-
-                    </div>
-                </div>
-
-                {/* Filters Hud */}
-                <div className="shrink-0 mb-8 flex items-center gap-4">
-                    <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-4 py-3 shadow-sm min-w-[350px]">
-                        <Calendar size={18} className="text-slate-400" />
-                        <div className="flex items-center gap-3 flex-1">
-                            <input 
-                                type="date" 
-                                value={dateRange.from_date}
-                                onChange={(e) => setDateRange(prev => ({ ...prev, from_date: e.target.value }))}
-                                className="bg-transparent border-none outline-none text-xs font-black text-slate-600 w-full"
-                            />
-                            <span className="text-slate-300 font-bold text-[10px]">TO</span>
-                            <input 
-                                type="date" 
-                                value={dateRange.to_date}
-                                onChange={(e) => setDateRange(prev => ({ ...prev, to_date: e.target.value }))}
-                                className="bg-transparent border-none outline-none text-xs font-black text-slate-600 w-full focus:ring-0"
-                            />
-                        </div>
-                    </div>
-                    
-                    <div className="px-4 py-3 bg-white border border-slate-200 rounded-2xl flex items-center gap-3 shadow-sm border-l-4 border-l-emerald-500">
-                        <Clock size={16} className="text-slate-400" />
-                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">
-                            Data updated at <span className="text-slate-900">{new Date().toLocaleTimeString()}</span>
-                        </span>
-                    </div>
-                </div>
-
-                {/* Main Content Hud */}
-                <div className="flex-1 min-h-0 flex flex-col gap-8 overflow-auto custom-scrollbar pr-2 pb-6">
-                    
-                    {/* High Level Metrics */}
-                    <StockValuationCards summaries={reportData?.data.summaries} isLoading={isLoading || isFetching} />
-
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 min-h-[700px]">
-                        
-                        {/* Expiry Risk Focus */}
-                        <div className="lg:col-span-8 flex flex-col h-full border-r border-slate-100 pr-2">
-                            {isLoading || isFetching ? (
-                                <div className="space-y-4 animate-pulse p-4">
-                                    <div className="h-10 bg-slate-100 rounded-xl w-48 mb-6" />
-                                    <div className="space-y-2">
-                                        {[1,2,3,4,5].map(i => (
-                                            <div key={i} className="h-16 bg-slate-50 rounded-2xl w-full" />
-                                        ))}
-                                    </div>
+                            {/* Dynamic Panel Header based on Tab */}
+                            <div className="shrink-0 px-6 py-5 border-b border-slate-200/60 bg-white/40 backdrop-blur-sm flex items-center gap-4">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg shadow-sm ${
+                                    activeTab === 'alerts' ? 'bg-rose-500/10 text-rose-600' :
+                                    activeTab === 'expiry' ? 'bg-amber-500/10 text-amber-600' :
+                                    'bg-blue-500/10 text-blue-600'
+                                }`}>
+                                    {activeTab === 'alerts' ? '⚠️' : activeTab === 'expiry' ? '⏰' : '🧾'}
                                 </div>
-                            ) : (
-                                <ExpiryRiskTable risks={reportData?.data.expiry_risks.warning} />
-                            )}
-                        </div>
-
-                        {/* Debt and Risks Summary */}
-                        <div className="lg:col-span-4 flex flex-col h-full gap-8 overflow-hidden">
-                            
-                            <div className="flex-1 min-h-0">
-                                {isLoading || isFetching ? (
-                                    <div className="space-y-4 animate-pulse p-4">
-                                        <div className="h-10 bg-slate-100 rounded-xl w-48 mb-6" />
-                                        <div className="h-40 bg-slate-50 rounded-3xl w-full" />
-                                        <div className="h-40 bg-slate-50 rounded-3xl w-full" />
-                                    </div>
-                                ) : (
-                                    <SupplierDebtList dues={reportData?.data.dues} />
-                                )}
-                            </div>
-
-                            {/* Slow Moving Detection */}
-                            <div className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm">
-                                <h3 className="text-sm font-black text-slate-900 tracking-tight mb-4 flex items-center gap-2">
-                                    <PackageSearch size={18} className="text-indigo-500" />
-                                    Items Not Selling
-                                </h3>
-                                <div className="space-y-4 max-h-[250px] overflow-auto custom-scrollbar pr-2">
-                                    {isLoading || isFetching ? (
-                                        [1,2,3].map(i => (
-                                            <div key={i} className="h-12 bg-slate-50 rounded-xl animate-pulse w-full" />
-                                        ))
-                                    ) : (
-                                        <>
-                                            {reportData?.data.slow_moving.map((med, idx) => (
-                                                <div key={idx} className="flex items-center justify-between p-3 bg-slate-50/50 rounded-2xl border border-slate-100 group hover:bg-white transition-all">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-xs font-bold text-slate-700">{med.name}</span>
-                                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest tracking-tight">
-                                                            {med.last_sold_at 
-                                                                ? `Last sold ${Math.ceil((new Date() - new Date(med.last_sold_at)) / (1000 * 60 * 60 * 24))} days ago`
-                                                                : 'No sales history recorded'}
-                                                        </span>
-                                                    </div>
-                                                    <div className="flex flex-col items-end">
-                                                        <span className="text-[11px] font-black text-indigo-600">{med.stock} Units</span>
-                                                        <span className="text-[8px] font-black text-slate-300 uppercase italic">Idle Stock</span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                            {reportData?.data.slow_moving.length === 0 && (
-                                                <p className="text-center py-6 text-[10px] font-bold text-slate-400">Everything is selling well.</p>
-                                            )}
-                                        </>
-                                    )}
+                                <div>
+                                    <h3 className="text-[14px] font-extrabold text-[#0f1923] tracking-tight uppercase">
+                                        {tabs.find(t => t.id === activeTab)?.label}
+                                    </h3>
+                                    <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
+                                        {activeTab === 'alerts' ? 'Automated alerts for inventory replenishment' :
+                                         activeTab === 'expiry' ? 'Tracking pharmaceutical batches within danger zones' :
+                                         'Outstanding payments and procurement debts'}
+                                    </p>
                                 </div>
                             </div>
 
-                        </div>
-                    </div>
-
+                            <div className="flex-1 min-h-0 overflow-hidden">
+                                {activeTab === 'alerts' && <AlertTable type="Low Stock" />}
+                                {activeTab === 'expiry' && <ExpiryRiskTable risks={reportData?.data.expiry_risks.warning} />}
+                                {activeTab === 'debts' && <SupplierDebtList dues={reportData?.data.dues} />}
+                            </div>
+                        </motion.div>
+                    </AnimatePresence>
                 </div>
             </div>
         </DashboardLayout>

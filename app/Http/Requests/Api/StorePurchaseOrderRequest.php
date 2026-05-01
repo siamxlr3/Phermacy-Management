@@ -3,6 +3,9 @@
 namespace App\Http\Requests\Api;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\Log;
 
 class StorePurchaseOrderRequest extends FormRequest
 {
@@ -25,5 +28,14 @@ class StorePurchaseOrderRequest extends FormRequest
             'items.*.qty_boxes' => 'required|integer|min:1',
             'items.*.unit_cost' => 'required|numeric|min:0',
         ];
+    }
+
+    protected function failedValidation(Validator $validator)
+    {
+        Log::error('Purchase Order Validation Failed', $validator->errors()->toArray());
+        throw new HttpResponseException(response()->json([
+            'message' => 'The given data was invalid.',
+            'errors' => $validator->errors(),
+        ], 422));
     }
 }

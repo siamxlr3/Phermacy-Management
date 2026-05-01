@@ -46,7 +46,6 @@ class PurchaseOrderService
 
             // 2. Create the main Purchase Order
             $poData = [
-                'po_number' => $this->poRepository->generatePONumber(),
                 'supplier_id' => $data['supplier_id'],
                 'order_date' => $data['order_date'],
                 'notes' => $data['notes'] ?? null,

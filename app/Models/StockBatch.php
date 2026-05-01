@@ -18,6 +18,10 @@ class StockBatch extends Model
         'qty_tablets',
         'qty_tablets_remaining',
         'cost_per_tablet',
+        'cost_per_stripe',
+        'cost_per_box',
+        'volume',
+        'price',
         'received_date',
     ];
 
@@ -25,6 +29,9 @@ class StockBatch extends Model
         'expiry_date' => 'date',
         'received_date' => 'date',
         'cost_per_tablet' => 'decimal:2',
+        'cost_per_stripe' => 'decimal:2',
+        'cost_per_box' => 'decimal:2',
+        'price' => 'decimal:2',
     ];
 
     public function medicine()
@@ -40,10 +47,5 @@ class StockBatch extends Model
     public function grn()
     {
         return $this->belongsTo(GRN::class);
-    }
-
-    public function adjustments()
-    {
-        return $this->hasMany(StockAdjustment::class);
     }
 }

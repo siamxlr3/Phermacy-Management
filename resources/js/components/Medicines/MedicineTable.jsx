@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useGetMedicinesQuery, useDeleteMedicineMutation } from '../../store/api/medicineApi';
-import { Search, Plus, Pencil, Trash2, Pill, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { Search, Plus, Pencil, Trash2, Pill, ChevronLeft, ChevronRight, Boxes, Droplets } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import MedicineForm from './MedicineForm';
@@ -97,6 +97,8 @@ const MedicineTable = () => {
   const meta = data?.meta || {};
   const isLoadingState = isLoading || isFetching;
 
+  const GROUP_A = ['Tablet', 'Capsule', 'Suppository', 'Patch'];
+
   return (
     <div className="flex gap-6 h-full min-h-0">
       <div className="flex-1 min-w-0 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col min-h-0">
@@ -132,10 +134,10 @@ const MedicineTable = () => {
             <thead>
               <tr>
                 <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[22%]">Medicine Info</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[12%]">Category</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[14%]">Manufacturer</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[14%] text-right">Pricing & Unit</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[14%] text-center">Packaging</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[12%]">Dosage & Strength</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[14%]">Category/Manuf.</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[14%] text-right">Pricing</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[14%] text-center">Packaging/Volume</th>
                 <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[8%] text-center">Reorder</th>
                 <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[12%] text-center">Status</th>
                 <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[8%] text-right">Actions</th>
@@ -152,90 +154,107 @@ const MedicineTable = () => {
               <tbody className="divide-y divide-slate-50">
                 {isLoadingState
                   ? Array.from({ length: 6 }).map((_, i) => <SkeletonRow key={i} />)
-                  : medicines.map((med) => (
-                    <tr key={med.id} className="group hover:bg-slate-50/50 transition-colors duration-100">
-                    {/* Medicine Info */}
-                      <td className="px-6 py-4 w-[22%]">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 font-black text-xs">
-                            {med.name.substring(0, 2).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 mb-0.5">
-                              <span className="text-sm font-bold text-slate-900 truncate">{med.name}</span>
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-black border uppercase tracking-tighter shrink-0 ${getStatusStyle(med.stock || 0, med.reorder_level)}`}>
-                                {getStatusLabel(med.stock || 0, med.reorder_level)}
-                              </span>
+                  : medicines.map((med) => {
+                      const isGroupA = GROUP_A.includes(med.dosage_form);
+                      return (
+                        <tr key={med.id} className="group hover:bg-slate-50/50 transition-colors duration-100">
+                          {/* Medicine Info */}
+                          <td className="px-6 py-4 w-[22%]">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0 font-black text-xs">
+                                {isGroupA ? <Boxes size={16} /> : <Droplets size={16} />}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <span className="text-sm font-bold text-slate-900 truncate">{med.name}</span>
+                                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-black border uppercase tracking-tighter shrink-0 ${getStatusStyle(med.stock || 0, med.reorder_level)}`}>
+                                    {getStatusLabel(med.stock || 0, med.reorder_level)}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-400 font-medium truncate italic">{med.generic_name || '—'}</p>
+                              </div>
                             </div>
-                            <p className="text-[11px] text-slate-400 font-medium truncate italic">{med.generic_name || '—'}</p>
-                          </div>
-                        </div>
-                      </td>
-                      {/* Category */}
-                      <td className="px-6 py-4 w-[12%]">
-                        <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-[11px] font-semibold border border-slate-200">
-                          {med.category || 'Uncategorized'}
-                        </span>
-                      </td>
-                      {/* Manufacturer */}
-                      <td className="px-6 py-4 w-[14%]">
-                        <span className="text-xs font-medium text-slate-600 truncate block">{med.manufacturer || '—'}</span>
-                      </td>
-                      {/* Pricing */}
-                      <td className="px-6 py-4 text-right w-[14%]">
-                        <div className="flex flex-col gap-1 items-end">
-                           <span className="text-[9px] font-black uppercase text-indigo-600 tracking-wider bg-indigo-50 px-2 py-0.5 rounded-full mb-1 border border-indigo-100/50">
-                            {med.sale_unit || 'Unit'}
-                          </span>
-                          <div className="flex items-center justify-end gap-1">
-                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Sale</span>
-                            <span className="text-sm font-bold text-emerald-600">৳{parseFloat(med.price_per_tablet).toFixed(2)}</span>
-                          </div>
-                          <div className="flex items-center justify-end gap-1">
-                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Cost</span>
-                            <span className="text-xs font-semibold text-slate-400">৳{parseFloat(med.cost_price).toFixed(2)}</span>
-                          </div>
-                        </div>
-                      </td>
-                      {/* Packaging */}
-                      <td className="px-6 py-4 text-center w-[14%]">
-                        <div className="flex flex-col gap-0.5 items-center">
-                          <span className="text-[11px] font-semibold text-slate-600 whitespace-nowrap">
-                            {med.tablets_per_strip ? `${med.tablets_per_strip} Tabs/Strip` : '—'}
-                          </span>
-                          <span className="text-[10px] font-medium text-slate-400 whitespace-nowrap">
-                            {med.strips_per_box ? `${med.strips_per_box} Strips/Box` : '—'}
-                          </span>
-                        </div>
-                      </td>
-                      {/* Reorder Level */}
-                      <td className="px-6 py-4 text-center w-[8%]">
-                        <span className="text-xs font-bold text-slate-500">{med.reorder_level}</span>
-                      </td>
-                      {/* Status */}
-                      <td className="px-6 py-4 text-center w-[12%]">
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold border uppercase tracking-widest ${
-                          med.status === 'Active' 
-                            ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
-                            : 'bg-slate-50 text-slate-400 border-slate-200'
-                        }`}>
-                          <div className={`w-1 h-1 rounded-full ${med.status === 'Active' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-                          {med.status || 'Active'}
-                        </span>
-                      </td>
-                      {/* Actions */}
-                      <td className="px-6 py-4 text-right w-[8%]">
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                          <button onClick={() => handleEdit(med)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
-                            <Pencil size={14} />
-                          </button>
-                          <button onClick={() => handleDelete(med.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                          </td>
+                          {/* Dosage & Strength */}
+                          <td className="px-6 py-4 w-[12%]">
+                            <div className="flex flex-col gap-1">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 uppercase w-fit">
+                                {med.dosage_form}
+                              </span>
+                              <span className="text-[11px] font-semibold text-slate-500">{med.strength || '—'}</span>
+                            </div>
+                          </td>
+                          {/* Category/Manufacturer */}
+                          <td className="px-6 py-4 w-[14%]">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-xs font-semibold text-slate-700 truncate">{med.category_name || '—'}</span>
+                              <span className="text-[10px] font-medium text-slate-400 truncate">{med.manufacturer_name || '—'}</span>
+                            </div>
+                          </td>
+                          {/* Pricing */}
+                          <td className="px-6 py-4 text-right w-[14%]">
+                            <div className="flex flex-col gap-1 items-end">
+                              {isGroupA ? (
+                                <>
+                                  <span className="text-sm font-bold text-emerald-600">৳{parseFloat(med.price_per_tablet || 0).toFixed(2)}</span>
+                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">per tablet</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-sm font-bold text-emerald-600">৳{parseFloat(med.price || 0).toFixed(2)}</span>
+                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">per unit</span>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                          {/* Packaging/Volume */}
+                          <td className="px-6 py-4 text-center w-[14%]">
+                            <div className="flex flex-col gap-0.5 items-center">
+                              {isGroupA ? (
+                                <>
+                                  <span className="text-[11px] font-semibold text-slate-600 whitespace-nowrap">
+                                    {med.tablet_per_stripe} Tabs/Strip
+                                  </span>
+                                  <span className="text-[10px] font-medium text-slate-400 whitespace-nowrap">
+                                    {med.stripe_per_box} Stripes/Box
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-[11px] font-semibold text-slate-600">
+                                  {med.volume || '—'}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          {/* Reorder Level */}
+                          <td className="px-6 py-4 text-center w-[8%]">
+                            <span className="text-xs font-bold text-slate-500">{med.reorder_level}</span>
+                          </td>
+                          {/* Status */}
+                          <td className="px-6 py-4 text-center w-[12%]">
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold border uppercase tracking-widest ${
+                              med.status === 'Active' 
+                                ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
+                                : 'bg-slate-50 text-slate-400 border-slate-200'
+                            }`}>
+                              <div className={`w-1 h-1 rounded-full ${med.status === 'Active' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                              {med.status || 'Active'}
+                            </span>
+                          </td>
+                          {/* Actions */}
+                          <td className="px-6 py-4 text-right w-[8%]">
+                            <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                              <button onClick={() => handleEdit(med)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
+                                <Pencil size={14} />
+                              </button>
+                              <button onClick={() => handleDelete(med.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                 }
               </tbody>
             </table>

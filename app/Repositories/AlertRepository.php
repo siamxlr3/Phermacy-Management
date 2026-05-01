@@ -84,4 +84,9 @@ class AlertRepository
     {
         return Alert::active()->count();
     }
+
+    public function getActiveCountByType(string $type): int
+    {
+        return Alert::active()->where('type', $type)->count();
+    }
 }

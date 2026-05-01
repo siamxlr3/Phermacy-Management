@@ -9,7 +9,7 @@ export const medicineApi = createApi({
       return headers;
     },
   }),
-  tagTypes: ['Medicine', 'Category', 'Manufacturer'],
+  tagTypes: ['Medicine'],
   endpoints: (builder) => ({
     // Medicines
     getMedicines: builder.query({
@@ -44,74 +44,6 @@ export const medicineApi = createApi({
       }),
       invalidatesTags: ['Medicine'],
     }),
-
-    // Categories
-    getCategories: builder.query({
-      query: ({ page = 1, perPage = 10, search = '' }) => 
-        `/categories?page=${page}&per_page=${perPage}&search=${search}`,
-      providesTags: ['Category'],
-    }),
-    getActiveCategories: builder.query({
-      query: () => '/categories/active',
-      providesTags: ['Category'],
-    }),
-    addCategory: builder.mutation({
-      query: (data) => ({
-        url: '/categories',
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: ['Category'],
-    }),
-    updateCategory: builder.mutation({
-      query: ({ id, ...data }) => ({
-        url: `/categories/${id}`,
-        method: 'PUT',
-        body: data,
-      }),
-      invalidatesTags: ['Category'],
-    }),
-    deleteCategory: builder.mutation({
-      query: (id) => ({
-        url: `/categories/${id}`,
-        method: 'DELETE',
-      }),
-      invalidatesTags: ['Category'],
-    }),
-
-    // Manufacturers
-    getManufacturers: builder.query({
-      query: ({ page = 1, perPage = 10, search = '' }) => 
-        `/manufacturers?page=${page}&per_page=${perPage}&search=${search}`,
-      providesTags: ['Manufacturer'],
-    }),
-    getActiveManufacturers: builder.query({
-      query: () => '/manufacturers/active',
-      providesTags: ['Manufacturer'],
-    }),
-    addManufacturer: builder.mutation({
-      query: (data) => ({
-        url: '/manufacturers',
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: ['Manufacturer'],
-    }),
-    updateManufacturer: builder.mutation({
-      query: ({ id, ...data }) => ({
-        url: `/manufacturers/${id}`,
-        method: 'PUT',
-        body: data,
-      }),
-      invalidatesTags: ['Manufacturer'],
-    }),
-    deleteManufacturer: builder.mutation({
-      query: (id) => ({
-        url: `/manufacturers/${id}`,
-        method: 'DELETE',
-      }),
-      invalidatesTags: ['Manufacturer'],
-    }),
   }),
 });
 
@@ -121,14 +53,4 @@ export const {
   useAddMedicineMutation,
   useUpdateMedicineMutation,
   useDeleteMedicineMutation,
-  useGetCategoriesQuery,
-  useGetActiveCategoriesQuery,
-  useAddCategoryMutation,
-  useUpdateCategoryMutation,
-  useDeleteCategoryMutation,
-  useGetManufacturersQuery,
-  useGetActiveManufacturersQuery,
-  useAddManufacturerMutation,
-  useUpdateManufacturerMutation,
-  useDeleteManufacturerMutation,
 } = medicineApi;

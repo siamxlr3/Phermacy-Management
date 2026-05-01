@@ -13,12 +13,10 @@ import SuppliersPage from './pages/SuppliersPage';
 import OrdersPage from './pages/OrdersPage';
 
 import SettingPage from './pages/SettingPage';
-import GRNPage from './pages/GRNPage';
 import CurrentStockPage from './pages/CurrentStockPage';
 import SuppliersReturnPage from './pages/SuppliersReturnPage';
 import NewPOSPage from './pages/NewPOSPage';
 import ReturnsPage from './pages/ReturnsPage';
-import CriticalAlertsPage from './pages/CriticalAlertsPage';
 import SalesReportsPage from './pages/SalesReportsPage';
 import InventoryReportsPage from './pages/InventoryReportsPage';
 import ExpensePage from './pages/ExpensePage';
@@ -45,18 +43,15 @@ const App = () => {
                     <Route path="/inventory/medicines" element={<MedicinePage />} />
                     <Route path="/inventory/stock" element={<CurrentStockPage />} />
                     <Route path="/inventory/adjustments" element={<Dashboard />} />
-                    <Route path="/inventory/alerts" element={<CriticalAlertsPage />} />
                     <Route path="/inventory/reports" element={<InventoryReportsPage />} />
                     <Route path="/inventory/interactions" element={<Dashboard />} />
 
                     {/* Purchasing */}
                     <Route path="/suppliers" element={<SuppliersPage />} />
                     <Route path="/orders" element={<OrdersPage />} />
-                    <Route path="/grn" element={<GRNPage />} />
                     <Route path="/returns" element={<SuppliersReturnPage />} />
                     <Route path="/purchasing/suppliers" element={<SuppliersPage />} />
                     <Route path="/purchasing/orders" element={<OrdersPage />} />
-                    <Route path="/purchasing/grn" element={<GRNPage />} />
                     <Route path="/purchasing/returns" element={<SuppliersReturnPage />} />
 
                     {/* HRM */}
@@ -72,7 +67,6 @@ const App = () => {
 
 
                     {/* System */}
-                    <Route path="/alerts" element={<CriticalAlertsPage />} />
                     <Route path="/settings/users" element={<Dashboard />} />
                     <Route path="/settings/audit" element={<Dashboard />} />
                     <Route path="/settings" element={<SettingPage />} />

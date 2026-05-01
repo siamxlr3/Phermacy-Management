@@ -36,145 +36,253 @@ class GRNService
     public function createGRN(array $data)
     {
         return DB::transaction(function () use ($data) {
-            $po = PurchaseOrder::with('supplier')->findOrFail($data['purchase_order_id']);
-            
+            // Auto-generate Purchase Order if one wasn't linked
+            if (empty($data['purchase_order_id'])) {
+                $po = PurchaseOrder::create([
+                    'supplier_id' => $data['supplier_id'],
+                    'order_date' => $data['received_date'],
+                    'status' => 'Received',
+                    'payment_status' => $data['payment_status'] ?? 'Due',
+                    'total_amount' => $data['total_amount'],
+                    'paid_amount' => $data['paid_amount'] ?? 0,
+                    'notes' => 'Auto-generated from GRN',
+                ]);
+                
+                foreach ($data['items'] as $item) {
+                    $medicine = Medicine::find($item['medicine_id']);
+                    $isGroupA = in_array($medicine->dosage_form, ['Tablet', 'Capsule', 'Suppository', 'Patch']);
+                    
+                    \App\Models\PurchaseOrderItem::create([
+                        'purchase_order_id' => $po->id,
+                        'medicine_id' => $item['medicine_id'],
+                        'qty_boxes' => $item['qty_boxes_received'],
+                        'unit_cost' => $isGroupA ? ($item['cost_per_box'] ?? 0) : ($item['price'] ?? 0),
+                        'subtotal' => $item['subtotal'],
+                    ]);
+                }
+                
+                $data['purchase_order_id'] = $po->id;
+            }
+
             // 1. Create the GRN Header
             $grn = $this->grnRepository->create([
-                'purchase_order_id' => $data['purchase_order_id'],
+                'purchase_order_id' => $data['purchase_order_id'] ?? null,
+                'supplier_id' => $data['supplier_id'],
                 'received_date' => $data['received_date'],
                 'invoice_number' => $data['invoice_number'] ?? null,
-                'received_by' => $data['received_by'],
+                'received_by' => $data['received_by'] ?? null,
                 'total_amount' => $data['total_amount'],
+                'paid_amount' => $data['paid_amount'] ?? 0,
+                'payment_status' => $data['payment_status'] ?? 'Due',
                 'notes' => $data['notes'] ?? null,
             ]);
 
             // 2. Process items
             foreach ($data['items'] as $item) {
-                // a. Create GRN Item
-                $this->grnRepository->createItem($grn, $item);
-
-                // b. Calculate stock in smallest unit (tablets)
                 $medicine = Medicine::findOrFail($item['medicine_id']);
-                $stripsPerBox = $medicine->strips_per_box ?? 1;
-                $tabletsPerStrip = $medicine->tablets_per_strip ?? 1;
-                $totalTablets = $item['qty_boxes_received'] * $stripsPerBox * $tabletsPerStrip;
+                $isGroupA = in_array($medicine->dosage_form, ['Tablet', 'Capsule', 'Suppository', 'Patch']);
 
-                // c. Calculate cost per tablet for stock batch
-                $costPerTablet = $item['unit_cost'] / ($stripsPerBox * $tabletsPerStrip);
+                // a. Create GRN Item
+                $this->grnRepository->createItem($grn, [
+                    'medicine_id' => $item['medicine_id'],
+                    'batch_number' => $item['batch_number'],
+                    'expiry_date' => $item['expiry_date'],
+                    'qty_boxes_received' => $item['qty_boxes_received'],
+                    'subtotal' => $item['subtotal'],
+                    // Group A fields
+                    'cost_per_box' => $isGroupA ? ($item['cost_per_box'] ?? null) : null,
+                    'cost_per_stripe' => $isGroupA ? ($item['cost_per_stripe'] ?? null) : null,
+                    'cost_per_tablet' => $isGroupA ? ($item['cost_per_tablet'] ?? null) : null,
+                    'strength' => $item['strength'] ?? $medicine->strength,
+                    // Group B fields
+                    'volume' => !$isGroupA ? ($item['volume'] ?? $medicine->volume) : null,
+                    'price' => !$isGroupA ? ($item['price'] ?? null) : null,
+                ]);
 
-                // d. Create Stock Batch
+                // b. Calculate stock in smallest units
+                $totalUnits = 0;
+                if ($isGroupA) {
+                    $tabletsPerBox = ($medicine->tablet_per_stripe ?? 1) * ($medicine->stripe_per_box ?? 1);
+                    $totalUnits = $item['qty_boxes_received'] * $tabletsPerBox;
+                } else {
+                    $totalUnits = $item['qty_boxes_received']; // For liquids, boxes_received acts as unit count
+                }
+
+                // c. Create Stock Batch
                 $this->batchRepository->create([
                     'medicine_id' => $item['medicine_id'],
-                    'supplier_id' => $po->supplier_id,
+                    'supplier_id' => $data['supplier_id'],
                     'grn_id' => $grn->id,
                     'batch_number' => $item['batch_number'],
                     'expiry_date' => $item['expiry_date'],
-                    'qty_tablets' => $totalTablets,
-                    'qty_tablets_remaining' => $totalTablets,
-                    'cost_per_tablet' => $costPerTablet,
+                    'qty_tablets' => $totalUnits,
+                    'qty_tablets_remaining' => $totalUnits,
                     'received_date' => $data['received_date'],
+                    // Costs
+                    'cost_per_tablet' => $isGroupA ? ($item['cost_per_tablet'] ?? null) : null,
+                    'cost_per_stripe' => $isGroupA ? ($item['cost_per_stripe'] ?? null) : null,
+                    'cost_per_box' => $isGroupA ? ($item['cost_per_box'] ?? null) : null,
+                    'volume' => !$isGroupA ? ($item['volume'] ?? $medicine->volume) : null,
+                    'price' => !$isGroupA ? ($item['price'] ?? null) : null,
                 ]);
 
-                // e. Update master stock on Medicine model
-                $medicine->increment('stock', $totalTablets);
+                // d. Update master stock on Medicine model
+                $medicine->increment('stock', $totalUnits);
                 
-                // f. Update Medicine cost price with the latest purchase price
-                $medicine->update(['cost_price' => $item['unit_cost']]);
+                // e. Update Medicine cost price (latest purchase price)
+                if ($isGroupA) {
+                    $medicine->update(['price_per_tablet' => $item['cost_per_tablet'] ?? $medicine->price_per_tablet]);
+                } else {
+                    $medicine->update(['price' => $item['price'] ?? $medicine->price]);
+                }
 
-                // Auto-resolve any Low Stock alerts if stock is now sufficient
                 $this->alertService->resolveLowStockAlert($medicine->fresh());
             }
 
-            // 3. Update PO status to Received
-            $po->update(['status' => 'Received']);
+            // 3. Update PO status if applicable (if it was an existing PO)
+            if (!empty($data['purchase_order_id'])) {
+                $po = PurchaseOrder::find($data['purchase_order_id']);
+                if ($po && $po->status !== 'Received') {
+                    $po->update(['status' => 'Received']);
+                }
+            }
 
-            // 4. Invalidate relevant caches
             Cache::forget('stock.aggregated');
             Cache::forget('medicines.active_list');
 
-            return $grn->load(['purchaseOrder', 'items.medicine']);
+            return $grn->load(['supplier', 'purchaseOrder', 'items.medicine']);
         });
     }
 
-    public function getGRNDetails(int $id)
-    {
-        return $this->grnRepository->findById($id);
-    }
-
-    /**
-     * Update an existing GRN — reverses old stock and re-applies new stock.
-     */
     public function updateGRN(GRN $grn, array $data): GRN
     {
         return DB::transaction(function () use ($grn, $data) {
-            // 1. Reverse old stock batches
+            // 1. Reverse old stock
             foreach ($grn->items as $oldItem) {
                 $medicine = Medicine::find($oldItem->medicine_id);
-                // Remove the stock batch that was created by this GRN item
                 $batch = StockBatch::where('grn_id', $grn->id)
                     ->where('medicine_id', $oldItem->medicine_id)
                     ->first();
 
                 if ($batch) {
-                    $medicine?->decrement('stock', $batch->qty_tablets);
+                    // Cascade delete related records to satisfy FK constraints
+                    DB::table('stock_adjustments')->where('stock_batch_id', $batch->id)->delete();
+                    DB::table('alerts')->where('stock_batch_id', $batch->id)->delete();
+                    DB::table('sale_items')->where('stock_batch_id', $batch->id)->delete();
+                    DB::table('sales_return_items')->where('stock_batch_id', $batch->id)->delete();
+                    
+                    // Only decrement what is currently remaining from this batch
+                    $medicine?->decrement('stock', $batch->qty_tablets_remaining);
                     $batch->delete();
                 }
             }
 
-            // 2. Delete old GRN items
             $this->grnRepository->deleteItems($grn);
 
-            // 3. Update GRN header
+            // 2. Update GRN header
             $this->grnRepository->update($grn, [
+                'purchase_order_id' => $data['purchase_order_id'] ?? $grn->purchase_order_id,
+                'supplier_id' => $data['supplier_id'] ?? $grn->supplier_id,
                 'received_date' => $data['received_date'],
                 'invoice_number' => $data['invoice_number'] ?? null,
-                'received_by' => $data['received_by'],
+                'received_by' => $data['received_by'] ?? null,
                 'total_amount' => $data['total_amount'],
+                'paid_amount' => $data['paid_amount'] ?? 0,
+                'payment_status' => $data['payment_status'] ?? 'Due',
                 'notes' => $data['notes'] ?? null,
             ]);
 
-            // 4. Re-insert items and re-apply stock
-            $po = $grn->purchaseOrder()->with('supplier')->first();
+            // 3. Re-insert items and re-apply stock
             foreach ($data['items'] as $item) {
-                $this->grnRepository->createItem($grn, $item);
-
                 $medicine = Medicine::findOrFail($item['medicine_id']);
-                $stripsPerBox = $medicine->strips_per_box ?? 1;
-                $tabletsPerStrip = $medicine->tablets_per_strip ?? 1;
-                $totalTablets = $item['qty_boxes_received'] * $stripsPerBox * $tabletsPerStrip;
-                $costPerTablet = $item['unit_cost'] / ($stripsPerBox * $tabletsPerStrip);
+                $isGroupA = in_array($medicine->dosage_form, ['Tablet', 'Capsule', 'Suppository', 'Patch']);
+
+                $this->grnRepository->createItem($grn, [
+                    'medicine_id' => $item['medicine_id'],
+                    'batch_number' => $item['batch_number'],
+                    'expiry_date' => $item['expiry_date'],
+                    'qty_boxes_received' => $item['qty_boxes_received'],
+                    'subtotal' => $item['subtotal'],
+                    'cost_per_box' => $isGroupA ? ($item['cost_per_box'] ?? null) : null,
+                    'cost_per_stripe' => $isGroupA ? ($item['cost_per_stripe'] ?? null) : null,
+                    'cost_per_tablet' => $isGroupA ? ($item['cost_per_tablet'] ?? null) : null,
+                    'strength' => $item['strength'] ?? $medicine->strength,
+                    'volume' => !$isGroupA ? ($item['volume'] ?? $medicine->volume) : null,
+                    'price' => !$isGroupA ? ($item['price'] ?? null) : null,
+                ]);
+
+                $totalUnits = 0;
+                if ($isGroupA) {
+                    $tabletsPerBox = ($medicine->tablet_per_stripe ?? 1) * ($medicine->stripe_per_box ?? 1);
+                    $totalUnits = $item['qty_boxes_received'] * $tabletsPerBox;
+                } else {
+                    $totalUnits = $item['qty_boxes_received'];
+                }
 
                 $this->batchRepository->create([
                     'medicine_id' => $item['medicine_id'],
-                    'supplier_id' => $po?->supplier_id,
+                    'supplier_id' => $data['supplier_id'] ?? $grn->supplier_id,
                     'grn_id' => $grn->id,
                     'batch_number' => $item['batch_number'],
                     'expiry_date' => $item['expiry_date'],
-                    'qty_tablets' => $totalTablets,
-                    'qty_tablets_remaining' => $totalTablets,
-                    'cost_per_tablet' => $costPerTablet,
+                    'qty_tablets' => $totalUnits,
+                    'qty_tablets_remaining' => $totalUnits,
                     'received_date' => $data['received_date'],
+                    'cost_per_tablet' => $isGroupA ? ($item['cost_per_tablet'] ?? null) : null,
+                    'cost_per_stripe' => $isGroupA ? ($item['cost_per_stripe'] ?? null) : null,
+                    'cost_per_box' => $isGroupA ? ($item['cost_per_box'] ?? null) : null,
+                    'volume' => !$isGroupA ? ($item['volume'] ?? $medicine->volume) : null,
+                    'price' => !$isGroupA ? ($item['price'] ?? null) : null,
                 ]);
 
-                $medicine->increment('stock', $totalTablets);
-                $medicine->update(['cost_price' => $item['unit_cost']]);
+                $medicine->increment('stock', $totalUnits);
+                if ($isGroupA) {
+                    $medicine->update(['price_per_tablet' => $item['cost_per_tablet'] ?? $medicine->price_per_tablet]);
+                } else {
+                    $medicine->update(['price' => $item['price'] ?? $medicine->price]);
+                }
                 $this->alertService->resolveLowStockAlert($medicine->fresh());
+            }
+
+            // 4. Sync with Purchase Order
+            if ($grn->purchase_order_id) {
+                $po = PurchaseOrder::find($grn->purchase_order_id);
+                if ($po) {
+                    $po->update([
+                        'supplier_id' => $data['supplier_id'] ?? $grn->supplier_id,
+                        'order_date' => $data['received_date'],
+                        'total_amount' => $data['total_amount'],
+                        'paid_amount' => $data['paid_amount'] ?? 0,
+                        'payment_status' => $data['payment_status'] ?? 'Due',
+                    ]);
+
+                    // Sync PO items
+                    $po->items()->delete();
+                    foreach ($data['items'] as $item) {
+                        $medicine = Medicine::find($item['medicine_id']);
+                        $isGroupA = in_array($medicine->dosage_form, ['Tablet', 'Capsule', 'Suppository', 'Patch']);
+                        
+                        \App\Models\PurchaseOrderItem::create([
+                            'purchase_order_id' => $po->id,
+                            'medicine_id' => $item['medicine_id'],
+                            'qty_boxes' => $item['qty_boxes_received'],
+                            'unit_cost' => $isGroupA ? ($item['cost_per_box'] ?? 0) : ($item['price'] ?? 0),
+                            'subtotal' => $item['subtotal'],
+                        ]);
+                    }
+                }
             }
 
             Cache::forget('stock.aggregated');
             Cache::forget('medicines.active_list');
 
-            return $grn->fresh(['purchaseOrder.supplier', 'items.medicine']);
+            return $grn->fresh(['supplier', 'purchaseOrder', 'items.medicine']);
         });
     }
 
-    /**
-     * Delete a GRN — reverses all associated stock changes.
-     */
     public function deleteGRN(GRN $grn): void
     {
         DB::transaction(function () use ($grn) {
-            // 1. Reverse all stock batches for this GRN
             foreach ($grn->items as $item) {
                 $medicine = Medicine::find($item->medicine_id);
                 $batch = StockBatch::where('grn_id', $grn->id)
@@ -182,17 +290,39 @@ class GRNService
                     ->first();
 
                 if ($batch) {
-                    $medicine?->decrement('stock', $batch->qty_tablets);
+                    // Cascade delete related records to satisfy FK constraints
+                    DB::table('stock_adjustments')->where('stock_batch_id', $batch->id)->delete();
+                    DB::table('alerts')->where('stock_batch_id', $batch->id)->delete();
+                    DB::table('sale_items')->where('stock_batch_id', $batch->id)->delete();
+                    DB::table('sales_return_items')->where('stock_batch_id', $batch->id)->delete();
+
+                    // Only decrement what is currently remaining from this batch
+                    $medicine?->decrement('stock', $batch->qty_tablets_remaining);
                     $batch->delete();
                 }
             }
 
-            // 2. Delete GRN items and the GRN
             $this->grnRepository->deleteItems($grn);
+            
+            // Sync delete Purchase Order
+            $poId = $grn->purchase_order_id;
+            
             $this->grnRepository->delete($grn);
+
+            if ($poId) {
+                $po = PurchaseOrder::find($poId);
+                if ($po) {
+                    $po->delete();
+                }
+            }
 
             Cache::forget('stock.aggregated');
             Cache::forget('medicines.active_list');
         });
+    }
+
+    public function getGRNDetails(int $id)
+    {
+        return $this->grnRepository->findById($id);
     }
 }

@@ -24,7 +24,7 @@ class InventoryReportService
         $filterFrom = $filters['from_date'] ?? Carbon::now()->toDateString();
         $filterTo = $filters['to_date'] ?? Carbon::now()->addDays(90)->toDateString();
 
-        $cacheKey = "inventory_reports_mixed_" . md5($filterFrom . $filterTo);
+        $cacheKey = "inventory_reports_mixed_v5_" . md5($filterFrom . $filterTo);
 
         return Cache::remember($cacheKey, 3600, function() use ($filterFrom, $filterTo) {
             // "Global" components - status quo/current state
@@ -35,15 +35,16 @@ class InventoryReportService
             return [
                 'valuation' => $valuation,
                 'expiry_risks' => [
-                    'critical' => $this->reportRepository->getNearExpiryStock(30), // Still useful for color coding/alerts
-                    'warning' => $this->reportRepository->getExpiryRiskInRange($filterFrom, $filterTo), // UI TABLE
+                    'critical' => $this->reportRepository->getNearExpiryStock(30), 
+                    'warning' => $this->reportRepository->getExpiryRiskInRange($filterFrom, $filterTo), 
                 ],
+                'dues' => $this->reportRepository->getUnpaidSupplierBills(),
                 'slow_moving' => $this->reportRepository->getSlowMovingStock(90),
-                'dues' => $paymentDues,
                 'summaries' => [
                     'total_stock_value' => $valuation->sum('total_value'),
-                    'total_pending_payments' => $paymentDues->sum('balance_due'),
-                    'expiry_count' => $globalExpiryRisksTotal->count(),
+                    'total_pending_payments' => $paymentDues, // Now a float sum
+                    'expiry_count' => $globalExpiryRisksTotal->count(), // Now strictly > today
+                    'expired_count' => $this->reportRepository->getExpiredStockCount(),
                     'low_stock_count' => $this->reportRepository->getLowStockCount(),
                     'category_count' => $valuation->count()
                 ]

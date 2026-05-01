@@ -13,7 +13,6 @@ import {
   Pill,
   BarChart3,
   ArrowLeftRight,
-  Bell,
   Wallet,
   Users
 } from 'lucide-react';
@@ -41,7 +40,6 @@ const navigationGroups = [
     items: [
       { icon: Truck, label: 'Suppliers', path: '/suppliers' },
       { icon: FileText, label: 'Orders', path: '/orders' },
-      { icon: Database, label: 'GRN', path: '/grn' },
       { icon: ArrowLeftRight, label: 'Returns', path: '/returns' },
     ]
   },
@@ -68,7 +66,6 @@ const navigationGroups = [
   {
     title: 'System',
     items: [
-      { icon: Bell, label: 'Alerts', path: '/alerts' },
       { icon: Settings, label: 'System Settings', path: '/settings' },
     ]
   }

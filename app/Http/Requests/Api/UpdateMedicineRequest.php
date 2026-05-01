@@ -16,21 +16,28 @@ class UpdateMedicineRequest extends FormRequest
 
     /**
      * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
         return [
             'name' => 'required|string|max:255',
             'generic_name' => 'nullable|string|max:255',
-            'category_id' => 'required|exists:categories,id',
-            'manufacturer_id' => 'required|exists:manufacturers,id',
-            'tablets_per_strip' => 'nullable|integer|min:1',
-            'strips_per_box' => 'nullable|integer|min:1',
-            'sale_unit' => 'required|string|max:50',
-            'price_per_tablet' => 'required|numeric|min:0',
-            'cost_price' => 'required|numeric|min:0',
+            'category_name' => 'required|string|max:255',
+            'manufacturer_name' => 'required|string|max:255',
+            'dosage_form' => 'required|string',
+            'strength' => 'nullable|string|max:100',
+            
+            // Group A Validation
+            'tablet_per_stripe' => 'required_if:dosage_form,Tablet,Capsule,Suppository,Patch|nullable|integer|min:1',
+            'stripe_per_box' => 'required_if:dosage_form,Tablet,Capsule,Suppository,Patch|nullable|integer|min:1',
+            'price_per_tablet' => 'required_if:dosage_form,Tablet,Capsule,Suppository,Patch|nullable|numeric|min:0',
+            'price_per_stripe' => 'required_if:dosage_form,Tablet,Capsule,Suppository,Patch|nullable|numeric|min:0',
+            'price_per_box' => 'required_if:dosage_form,Tablet,Capsule,Suppository,Patch|nullable|numeric|min:0',
+            
+            // Group B Validation
+            'volume' => 'required_if:dosage_form,Syrup,Suspension,Injection,Cream,Ointment,Gel,Drops,Inhaler,Powder,Lotion|nullable|string|max:100',
+            'price' => 'required_if:dosage_form,Syrup,Suspension,Injection,Cream,Ointment,Gel,Drops,Inhaler,Powder,Lotion|nullable|numeric|min:0',
+            
             'reorder_level' => 'required|integer|min:0',
             'status' => 'required|in:Active,Inactive',
         ];

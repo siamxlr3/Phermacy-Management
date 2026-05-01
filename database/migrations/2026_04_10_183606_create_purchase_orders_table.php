@@ -13,7 +13,6 @@ return new class extends Migration
     {
         Schema::create('purchase_orders', function (Blueprint $table) {
             $table->id();
-            $table->string('po_number')->nullable()->unique()->index();
             $table->foreignId('supplier_id')->constrained('suppliers')->onDelete('restrict');
             $table->date('order_date')->index();
             $table->enum('status', ['Pending', 'Received', 'Cancelled'])->default('Pending')->index();

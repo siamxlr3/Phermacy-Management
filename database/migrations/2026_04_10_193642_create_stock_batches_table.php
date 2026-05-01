@@ -18,9 +18,20 @@ return new class extends Migration
             $table->foreignId('grn_id')->nullable()->constrained('grns')->onDelete('cascade');
             $table->string('batch_number');
             $table->date('expiry_date');
-            $table->integer('qty_tablets');
+            
+            // Quantity in smallest units
+            $table->integer('qty_tablets'); 
             $table->integer('qty_tablets_remaining');
-            $table->decimal('cost_per_tablet', 15, 2);
+            
+            // Financials (Group A)
+            $table->decimal('cost_per_tablet', 15, 2)->nullable();
+            $table->decimal('cost_per_stripe', 15, 2)->nullable();
+            $table->decimal('cost_per_box', 15, 2)->nullable();
+            
+            // Financials (Group B)
+            $table->string('volume')->nullable();
+            $table->decimal('price', 15, 2)->nullable(); // Unit cost price
+            
             $table->date('received_date');
             $table->timestamps();
             

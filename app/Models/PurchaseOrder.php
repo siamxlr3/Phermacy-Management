@@ -10,7 +10,6 @@ class PurchaseOrder extends Model
     use HasFactory;
 
     protected $fillable = [
-        'po_number',
         'supplier_id',
         'order_date',
         'status',

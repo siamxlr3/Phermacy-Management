@@ -27,6 +27,13 @@ export const grnApi = createApi({
         body: data,
       }),
       invalidatesTags: ['GRN', 'PurchaseOrder', 'Stock'],
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch({ type: 'stockApi/invalidateTags', payload: ['Stock', 'Batch'] });
+          dispatch({ type: 'purchaseApi/invalidateTags', payload: ['PurchaseOrder'] });
+        } catch {}
+      }
     }),
     updateGRN: builder.mutation({
       query: ({ id, ...data }) => ({
@@ -35,6 +42,13 @@ export const grnApi = createApi({
         body: data,
       }),
       invalidatesTags: ['GRN', 'Stock'],
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch({ type: 'stockApi/invalidateTags', payload: ['Stock', 'Batch'] });
+          dispatch({ type: 'purchaseApi/invalidateTags', payload: ['PurchaseOrder'] });
+        } catch {}
+      }
     }),
     deleteGRN: builder.mutation({
       query: (id) => ({
@@ -42,6 +56,13 @@ export const grnApi = createApi({
         method: 'DELETE',
       }),
       invalidatesTags: ['GRN', 'PurchaseOrder', 'Stock'],
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch({ type: 'stockApi/invalidateTags', payload: ['Stock', 'Batch'] });
+          dispatch({ type: 'purchaseApi/invalidateTags', payload: ['PurchaseOrder'] });
+        } catch {}
+      }
     }),
     getReceivedPurchaseOrders: builder.query({
       query: () => '/purchase-orders?status=Received&per_page=100&has_no_grn=1',

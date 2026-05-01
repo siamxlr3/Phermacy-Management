@@ -138,4 +138,13 @@ class AlertService
             return $this->alertRepository->getActiveCount();
         });
     }
+
+    public function getAlertSummary(): array
+    {
+        return [
+            'total' => $this->getAlertCount(),
+            'expiry_alerts' => $this->alertRepository->getActiveCountByType('Expiry'),
+            'low_stock_alerts' => $this->alertRepository->getActiveCountByType('Low Stock'),
+        ];
+    }
 }

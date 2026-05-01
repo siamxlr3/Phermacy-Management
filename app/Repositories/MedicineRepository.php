@@ -9,10 +9,11 @@ class MedicineRepository
     public function getAll(int $perPage = 10, ?string $search = null)
     {
         return Medicine::query()
-            ->with(['category', 'manufacturer'])
             ->when($search, function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%")
-                      ->orWhere('generic_name', 'like', "%{$search}%");
+                      ->orWhere('generic_name', 'like', "%{$search}%")
+                      ->orWhere('category_name', 'like', "%{$search}%")
+                      ->orWhere('manufacturer_name', 'like', "%{$search}%");
             })
             ->orderBy('id', 'desc')
             ->paginate($perPage);
@@ -20,7 +21,7 @@ class MedicineRepository
 
     public function findById(int $id)
     {
-        return Medicine::with(['category', 'manufacturer'])->findOrFail($id);
+        return Medicine::findOrFail($id);
     }
 
     public function create(array $data)
@@ -41,7 +42,7 @@ class MedicineRepository
 
     public function getActiveList()
     {
-        return Medicine::with(['category', 'manufacturer'])
+        return Medicine::query()
             ->where('status', 'Active')
             ->orderBy('name')
             ->get();

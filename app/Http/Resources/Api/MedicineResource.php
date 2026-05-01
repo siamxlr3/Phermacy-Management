@@ -18,24 +18,25 @@ class MedicineResource extends JsonResource
             'id' => $this->id,
             'name' => $this->name,
             'generic_name' => $this->generic_name,
-            'category_id' => $this->category_id,
-            'category' => $this->whenLoaded('category', function () {
-                return $this->category ? $this->category->name : 'N/A';
-            }),
-            'manufacturer_id' => $this->manufacturer_id,
-            'manufacturer' => $this->whenLoaded('manufacturer', function () {
-                return $this->manufacturer ? $this->manufacturer->name : 'N/A';
-            }),
-            'tablets_per_strip' => $this->tablets_per_strip,
-            'strips_per_box' => $this->strips_per_box,
-            'sale_unit' => $this->sale_unit,
+            
+            'category_name' => $this->category_name,
+            'manufacturer_name' => $this->manufacturer_name,
+            
+            'dosage_form' => $this->dosage_form,
+            'strength' => $this->strength,
+            
+            // Group A
+            'tablet_per_stripe' => $this->tablet_per_stripe,
+            'stripe_per_box' => $this->stripe_per_box,
             'price_per_tablet' => $this->price_per_tablet,
-            'cost_price' => $this->cost_price,
+            'price_per_stripe' => $this->price_per_stripe,
+            'price_per_box' => $this->price_per_box,
+            
+            // Group B
+            'volume' => $this->volume,
+            'price' => $this->price,
+            
             'reorder_level' => $this->reorder_level,
-            // Calculate total stock conceptually for now or just generic info. 
-            // The existing UI showed 'stock', which normally would come from inventory tables.
-            // For now, let's map reorder_level as "stock" if we must, or return 0, since stock is usually tracked in a separate stock table.
-            // Wait, we can just return what we have in the medicines table.
             'stock' => $this->stock ?? 0,
             'status' => $this->status,
         ];

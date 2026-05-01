@@ -16,7 +16,6 @@ class PurchaseOrderResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'po_number' => $this->po_number,
             'supplier_id' => $this->supplier_id,
             'supplier' => new SupplierResource($this->whenLoaded('supplier')),
             'order_date' => $this->order_date->format('Y-m-d'),

@@ -15,12 +15,14 @@ class PurchaseOrderRepository
                     $q->whereHas('supplier', function ($sq) use ($search) {
                         $sq->where('name', 'like', "%{$search}%");
                     })
-                    ->orWhere('id', 'like', "%{$search}%")
-                    ->orWhere('po_number', 'like', "%{$search}%");
+                    ->orWhere('id', 'like', "%{$search}%");
                 });
             })
             ->when($status, function ($query, $status) {
-                $query->where('status', $status);
+                $query->where(function ($q) use ($status) {
+                    $q->where('status', $status)
+                      ->orWhere('payment_status', $status);
+                });
             })
             ->when(!empty($dateRange), function ($query) use ($dateRange) {
                 $query->whereBetween('order_date', $dateRange);
@@ -31,24 +33,6 @@ class PurchaseOrderRepository
             ->orderBy('order_date', 'desc')
             ->orderBy('id', 'desc')
             ->paginate($perPage);
-    }
-
-    public function generatePONumber(): string
-    {
-        $date = now()->format('Ymd');
-        $prefix = "PO-{$date}-";
-
-        $lastPO = PurchaseOrder::where('po_number', 'like', "{$prefix}%")
-            ->orderBy('po_number', 'desc')
-            ->first();
-
-        $sequence = 1;
-        if ($lastPO) {
-            $lastSequence = (int) substr($lastPO->po_number, -3);
-            $sequence = $lastSequence + 1;
-        }
-
-        return $prefix . str_pad($sequence, 3, '0', STR_PAD_LEFT);
     }
 
     public function findById(int $id)

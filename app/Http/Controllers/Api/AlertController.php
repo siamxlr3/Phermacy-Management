@@ -32,9 +32,7 @@ class AlertController extends Controller
 
     public function summary()
     {
-        return response()->json([
-            'count' => $this->alertService->getAlertCount()
-        ]);
+        return response()->json($this->alertService->getAlertSummary());
     }
 
     public function dismiss(int $id): JsonResponse

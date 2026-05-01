@@ -15,15 +15,24 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('generic_name')->nullable();
-            $table->foreignId('category_id')->nullable()->constrained('categories')->nullOnDelete();
-            $table->foreignId('manufacturer_id')->nullable()->constrained('manufacturers')->nullOnDelete();
             
-            $table->integer('tablets_per_strip')->nullable();
-            $table->integer('strips_per_box')->nullable();
-            $table->string('sale_unit')->default('Tablet'); // e.g. Tablet, Bottle, Strip, Box
+            $table->string('category_name')->nullable();
+            $table->string('manufacturer_name')->nullable();
             
-            $table->decimal('price_per_tablet', 10, 2);
-            $table->decimal('cost_price', 10, 2);
+            $table->string('dosage_form'); // Tablet, Capsule, Syrup, etc.
+            $table->string('strength')->nullable(); // e.g. 500mg, 250mg/5ml
+            
+            // Group A (Tablets, Capsules, etc.)
+            $table->integer('tablet_per_stripe')->nullable();
+            $table->integer('tablet_per_box')->nullable();
+            $table->decimal('price_per_tablet', 10, 2)->nullable();
+            $table->decimal('price_per_stripe', 10, 2)->nullable();
+            $table->decimal('price_per_box', 10, 2)->nullable();
+            
+            // Group B (Syrups, Injections, etc.)
+            $table->string('volume')->nullable(); // e.g. 100ml, 120ml
+            $table->decimal('price', 10, 2)->nullable(); // Generic price for liquid/cream forms
+            
             $table->integer('reorder_level')->default(10);
             $table->integer('stock')->default(0);
             
@@ -32,6 +41,9 @@ return new class extends Migration
 
             $table->index('name');
             $table->index('generic_name');
+            $table->index('dosage_form');
+            $table->index('category_name');
+            $table->index('manufacturer_name');
         });
     }
 

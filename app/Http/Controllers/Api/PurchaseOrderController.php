@@ -35,6 +35,7 @@ class PurchaseOrderController extends Controller
 
     public function store(StorePurchaseOrderRequest $request)
     {
+        \Illuminate\Support\Facades\Log::info('PO Payload:', $request->all());
         $order = $this->poService->createOrder($request->validated());
         return new PurchaseOrderResource($order);
     }

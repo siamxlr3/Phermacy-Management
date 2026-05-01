@@ -9,11 +9,14 @@ class GRNRepository
 {
     public function getAll(int $perPage = 10, ?string $search = null, ?array $dateRange = [])
     {
-        $query = GRN::with(['purchaseOrder.supplier', 'items.medicine']);
+        $query = GRN::with(['supplier', 'purchaseOrder.supplier', 'items.medicine']);
 
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('invoice_number', 'like', "%{$search}%")
+                  ->orWhereHas('supplier', function ($sq) use ($search) {
+                      $sq->where('name', 'like', "%{$search}%");
+                  })
                   ->orWhereHas('purchaseOrder.supplier', function ($sq) use ($search) {
                       $sq->where('name', 'like', "%{$search}%");
                   })
@@ -32,7 +35,7 @@ class GRNRepository
 
     public function findById(int $id)
     {
-        return GRN::with(['purchaseOrder.supplier', 'items.medicine'])->findOrFail($id);
+        return GRN::with(['supplier', 'purchaseOrder.supplier', 'items.medicine'])->findOrFail($id);
     }
 
     public function create(array $data)

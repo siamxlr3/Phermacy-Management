@@ -18,10 +18,15 @@ class InventoryReportRepository
     {
         return StockBatch::where('qty_tablets_remaining', '>', 0)
             ->join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id')
-            ->leftJoin('categories', 'medicines.category_id', '=', 'categories.id')
             ->selectRaw('
-                IFNULL(categories.name, "Uncategorized") as category_name,
-                SUM(stock_batches.qty_tablets_remaining * stock_batches.cost_per_tablet) as total_value,
+                IFNULL(medicines.category_name, "Uncategorized") as category_name,
+                SUM(
+                    CASE 
+                        WHEN medicines.dosage_form IN ("Tablet", "Capsule", "Suppository", "Patch") 
+                        THEN (stock_batches.qty_tablets_remaining / (IFNULL(medicines.tablet_per_stripe, 1) * IFNULL(medicines.stripe_per_box, 1))) * IFNULL(stock_batches.cost_per_box, 0)
+                        ELSE stock_batches.qty_tablets_remaining * IFNULL(stock_batches.price, 0)
+                    END
+                ) as total_value,
                 COUNT(DISTINCT medicines.id) as unique_medicines,
                 SUM(stock_batches.qty_tablets_remaining) as total_tablets
             ')
@@ -36,7 +41,10 @@ class InventoryReportRepository
     public function getNearExpiryStock(int $days = 90)
     {
         return StockBatch::where('qty_tablets_remaining', '>', 0)
-            ->whereBetween('expiry_date', [now()->toDateString(), now()->addDays($days)->toDateString()])
+            ->whereBetween('expiry_date', [
+                Carbon::tomorrow()->toDateString(), 
+                Carbon::today()->addDays($days)->toDateString()
+            ])
             ->with(['medicine', 'supplier'])
             ->orderBy('expiry_date')
             ->get();
@@ -106,17 +114,41 @@ class InventoryReportRepository
 
     /**
      * Get Supplier Payment Due (Outstanding Liabilities)
-     * Includes ONLY Pending (Planned) orders. 
-     * Once an order is Received, its value is moved to the "Stock Price Total" asset card.
+     * Includes BOTH Pending Purchase Orders and Received Goods (GRNs) with balances.
      */
     public function getSupplierPaymentDue()
     {
-        return PurchaseOrder::where('status', 'Pending')
-            ->where('payment_status', 'Pending')
-            ->with(['supplier'])
+        $poDues = PurchaseOrder::where('status', '!=', 'Cancelled')
+            ->where('payment_status', '!=', 'Paid')
+            ->whereRaw('total_amount > paid_amount')
+            ->selectRaw('SUM(total_amount - paid_amount) as total_po_due')
+            ->first();
+
+        return (float)($poDues->total_po_due ?? 0);
+    }
+
+    /**
+     * Get list of individual unpaid supplier bills
+     */
+    public function getUnpaidSupplierBills()
+    {
+        return PurchaseOrder::with('supplier')
+            ->where('status', '!=', 'Cancelled')
+            ->where('payment_status', '!=', 'Paid')
+            ->whereRaw('total_amount > paid_amount')
             ->selectRaw('*, (total_amount - paid_amount) as balance_due')
             ->orderByDesc('balance_due')
             ->get();
+    }
+
+    /**
+     * Count already expired items
+     */
+    public function getExpiredStockCount()
+    {
+        return StockBatch::where('qty_tablets_remaining', '>', 0)
+            ->where('expiry_date', '<=', Carbon::today()->toDateString())
+            ->count();
     }
 
     /**
