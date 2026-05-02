@@ -28,6 +28,14 @@ export const salesApi = createApi({
       query: (id) => `/sales/${id}`,
       providesTags: (result, error, id) => [{ type: 'Sale', id }],
     }),
+    updateSaleStatus: builder.mutation({
+      query: ({ id, ...data }) => ({
+        url: `/sales/${id}/status`,
+        method: 'PATCH',
+        body: data,
+      }),
+      invalidatesTags: ['Sale'],
+    }),
   }),
 });
 
@@ -35,4 +43,5 @@ export const {
   useGetSalesQuery,
   useProcessSaleMutation,
   useGetSaleDetailsQuery,
+  useUpdateSaleStatusMutation,
 } = salesApi;

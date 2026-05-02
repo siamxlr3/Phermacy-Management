@@ -37,6 +37,7 @@ use App\Http\Controllers\Api\PayrollController;
 use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\ShiftController;
 use App\Http\Controllers\Api\StaffController;
+use App\Http\Controllers\Api\CashRegisterController;
 
 Route::get('categories/active', [CategoryController::class, 'active']);
 Route::apiResource('categories', CategoryController::class);
@@ -63,7 +64,11 @@ Route::get('medicines/{medicine}/batches', [StockController::class, 'batchesByMe
 Route::apiResource('adjustments', AdjustmentController::class);
 
 // Sales / POS
-Route::get('sales/lookup/{invoiceNumber}', [SaleController::class, 'lookup']); // Optional, but I added it to ReturnController instead
+Route::get('cash-registers', [CashRegisterController::class, 'index']);
+Route::get('cash-registers/status', [CashRegisterController::class, 'status']);
+Route::post('cash-registers/open', [CashRegisterController::class, 'open']);
+Route::post('cash-registers/close', [CashRegisterController::class, 'close']);
+Route::patch('sales/{id}/status', [SaleController::class, 'updateStatus']);
 Route::apiResource('sales', SaleController::class)->only(['index', 'store', 'show']);
 
 // Sale Returns

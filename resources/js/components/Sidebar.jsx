@@ -14,7 +14,8 @@ import {
   BarChart3,
   ArrowLeftRight,
   Wallet,
-  Users
+  Users,
+  Calculator
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useGetAddressesQuery } from '../store/api/settingApi';
@@ -31,6 +32,7 @@ const navigationGroups = [
     items: [
       { icon: ShoppingCart, label: 'Point of Sale', path: '/pos' },
       { icon: LayoutDashboard, label: 'All Sales', path: '/sales' },
+      { icon: Calculator, label: 'Cash Register', path: '/cash-register' },
       { icon: ArrowRightLeft, label: 'Returns & Refunds', path: '/sales/returns' },
       { icon: BarChart3, label: 'Reports', path: '/sales/reports' },
     ]

@@ -12,29 +12,40 @@ import {
   Download,
   ShoppingBag,
   Printer,
-  RotateCcw
+  RotateCcw,
+  BadgeDollarSign,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { useGetSalesQuery } from '../store/api/salesApi';
+import { useGetSalesQuery, useUpdateSaleStatusMutation } from '../store/api/salesApi';
 import { cn } from '../lib/utils';
-import { Toaster } from 'react-hot-toast';
+import { Toaster, toast } from 'react-hot-toast';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const statusStyle = {
   Completed: 'bg-emerald-50 text-emerald-600 border-emerald-100',
   Returned:  'bg-rose-50 text-rose-500 border-rose-100',
   Pending:   'bg-amber-50 text-amber-600 border-amber-100',
+  Due:       'bg-orange-50 text-orange-600 border-orange-100',
 };
 
 const paymentStyle = {
   Cash: 'bg-slate-100 text-slate-600 border-slate-200',
   Card: 'bg-blue-50 text-blue-600 border-blue-100',
+  Online: 'bg-indigo-50 text-indigo-600 border-indigo-100',
+  Due: 'bg-orange-50 text-orange-600 border-orange-100',
 };
 
 const SalesHistoryPage = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [showDueOnly, setShowDueOnly] = useState(location.state?.showDueOnly || false);
+  const [isUpdating, setIsUpdating] = useState(null);
   const [dateRange, setDateRange] = useState({
     from: '',
     to: format(new Date(), 'yyyy-MM-dd')
@@ -44,8 +55,24 @@ const SalesHistoryPage = () => {
     page,
     perPage,
     search: searchTerm,
-    status: statusFilter === 'all' ? '' : statusFilter
+    status: showDueOnly ? 'Due' : (statusFilter === 'all' ? '' : statusFilter)
   });
+
+  const [updateStatus] = useUpdateSaleStatusMutation();
+
+  const handleUpdatePayment = async (id, grandTotal) => {
+    try {
+      await updateStatus({ 
+        id, 
+        status: 'Completed',
+        paid_amount: grandTotal,
+        due_amount: 0 
+      }).unwrap();
+      toast.success('Payment updated successfully');
+    } catch (err) {
+      toast.error(err.data?.message || 'Failed to update payment');
+    }
+  };
 
   const sales = salesData?.data || [];
   const meta = salesData?.meta || {};
@@ -57,23 +84,94 @@ const SalesHistoryPage = () => {
       <div className="flex flex-col h-full min-h-0 bg-slate-50/50 -m-6 p-6">
         
         {/* Fixed Header */}
-        <div className="shrink-0 mb-6 flex flex-col gap-6">
-          <div className="flex items-center justify-between px-2">
+        <div className="shrink-0 mb-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200">
-                <History size={24} className="text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight">Sales History</h1>
-                <p className="text-sm font-bold text-slate-400 flex items-center gap-2">
-                  Comprehensive record of all pharmacy transactions
-                </p>
+              <button 
+                onClick={() => navigate('/pos')}
+                className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center border border-slate-200 text-slate-400 hover:text-slate-900 hover:border-slate-400 transition-all shadow-sm group"
+              >
+                <ChevronLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
+              </button>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200">
+                  <History size={24} className="text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl font-black text-slate-900 tracking-tight">Sales History</h1>
+                  <p className="text-sm font-bold text-slate-400 flex items-center gap-2">
+                    Comprehensive record of all pharmacy transactions
+                  </p>
+                </div>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                   setShowDueOnly(!showDueOnly);
+                   setStatusFilter('');
+                }}
+                className={cn(
+                  "flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-black transition-all",
+                  showDueOnly 
+                    ? "bg-orange-500 text-white shadow-lg shadow-orange-200" 
+                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
+                )}
+              >
+                <BadgeDollarSign size={16} />
+                {showDueOnly ? "Show All Sales" : "Show Due Sales"}
+              </button>
             </div>
           </div>
+        </div>
+        {/* Summary Stats */}
+        <div className="shrink-0 mb-6">
+          <AnimatePresence mode="wait">
+            {showDueOnly ? (
+              <motion.div 
+                key="due-stats"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="p-6 bg-orange-500 rounded-[2rem] shadow-xl shadow-orange-200 border border-orange-400/20 relative overflow-hidden group max-w-sm"
+              >
+                <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                  <AlertCircle size={120} />
+                </div>
+                <div className="relative z-10">
+                  <p className="text-[10px] font-black text-orange-100 uppercase tracking-[0.2em] mb-2 opacity-80">Total Outstanding Due</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xl font-bold text-orange-200">$</span>
+                    <h2 className="text-4xl font-black text-white tracking-tighter">
+                      {parseFloat(salesData?.summary?.total_due || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </h2>
+                  </div>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div 
+                key="all-stats"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="p-6 bg-slate-900 rounded-[2rem] shadow-xl shadow-slate-200 border border-slate-800 relative overflow-hidden group max-w-sm"
+              >
+                <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                  <BadgeDollarSign size={120} />
+                </div>
+                <div className="relative z-10">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Total Transaction Volume</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-xl font-bold text-slate-500">$</span>
+                    <h2 className="text-4xl font-black text-white tracking-tighter">
+                      {parseFloat(salesData?.summary?.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </h2>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Main Table Card */}
@@ -94,22 +192,24 @@ const SalesHistoryPage = () => {
                   />
                 </div>
                 
-                <div className="flex items-center gap-1 p-1 bg-white border border-slate-200 rounded-xl shadow-sm">
-                  {['all', 'Completed', 'Returned'].map((f) => (
-                    <button
-                      key={f}
-                      onClick={() => setStatusFilter(f)}
-                      className={cn(
-                        "px-4 py-1.5 rounded-lg text-xs font-black capitalize transition-all",
-                        statusFilter === f || (f === 'all' && statusFilter === '')
-                          ? "bg-slate-900 text-white shadow-md shadow-slate-900/10"
-                          : "text-slate-400 hover:text-slate-600"
-                      )}
-                    >
-                      {f}
-                    </button>
-                  ))}
-                </div>
+                {!showDueOnly && (
+                  <div className="flex items-center gap-1 p-1 bg-white border border-slate-200 rounded-xl shadow-sm">
+                    {['all', 'Completed', 'Returned'].map((f) => (
+                      <button
+                        key={f}
+                        onClick={() => setStatusFilter(f)}
+                        className={cn(
+                          "px-4 py-1.5 rounded-lg text-xs font-black capitalize transition-all",
+                          statusFilter === f || (f === 'all' && statusFilter === '')
+                            ? "bg-slate-900 text-white shadow-md shadow-slate-900/10"
+                            : "text-slate-400 hover:text-slate-600"
+                        )}
+                      >
+                        {f}
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
                   <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100 text-xs font-bold text-slate-500">
@@ -145,12 +245,22 @@ const SalesHistoryPage = () => {
                 <tr>
                   <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Invoice</th>
                   <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Customer</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Sold Items</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-center">Sale Unit</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Payment</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Total Amount</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-center">Status</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Date</th>
+                  {showDueOnly ? (
+                    <>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Phone</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-center">Status</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Due Amount</th>
+                    </>
+                  ) : (
+                    <>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Sold Items</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-center">Sale Unit</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Payment</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Total Amount</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-center">Status</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Date</th>
+                    </>
+                  )}
                   <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-right">Actions</th>
                 </tr>
               </thead>
@@ -190,74 +300,110 @@ const SalesHistoryPage = () => {
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 text-[10px] font-black border border-slate-200 transition-colors group-hover:bg-white">
-                            {(item.customer_name || item.customer || 'Walk-in').substring(0, 2).toUpperCase()}
+                            {(item.customer_name || 'Walk-in').substring(0, 2).toUpperCase()}
                           </div>
-                          <span className="text-sm font-bold text-slate-700">{item.customer_name || item.customer || 'Walk-in Customer'}</span>
+                          <span className="text-sm font-bold text-slate-700">{item.customer_name || 'Walk-in Customer'}</span>
                         </div>
                       </td>
-                      <td className="px-8 py-6">
-                        <div className="flex flex-col gap-1.5">
-                          {Array.isArray(item.items) ? (
-                            <>
-                              {item.items.slice(0, 3).map((ritem, idx) => (
-                                <div key={idx} className="flex items-center gap-2">
-                                  <div className="flex flex-col">
-                                    <span className="text-xs font-bold text-slate-700">{ritem.medicine_name}</span>
-                                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Batch: {ritem.batch_number}</span>
-                                  </div>
-                                  <span className="text-[10px] font-black px-1.5 py-0.5 bg-blue-50 text-blue-500 rounded border border-blue-100 italic shrink-0">x{ritem.qty_tablets}</span>
-                                </div>
-                              ))}
-                              {item.items.length > 3 && (
-                                <span className="text-[10px] font-bold text-slate-400 italic mt-1">+ {item.items.length - 3} more items...</span>
-                              )}
-                            </>
-                          ) : (
-                            <span className="text-sm font-bold text-slate-700">{item.items_count || 0} Items</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex flex-col gap-1 justify-center items-center">
-                          {Array.isArray(item.items) ? (
-                            item.items.slice(0, 3).map((ritem, idx) => (
-                              <span key={idx} className="text-[10px] font-black px-2 py-0.5 bg-slate-100 text-slate-500 rounded uppercase tracking-tighter whitespace-nowrap">
-                                {ritem.sale_unit || 'Tablet'}
+
+                      {showDueOnly ? (
+                        <>
+                          <td className="px-8 py-6">
+                            <span className="text-xs font-bold text-slate-500">{item.customer_phone || 'N/A'}</span>
+                          </td>
+                          <td className="px-8 py-6">
+                            <div className="flex justify-center">
+                              <span className={cn(
+                                "px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-tight flex items-center gap-1.5",
+                                statusStyle[item.status] || 'bg-slate-50 text-slate-400 border-slate-100'
+                              )}>
+                                <AlertCircle size={10} />
+                                {item.status}
                               </span>
-                            ))
-                          ) : (
-                            <span className="text-[10px] font-black px-2 py-0.5 bg-slate-100 text-slate-500 rounded uppercase tracking-tighter">
-                              Tablet
+                            </div>
+                          </td>
+                          <td className="px-8 py-6">
+                            <span className="text-sm font-black text-orange-600">${parseFloat(item.due_amount || item.grand_total).toFixed(2)}</span>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="px-8 py-6">
+                            <div className="flex flex-col gap-1.5">
+                              {Array.isArray(item.items) ? (
+                                <>
+                                  {item.items.slice(0, 3).map((ritem, idx) => (
+                                    <div key={idx} className="flex items-center gap-2">
+                                      <div className="flex flex-col">
+                                        <span className="text-xs font-bold text-slate-700">{ritem.medicine_name}</span>
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Batch: {ritem.batch_number}</span>
+                                      </div>
+                                      <span className="text-[10px] font-black px-1.5 py-0.5 bg-blue-50 text-blue-500 rounded border border-blue-100 italic shrink-0">x{ritem.qty_tablets}</span>
+                                    </div>
+                                  ))}
+                                  {item.items.length > 3 && (
+                                    <span className="text-[10px] font-bold text-slate-400 italic mt-1">+ {item.items.length - 3} more items...</span>
+                                  )}
+                                </>
+                              ) : (
+                                <span className="text-sm font-bold text-slate-700">{item.items_count || 0} Items</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-8 py-6">
+                            <div className="flex flex-col gap-1 justify-center items-center">
+                              {Array.isArray(item.items) ? (
+                                item.items.slice(0, 3).map((ritem, idx) => (
+                                  <span key={idx} className="text-[10px] font-black px-2 py-0.5 bg-slate-100 text-slate-500 rounded uppercase tracking-tighter whitespace-nowrap">
+                                    {ritem.sale_unit || 'Tablet'}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-[10px] font-black px-2 py-0.5 bg-slate-100 text-slate-500 rounded uppercase tracking-tighter">
+                                  Tablet
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-8 py-6">
+                            <span className={cn(
+                              "px-2.5 py-1 rounded-lg text-[10px] font-black border uppercase tracking-widest",
+                              paymentStyle[item.payment_method] || 'bg-slate-50 text-slate-400 border-slate-100'
+                            )}>
+                              {item.payment_method}
                             </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <span className={cn(
-                          "px-2.5 py-1 rounded-lg text-[10px] font-black border uppercase tracking-widest",
-                          paymentStyle[item.payment_method] || 'bg-slate-50 text-slate-400 border-slate-100'
-                        )}>
-                          {item.payment_method}
-                        </span>
-                      </td>
-                      <td className="px-8 py-6">
-                        <span className="text-sm font-black text-slate-900">${parseFloat(item.grand_total).toFixed(2)}</span>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex justify-center">
-                          <span className={cn(
-                            "px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-tight",
-                            statusStyle[item.status] || 'bg-slate-50 text-slate-400 border-slate-100'
-                          )}>
-                            {item.status}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <span className="text-xs font-bold text-slate-500">{format(new Date(item.sale_date || item.date || Date.now()), 'MMM dd, yyyy')}</span>
-                      </td>
+                          </td>
+                          <td className="px-8 py-6">
+                            <span className="text-sm font-black text-slate-900">${parseFloat(item.grand_total).toFixed(2)}</span>
+                          </td>
+                          <td className="px-8 py-6">
+                            <div className="flex justify-center">
+                              <span className={cn(
+                                "px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-tight",
+                                statusStyle[item.status] || 'bg-slate-50 text-slate-400 border-slate-100'
+                              )}>
+                                {item.status}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6">
+                            <span className="text-xs font-bold text-slate-500">{format(new Date(item.sale_date || item.date || Date.now()), 'MMM dd, yyyy')}</span>
+                          </td>
+                        </>
+                      )}
+                      
                       <td className="px-8 py-6 text-right">
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                        <div className="flex items-center justify-end gap-1">
+                          {showDueOnly && (
+                            <button 
+                              onClick={() => handleUpdatePayment(item.id, item.grand_total)}
+                              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-200 hover:bg-emerald-600 transition-all mr-2"
+                            >
+                              <CheckCircle2 size={14} />
+                              Mark Paid
+                            </button>
+                          )}
+                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
                           <button 
                             className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
                             title="View Details"
@@ -276,6 +422,7 @@ const SalesHistoryPage = () => {
                           >
                             <MoreHorizontal size={16} />
                           </button>
+                          </div>
                         </div>
                       </td>
                     </tr>

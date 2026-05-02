@@ -17,7 +17,7 @@ class ReportRepository
         return Sale::where('status', 'Completed')
             ->whereBetween('sale_date', [$fromDate, $toDate])
             ->selectRaw('
-                COUNT(*) as total_orders,
+                COUNT(*) as total_transactions,
                 SUM(subtotal) as total_revenue,
                 SUM(tax_total) as total_tax,
                 SUM(discount_total) as total_discount,
@@ -71,9 +71,8 @@ class ReportRepository
                   ->whereBetween('sale_date', [$fromDate, $toDate]);
             })
             ->join('medicines', 'sale_items.medicine_id', '=', 'medicines.id')
-            ->leftJoin('categories', 'medicines.category_id', '=', 'categories.id')
             ->selectRaw('
-                IFNULL(categories.name, "Uncategorized") as category_name,
+                IFNULL(medicines.category_name, "Uncategorized") as category_name,
                 SUM(sale_items.subtotal) as total_revenue,
                 COUNT(sale_items.id) as total_items
             ')

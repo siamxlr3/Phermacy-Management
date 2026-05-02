@@ -18,6 +18,35 @@ import { reportsApi } from './api/reportsApi';
 import { inventoryReportsApi } from './api/inventoryReportsApi';
 import { expenseApi } from './api/expenseApi';
 import { hrmApi } from './api/hrmApi';
+import { cashRegisterApi } from './api/cashRegisterApi';
+
+const saveStateMiddleware = (store) => (next) => (action) => {
+  const result = next(action);
+  if (action.type.startsWith('pos/')) {
+    const state = store.getState().pos;
+    // On clearCart, only persist what's needed — not cart items
+    if (action.type === 'pos/clearCart') {
+      localStorage.setItem('pos_state', JSON.stringify({
+        heldSells: state.heldSells,
+        activeRegister: state.activeRegister,
+        tax_rate: state.tax_rate,
+        tax_name: state.tax_name,
+        payment_method: state.payment_method,
+        cart: [],
+        customer_name: 'Walk-in Customer',
+        customer_phone: '',
+        subtotal: 0,
+        tax_total: 0,
+        discount_total: 0,
+        grand_total: 0,
+        status: 'idle',
+      }));
+    } else {
+      localStorage.setItem('pos_state', JSON.stringify(state));
+    }
+  }
+  return result;
+};
 
 export const store = configureStore({
   reducer: {
@@ -39,9 +68,13 @@ export const store = configureStore({
     [inventoryReportsApi.reducerPath]: inventoryReportsApi.reducer,
     [expenseApi.reducerPath]: expenseApi.reducer,
     [hrmApi.reducerPath]: hrmApi.reducer,
+    [cashRegisterApi.reducerPath]: cashRegisterApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware()
+    getDefaultMiddleware({
+      serializableCheck: false
+    })
+      .concat(saveStateMiddleware)
       .concat(settingApi.middleware)
       .concat(medicineApi.middleware)
       .concat(supplierApi.middleware)
@@ -55,5 +88,6 @@ export const store = configureStore({
       .concat(reportsApi.middleware)
       .concat(inventoryReportsApi.middleware)
       .concat(expenseApi.middleware)
-      .concat(hrmApi.middleware),
+      .concat(hrmApi.middleware)
+      .concat(cashRegisterApi.middleware),
 });

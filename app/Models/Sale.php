@@ -12,11 +12,15 @@ class Sale extends Model
     protected $fillable = [
         'user_id',
         'invoice_number',
+        'customer_name',
+        'customer_phone',
         'sale_date',
         'subtotal',
         'tax_total',
         'discount_total',
         'grand_total',
+        'paid_amount',
+        'due_amount',
         'payment_method',
         'status',
         'notes',
@@ -29,6 +33,8 @@ class Sale extends Model
         'tax_total' => 'decimal:2',
         'discount_total' => 'decimal:2',
         'grand_total' => 'decimal:2',
+        'paid_amount' => 'decimal:2',
+        'due_amount' => 'decimal:2',
     ];
 
     public function user()

@@ -6,22 +6,21 @@ const ReportStats = ({ summary, returnsCount }) => {
     const stats = [
         { 
             label: 'Total Revenue', 
-            value: `৳${Number(summary?.total_revenue || 0).toLocaleString()}`, 
+            value: `৳${Number(summary?.total_receivable || 0).toLocaleString()}`, 
             icon: DollarSign, 
             color: 'emerald',
             change: '+12.5%' // Mock trend for UX
         },
-
         { 
-            label: 'Total Orders', 
-            value: Number(summary?.total_orders || 0).toLocaleString(), 
+            label: 'Total Transaction', 
+            value: Number(summary?.total_transactions || 0).toLocaleString(), 
             icon: TrendingUp, 
             color: 'indigo',
             change: '+8.1%'
         },
         { 
             label: 'Avg. Order Value', 
-            value: `৳${Number(summary?.total_orders > 0 ? summary.total_receivable / summary.total_orders : 0).toFixed(2)}`, 
+            value: `৳${Number(summary?.total_transactions > 0 ? summary.total_receivable / summary.total_transactions : 0).toFixed(2)}`, 
             icon: CreditCard, 
             color: 'blue',
             change: '+2.4%'

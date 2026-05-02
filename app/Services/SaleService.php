@@ -8,6 +8,7 @@ use App\Models\StockBatch;
 use App\Models\Sale;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Exception;
 
@@ -29,18 +30,24 @@ class SaleService
     {
         return DB::transaction(function () use ($data) {
             // 1. Create the Sale Record
-            $sale = $this->saleRepository->create([
-                'user_id' => auth()->id() ?? (User::first()->id ?? null),
+            $saleData = [
+                'user_id' => Auth::id() ?? (User::first()->id ?? null),
                 'invoice_number' => $this->saleRepository->generateInvoiceNumber(),
                 'sale_date' => now(),
+                'customer_name' => $data['customer_name'] ?? null,
+                'customer_phone' => $data['customer_phone'] ?? null,
                 'subtotal' => $data['subtotal'],
                 'tax_total' => $data['tax_total'] ?? 0,
                 'discount_total' => $data['discount_total'] ?? 0,
                 'grand_total' => $data['grand_total'],
-                'payment_method' => $data['payment_method'] ?? 'Cash',
-                'status' => 'Completed',
+                'payment_method' => ($data['payment_method'] ?? 'Cash') === 'Due' ? 'Cash' : ($data['payment_method'] ?? 'Cash'),
+                'status' => ($data['payment_method'] ?? null) === 'Due' ? 'Due' : 'Completed',
                 'notes' => $data['notes'] ?? null,
-            ]);
+                'paid_amount' => ($data['payment_method'] ?? null) === 'Due' ? 0 : $data['grand_total'],
+                'due_amount' => ($data['payment_method'] ?? null) === 'Due' ? $data['grand_total'] : 0,
+            ];
+            
+            $sale = $this->saleRepository->create($saleData);
 
             // 2. Process Line Items with FIFO
             foreach ($data['items'] as $item) {
@@ -53,6 +60,7 @@ class SaleService
 
             // 3. Invalidate relevant caches
             $this->clearCaches($data['items']);
+            Cache::flush(); // Clear report cache on new sale
 
             return $sale;
         });
@@ -113,6 +121,31 @@ class SaleService
     public function getSaleDetails(int $id)
     {
         return $this->saleRepository->findById($id);
+    }
+
+    public function updateSaleStatus(int $id, array $data)
+    {
+        $sale = $this->saleRepository->findById($id);
+        if (!$sale) {
+            throw new \Exception('Sale not found');
+        }
+
+        $updateData = ['status' => $data['status']];
+        
+        if (isset($data['paid_amount'])) {
+            $updateData['paid_amount'] = $data['paid_amount'];
+        }
+        
+        if (isset($data['due_amount'])) {
+            $updateData['due_amount'] = $data['due_amount'];
+        }
+
+        $updatedSale = $this->saleRepository->update($id, $updateData);
+        
+        // Clear Report Cache
+        Cache::flush();
+        
+        return $updatedSale;
     }
 
     private function clearCaches(array $items)

@@ -24,8 +24,14 @@ class SaleController extends Controller
         $search = $request->get('search');
         $status = $request->get('status');
 
-        $sales = $this->saleService->getSalesHistory($perPage, $search, $status);
-        return SaleResource::collection($sales);
+        $result = $this->saleService->getSalesHistory($perPage, $search, $status);
+        
+        return SaleResource::collection($result['paginator'])->additional([
+            'summary' => [
+                'total_amount' => $result['total_amount'],
+                'total_due' => $result['total_due']
+            ]
+        ]);
     }
 
     public function store(StoreSaleRequest $request): JsonResponse
@@ -52,5 +58,28 @@ class SaleController extends Controller
             return response()->json(['message' => 'Sale not found'], 404);
         }
         return new SaleResource($sale);
+    }
+
+    public function updateStatus(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'status' => 'required|string|in:Completed,Due,Returned',
+            'paid_amount' => 'nullable|numeric|min:0',
+            'due_amount' => 'nullable|numeric|min:0',
+        ]);
+
+        try {
+            $sale = $this->saleService->updateSaleStatus($id, $request->only(['status', 'paid_amount', 'due_amount']));
+            return response()->json([
+                'success' => true,
+                'message' => 'Sale status updated successfully',
+                'data' => new SaleResource($sale)
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
+        }
     }
 }

@@ -23,10 +23,10 @@ import CategoryRevenue from '../components/Reports/CategoryRevenue';
 import { Toaster, toast } from 'react-hot-toast';
 
 const SalesReportsPage = () => {
-    // Default to last 30 days
+    // Default to last 30 days using local timezone
     const [dateRange, setDateRange] = useState({
-        from_date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        to_date: new Date().toISOString().split('T')[0]
+        from_date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA'),
+        to_date: new Date().toLocaleDateString('en-CA')
     });
 
     const { data: reportData, isLoading, isFetching } = useGetReportDashboardQuery(dateRange);
@@ -154,24 +154,6 @@ const SalesReportsPage = () => {
                         <div className="lg:col-span-4 flex flex-col h-full gap-8">
                             <CategoryRevenue categories={reportData?.data.categories} />
                             
-                            {/* Payment Breakdown Mini-Report */}
-                            <div className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm flex-1">
-                                <h3 className="text-sm font-black text-slate-900 tracking-tight mb-4 flex items-center gap-2">
-                                    <CreditCard size={18} className="text-indigo-500" />
-                                    Payment Methods
-                                </h3>
-                                <div className="space-y-4">
-                                    {reportData?.data.payments.map((p, idx) => (
-                                        <div key={idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100 italic">
-                                            <span className="text-xs font-bold text-slate-600">{p.payment_method}</span>
-                                            <div className="flex flex-col items-end">
-                                                <span className="text-xs font-black text-slate-900">৳{Number(p.total).toLocaleString()}</span>
-                                                <span className="text-[9px] font-bold text-slate-400 uppercase">{p.count} Orders</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
 
 
 

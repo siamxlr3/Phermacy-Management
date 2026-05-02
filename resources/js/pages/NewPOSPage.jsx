@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, Search, Plus, Package, Tablet, Layers, Loader2, AlertCircle, Pill, Sparkles, X, Play } from 'lucide-react';
+import { ShoppingBag, Search, Plus, Package, Tablet, Layers, Loader2, AlertCircle, Pill, Sparkles, X, Play, Tag, Factory } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
-import { addItem, clearCart, setTaxConfig, resumeHeldSell, removeHeldSell } from '../store/slices/posSlice';
+import { addItem, clearCart, setTaxConfig, resumeHeldSell, removeHeldSell, setRegister } from '../store/slices/posSlice';
 import { useGetMedicinesQuery } from '../store/api/medicineApi';
 import { useGetTaxesQuery } from '../store/api/settingApi';
 import { useProcessSaleMutation } from '../store/api/salesApi';
+import { useGetRegisterStatusQuery, useOpenRegisterMutation, useCloseRegisterMutation } from '../store/api/cashRegisterApi';
 import CartTable from '../components/POS/CartTable';
 import BillingSummary from '../components/POS/BillingSummary';
 import InvoiceModal from '../components/POS/InvoiceModal';
+import { OpenRegisterModal, CloseRegisterModal } from '../components/POS/RegisterModals';
 import toast, { Toaster } from 'react-hot-toast';
 
 const NewPOSPage = () => {
@@ -19,6 +21,7 @@ const NewPOSPage = () => {
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [lastSale, setLastSale] = useState(null);
+  const [isCloseRegisterModalOpen, setIsCloseRegisterModalOpen] = useState(false);
 
   const cartState = useSelector((state) => state.pos);
   const { heldSells } = cartState;
@@ -26,6 +29,18 @@ const NewPOSPage = () => {
   const isSearchLoading = loadingMedicines || fetchingMedicines || (searchTerm !== debouncedSearch);
   const { data: taxesData } = useGetTaxesQuery({ perPage: 100 });
   const [processSale, { isLoading: isProcessing }] = useProcessSaleMutation();
+  
+  const { data: registerStatus, isLoading: loadingRegister } = useGetRegisterStatusQuery();
+  const [openRegister, { isLoading: isOpeningRegister }] = useOpenRegisterMutation();
+  const [closeRegister, { isLoading: isClosingRegister }] = useCloseRegisterMutation();
+
+  useEffect(() => {
+    if (registerStatus?.register) {
+      dispatch(setRegister(registerStatus.register));
+    } else {
+      dispatch(setRegister(null));
+    }
+  }, [registerStatus, dispatch]);
 
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(searchTerm), 400);
@@ -43,21 +58,33 @@ const NewPOSPage = () => {
 
   const handleProcessSale = async () => {
     if (cartState.cart.length === 0) return;
+    if (!cartState.activeRegister) {
+      toast.error('You must open a cash register before making sales');
+      return;
+    }
     try {
       const saleData = {
+        customer_name: cartState.customer_name,
+        customer_phone: cartState.customer_phone,
         subtotal: cartState.subtotal,
         tax_total: cartState.tax_total,
         discount_total: cartState.discount_total,
         grand_total: cartState.grand_total,
         payment_method: cartState.payment_method,
-        items: cartState.cart.map(item => ({
-          medicine_id: item.medicine_id,
-          sale_unit: item.unit,
-          qty_tablets: item.qty_tablets,
-          unit_price: item.unit_price,
-          tax_amount: (item.unit_price * item.qty_tablets) * (cartState.tax_rate / 100),
-          subtotal: item.price_per_unit * item.quantity
-        }))
+        items: cartState.cart.map(item => {
+          const tabletsPerUnit = item.qty_tablets / item.quantity;
+          const pricePerTablet = item.price_per_unit / tabletsPerUnit;
+          
+          return {
+            medicine_id: item.medicine_id,
+            sale_unit: item.unit,
+            quantity: item.quantity,
+            qty_tablets: item.qty_tablets,
+            unit_price: pricePerTablet,
+            tax_amount: (item.price_per_unit * item.quantity) * (cartState.tax_rate / 100),
+            subtotal: item.price_per_unit * item.quantity
+          };
+        })
       };
       const result = await processSale(saleData).unwrap();
       setLastSale(result.data);
@@ -112,6 +139,17 @@ const NewPOSPage = () => {
               ⌘ K
             </span>
 
+            {/* Close Register Button */}
+            {cartState.activeRegister && (
+              <button 
+                onClick={() => setIsCloseRegisterModalOpen(true)}
+                className="absolute right-20 top-1/2 -translate-y-1/2 px-4 py-2 bg-rose-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-200 flex items-center gap-2 hover:bg-rose-600 transition-all active:scale-95"
+              >
+                <X size={12} />
+                Close Shift
+              </button>
+            )}
+
             {/* Search Dropdown */}
             <AnimatePresence>
               {searchTerm && (
@@ -137,7 +175,8 @@ const NewPOSPage = () => {
                     ) : (
                       medicines.map((m) => (
                         <div key={m.id}
-                          className="p-4 rounded-xl mb-1 last:mb-0 transition-all"
+                          onClick={() => { dispatch(addItem({ medicine: m, selectedUnit: 'Tablet' })); setSearchTerm(''); }}
+                          className="p-4 rounded-xl mb-1 last:mb-0 transition-all cursor-pointer group"
                           style={{ border: '1px solid transparent' }}
                           onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(201,151,42,0.35)'; e.currentTarget.style.background = '#f0f0f3'; }}
                           onMouseLeave={e => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
@@ -151,47 +190,36 @@ const NewPOSPage = () => {
                               <div className="min-w-0">
                                 <p className="text-sm font-bold truncate" style={{ color: '#1a1a1f' }}>{m.name}</p>
                                 <div className="flex items-center gap-2 mt-0.5">
+                                  <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: '#e8e8eb', color: '#8a8a94' }}>{m.dosage_form}</span>
                                   <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: '#8a8a94' }}>{m.generic_name}</span>
-                                  {m.manufacturer && <><span className="w-1 h-1 rounded-full" style={{ background: '#c9c9cc' }} /><span className="text-[10px] font-semibold" style={{ color: '#4a90d9' }}>{m.manufacturer}</span></>}
+                                </div>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <div className="flex items-center gap-1">
+                                    <Tag size={10} className="text-amber-500" />
+                                    <span className="text-[10px] font-medium" style={{ color: '#6a6a74' }}>{m.category_name}</span>
+                                  </div>
+                                  <span className="w-1 h-1 rounded-full" style={{ background: '#c9c9cc' }} />
+                                  <div className="flex items-center gap-1">
+                                    <Factory size={10} className="text-blue-500" />
+                                    <span className="text-[10px] font-medium" style={{ color: '#6a6a74' }}>{m.manufacturer_name}</span>
+                                  </div>
                                 </div>
                                 <div className="flex items-center gap-2 mt-1.5">
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: 'rgba(74,144,217,0.12)', color: '#4a90d9', border: '1px solid rgba(74,144,217,0.25)' }}>Stock: {m.stock} tabs</span>
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: 'rgba(201,151,42,0.12)', color: '#c9972a', border: '1px solid rgba(201,151,42,0.30)' }}>${m.price_per_tablet}/tab</span>
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: 'rgba(74,144,217,0.12)', color: '#4a90d9', border: '1px solid rgba(74,144,217,0.25)' }}>Stock: {m.stock}</span>
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: 'rgba(201,151,42,0.12)', color: '#c9972a', border: '1px solid rgba(201,151,42,0.30)' }}>${m.price_per_tablet || m.price}/unit</span>
                                 </div>
                               </div>
                             </div>
-                            <div className="flex flex-col gap-1.5 shrink-0">
-                              <button
-                                onClick={() => { dispatch(addItem({ medicine: m, selectedUnit: 'Tablet' })); setSearchTerm(''); }}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
-                                style={{ background: '#e8e8eb', border: '1px solid rgba(0,0,0,0.09)', color: '#4a4a52' }}
-                                onMouseEnter={e => { e.currentTarget.style.background = '#dddde0'; }}
-                                onMouseLeave={e => { e.currentTarget.style.background = '#e8e8eb'; }}
-                              >
-                                <Tablet size={12} /> Tablet
-                              </button>
-                              {m.tablets_per_strip > 0 && (
-                                <button
-                                  onClick={() => { dispatch(addItem({ medicine: m, selectedUnit: 'Strip' })); setSearchTerm(''); }}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
-                                  style={{ background: 'rgba(74,144,217,0.12)', border: '1px solid rgba(74,144,217,0.25)', color: '#4a90d9' }}
-                                >
-                                  <Layers size={12} /> Strip ({m.tablets_per_strip}t)
-                                </button>
-                              )}
-                              {m.strips_per_box > 0 && (
-                                <button
-                                  onClick={() => { dispatch(addItem({ medicine: m, selectedUnit: 'Box' })); setSearchTerm(''); }}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all"
-                                  style={{ background: '#0f1b2d', border: '1px solid rgba(255,255,255,0.08)', color: '#fff' }}
-                                >
-                                  <Package size={12} /> Box ({m.strips_per_box}s)
-                                </button>
-                              )}
+                            <div className="flex flex-col gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider"
+                                style={{ background: '#e8922a', color: '#1a0d00', boxShadow: '0 4px 12px rgba(232,146,42,0.2)' }}>
+                                <Plus size={12} /> Add to Cart
+                              </div>
                             </div>
                           </div>
                         </div>
                       ))
+
                     )}
                   </div>
                 </motion.div>
@@ -310,6 +338,40 @@ const NewPOSPage = () => {
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Register Modals */}
+      <AnimatePresence>
+        {!loadingRegister && !cartState.activeRegister && (
+          <OpenRegisterModal 
+            onOpen={async (balance) => {
+              try {
+                await openRegister({ opening_balance: balance }).unwrap();
+                toast.success('Shift started successfully');
+              } catch (err) {
+                toast.error('Failed to open register');
+              }
+            }}
+            isProcessing={isOpeningRegister}
+          />
+        )}
+
+        {isCloseRegisterModalOpen && (
+          <CloseRegisterModal 
+            registerData={cartState.activeRegister}
+            onClose={() => setIsCloseRegisterModalOpen(false)}
+            onCloseRegister={async (data) => {
+              try {
+                await closeRegister(data).unwrap();
+                setIsCloseRegisterModalOpen(false);
+                toast.success('Shift closed successfully');
+              } catch (err) {
+                toast.error('Failed to close register');
+              }
+            }}
+            isProcessing={isClosingRegister}
+          />
         )}
       </AnimatePresence>
 

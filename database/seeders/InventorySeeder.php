@@ -3,8 +3,6 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use App\Models\Category;
-use App\Models\Manufacturer;
 use App\Models\Medicine;
 use App\Models\Supplier;
 
@@ -12,26 +10,7 @@ class InventorySeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. Categories
-        $categories = ['Tablets', 'Capsules', 'Syrups', 'Injections', 'Ointments'];
-        foreach ($categories as $cat) {
-            Category::create(['name' => $cat, 'status' => 'Active']);
-        }
-
-        // 2. Manufacturers
-        $manufacturers = [
-            'GSK (GlaxoSmithKline)',
-            'Pfizer Inc.',
-            'Beximco Pharmaceuticals',
-            'Square Pharmaceuticals',
-            'Sandoz (Novartis)',
-            'Bayer AG'
-        ];
-        foreach ($manufacturers as $man) {
-            Manufacturer::create(['name' => $man, 'status' => 'Active']);
-        }
-
-        // 3. Suppliers
+        // 1. Suppliers
         Supplier::create([
             'name' => 'Metro Meds Distribution',
             'contact_person' => 'John Doe',
@@ -51,86 +30,60 @@ class InventorySeeder extends Seeder
             'status' => 'Active'
         ]);
 
-        // 4. Medicines
+        // 2. Medicines
         $medicines = [
             [
                 'name' => 'Napa',
                 'generic_name' => 'Paracetamol',
-                'category_id' => 1, // Tablets
-                'manufacturer_id' => 3, // Beximco
-                'tablets_per_strip' => 10,
-                'strips_per_box' => 50,
+                'category_name' => 'Tablets',
+                'manufacturer_name' => 'Beximco Pharmaceuticals',
+                'dosage_form' => 'Tablet',
+                'strength' => '500mg',
+                'tablet_per_stripe' => 10,
+                'stripe_per_box' => 50,
                 'price_per_tablet' => 1.20,
-                'cost_price' => 0.80,
+                'price_per_stripe' => 12.00,
+                'price_per_box' => 600.00,
                 'stock' => 500,
                 'reorder_level' => 100,
+                'status' => 'Active'
             ],
             [
                 'name' => 'Ace Plus',
                 'generic_name' => 'Paracetamol + Caffeine',
-                'category_id' => 1,
-                'manufacturer_id' => 4, // Square
-                'tablets_per_strip' => 12,
-                'strips_per_box' => 30,
+                'category_name' => 'Tablets',
+                'manufacturer_name' => 'Square Pharmaceuticals',
+                'dosage_form' => 'Tablet',
+                'strength' => '500mg+65mg',
+                'tablet_per_stripe' => 12,
+                'stripe_per_box' => 30,
                 'price_per_tablet' => 2.50,
-                'cost_price' => 1.90,
+                'price_per_stripe' => 30.00,
+                'price_per_box' => 900.00,
                 'stock' => 300,
                 'reorder_level' => 50,
+                'status' => 'Active'
             ],
             [
                 'name' => 'Fexo 120',
                 'generic_name' => 'Fexofenadine',
-                'category_id' => 1,
-                'manufacturer_id' => 3,
-                'tablets_per_strip' => 10,
-                'strips_per_box' => 10,
+                'category_name' => 'Tablets',
+                'manufacturer_name' => 'Beximco Pharmaceuticals',
+                'dosage_form' => 'Tablet',
+                'strength' => '120mg',
+                'tablet_per_stripe' => 10,
+                'stripe_per_box' => 10,
                 'price_per_tablet' => 8.00,
-                'cost_price' => 5.50,
+                'price_per_stripe' => 80.00,
+                'price_per_box' => 800.00,
                 'stock' => 150,
                 'reorder_level' => 20,
-            ],
-            [
-                'name' => 'Amoxicillin 500',
-                'generic_name' => 'Amoxicillin Trihydrate',
-                'category_id' => 2, // Capsules
-                'manufacturer_id' => 2, // Pfizer
-                'tablets_per_strip' => 6,
-                'strips_per_box' => 20,
-                'price_per_tablet' => 15.00,
-                'cost_price' => 12.00,
-                'stock' => 240,
-                'reorder_level' => 40,
-            ],
-            [
-                'name' => 'Advasyl Syrup',
-                'generic_name' => 'Antacid',
-                'category_id' => 3, // Syrups
-                'manufacturer_id' => 4,
-                'tablets_per_strip' => 0,
-                'strips_per_box' => 0,
-                'sale_unit' => 'Bottle',
-                'price_per_tablet' => 85.00, // Price per bottle for syrups
-                'cost_price' => 65.00,
-                'stock' => 45,
-                'reorder_level' => 10,
-            ],
-            [
-                'name' => 'Insulin Humulin',
-                'generic_name' => 'Human Insulin',
-                'category_id' => 4, // Injections
-                'manufacturer_id' => 1, // GSK
-                'tablets_per_strip' => 0,
-                'strips_per_box' => 0,
-                'sale_unit' => 'Vial',
-                'price_per_tablet' => 450.00,
-                'cost_price' => 380.00,
-                'stock' => 15,
-                'reorder_level' => 5,
+                'status' => 'Active'
             ]
         ];
 
         foreach ($medicines as $med) {
-            Medicine::create($med + ['status' => 'Active']);
+            Medicine::create($med);
         }
     }
 }

@@ -21,6 +21,7 @@ import SalesReportsPage from './pages/SalesReportsPage';
 import InventoryReportsPage from './pages/InventoryReportsPage';
 import ExpensePage from './pages/ExpensePage';
 import HRMPage from './pages/HRMPage';
+import CashRegisterPage from './pages/CashRegisterPage';
 
 const App = () => {
     return (
@@ -34,8 +35,10 @@ const App = () => {
                     <Route path="/pos" element={<NewPOSPage />} />
                     <Route path="/pos/new" element={<NewPOSPage />} />
                     <Route path="/sales" element={<SalesHistoryPage />} />
+                    <Route path="/sales-history" element={<SalesHistoryPage />} />
                     <Route path="/sales/returns" element={<ReturnsPage />} />
                     <Route path="/sales/reports" element={<SalesReportsPage />} />
+                    <Route path="/cash-register" element={<CashRegisterPage />} />
 
                     {/* Inventory */}
                     <Route path="/medicines" element={<MedicinePage />} />

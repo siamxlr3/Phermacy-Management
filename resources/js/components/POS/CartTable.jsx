@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { removeItem, updateQuantity } from '../../store/slices/posSlice';
-import { Trash2, Plus, Minus, Package, Tablet, Layers, ShoppingCart } from 'lucide-react';
+import { removeItem, updateQuantity, updateItemUnit, updateItemPrice } from '../../store/slices/posSlice';
+import { Trash2, Plus, Minus, Package, Tablet, Layers, ShoppingCart, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const unitConfig = {
@@ -38,14 +38,13 @@ const CartTable = () => {
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ background: '#f8f8fa' }}>
       {/* Sticky header */}
-      <div className="shrink-0 grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3 sticky top-0 z-10"
+      <div className="shrink-0 grid grid-cols-[1fr_120px_140px_100px_40px] gap-4 px-5 py-3 sticky top-0 z-10"
         style={{ background: '#f0f0f3', borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
-        {['Medicine & unit', 'Qty', 'Unit price', 'Total', ''].map((h, i) => (
-          <span key={i} className="text-[10px] font-bold uppercase tracking-widest"
-            style={{ color: '#8a8a94', textAlign: i > 0 ? 'center' : 'left' }}>
-            {h}
-          </span>
-        ))}
+        <span className="text-[10px] font-bold uppercase tracking-widest text-left" style={{ color: '#8a8a94' }}>Medicine & Unit</span>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-center" style={{ color: '#8a8a94' }}>Qty</span>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-center" style={{ color: '#8a8a94' }}>Unit Price</span>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-center" style={{ color: '#8a8a94' }}>Total</span>
+        <span className="text-[10px] font-bold uppercase tracking-widest text-right" style={{ color: '#8a8a94' }}></span>
       </div>
 
       {/* Items */}
@@ -69,68 +68,101 @@ const CartTable = () => {
                   border: '1px solid rgba(0,0,0,0.07)',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
                 }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(201,151,42,0.35)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(0,0,0,0.07)'; }}
               >
                 {/* Medicine info */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate" style={{ color: '#1a1a1f' }}>{item.name}</p>
-                  <p className="text-[10px] mt-0.5 truncate" style={{ color: '#8a8a94' }}>{item.manufacturer}</p>
-                  <div className="flex items-center gap-1.5 mt-1.5">
-                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-md"
-                      style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }}>
-                      <Icon size={10} />
-                      {cfg.label}
-                      {item.unit === 'Box' && ` · ${item.strips_per_box} strips`}
-                      {item.unit === 'Strip' && ` · ${item.tablets_per_strip} tabs`}
-                    </span>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    {['Tablet', 'Capsule', 'Suppository', 'Patch'].includes(item.dosage_form) ? (
+                        <select
+                            value={item.unit}
+                            onChange={(e) => dispatch(updateItemUnit({ medicine_id: item.medicine_id, oldUnit: item.unit, newUnit: e.target.value }))}
+                            className="text-[10px] font-bold px-2 py-1 rounded-md outline-none transition-all cursor-pointer"
+                            style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, color: cfg.color }}
+                        >
+                            <option value="Tablet">Tablet</option>
+                            <option value="Strip">Strip</option>
+                            <option value="Box">Box</option>
+                        </select>
+                    ) : (
+                        <span className="text-[10px] font-bold px-2 py-1 rounded-md"
+                              style={{ background: 'rgba(58,170,114,0.10)', border: '1px solid rgba(58,170,114,0.25)', color: '#3aaa72' }}>
+                            {item.dosage_form || 'Unit'}
+                        </span>
+                    )}
+                    {(item.unit === 'Box' || item.unit === 'Strip') && (
+                        <div className="flex items-center gap-1 text-[9px] font-bold text-slate-400">
+                           <Info size={10} />
+                           {item.unit === 'Box' ? `${item.strips_per_box}s x ${item.tablets_per_strip}t` : `${item.tablets_per_strip} tablets`}
+                        </div>
+                    )}
                   </div>
                 </div>
 
                 {/* Qty stepper */}
-                <div className="flex items-center gap-2 px-2 py-1 rounded-lg"
-                  style={{ background: '#e8e8eb', border: '1px solid rgba(0,0,0,0.09)' }}>
-                  <button
-                    onClick={() => dispatch(updateQuantity({ medicine_id: item.medicine_id, unit: item.unit, quantity: item.quantity - 1 }))}
-                    className="w-6 h-6 flex items-center justify-center rounded-md transition-all"
-                    style={{ color: '#4a4a52' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,151,42,0.15)'; e.currentTarget.style.color = '#c9972a'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#4a4a52'; }}
-                  >
-                    <Minus size={12} />
-                  </button>
-                  <span className="text-sm font-bold min-w-[20px] text-center" style={{ color: '#1a1a1f' }}>{item.quantity}</span>
-                  <button
-                    onClick={() => dispatch(updateQuantity({ medicine_id: item.medicine_id, unit: item.unit, quantity: item.quantity + 1 }))}
-                    className="w-6 h-6 flex items-center justify-center rounded-md transition-all"
-                    style={{ color: '#4a4a52' }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,151,42,0.15)'; e.currentTarget.style.color = '#c9972a'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#4a4a52'; }}
-                  >
-                    <Plus size={12} />
-                  </button>
+                <div className="w-[120px] flex items-center justify-center">
+                    <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg"
+                        style={{ background: '#e8e8eb', border: '1px solid rgba(0,0,0,0.09)' }}>
+                        <button
+                            onClick={() => dispatch(updateQuantity({ medicine_id: item.medicine_id, unit: item.unit, quantity: item.quantity - 1 }))}
+                            className="w-6 h-6 flex items-center justify-center rounded-md transition-all"
+                            style={{ color: '#4a4a52' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,151,42,0.15)'; e.currentTarget.style.color = '#c9972a'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#4a4a52'; }}
+                        >
+                            <Minus size={12} />
+                        </button>
+                        <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => dispatch(updateQuantity({ medicine_id: item.medicine_id, unit: item.unit, quantity: parseInt(e.target.value) || 0 }))}
+                            className="text-xs font-bold w-10 text-center bg-transparent border-none outline-none"
+                            style={{ color: '#1a1a1f' }}
+                        />
+                        <button
+                            onClick={() => dispatch(updateQuantity({ medicine_id: item.medicine_id, unit: item.unit, quantity: item.quantity + 1 }))}
+                            className="w-6 h-6 flex items-center justify-center rounded-md transition-all"
+                            style={{ color: '#4a4a52' }}
+                            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(201,151,42,0.15)'; e.currentTarget.style.color = '#c9972a'; }}
+                            onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#4a4a52'; }}
+                        >
+                            <Plus size={12} />
+                        </button>
+                    </div>
                 </div>
 
-                {/* Unit price */}
-                <span className="text-sm font-medium w-16 text-right" style={{ color: '#4a4a52' }}>
-                  ${item.price_per_unit.toFixed(2)}
-                </span>
+                {/* Unit Price Adjustment */}
+                <div className="w-[140px] flex justify-center">
+                    <div className="relative group">
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 group-focus-within:text-emerald-500">$</span>
+                        <input
+                            type="number"
+                            step="0.01"
+                            value={item.price_per_unit}
+                            onChange={(e) => dispatch(updateItemPrice({ medicine_id: item.medicine_id, unit: item.unit, price: e.target.value }))}
+                            className="pl-5 pr-2 py-1.5 w-24 rounded-lg text-xs font-bold outline-none bg-white/50 border border-slate-200 focus:border-emerald-500/50 transition-all text-center"
+                            style={{ color: '#1a1a1f' }}
+                        />
+                    </div>
+                </div>
 
                 {/* Line total */}
-                <span className="text-sm font-bold w-16 text-right" style={{ color: '#1a1a1f' }}>
-                  ${lineTotal}
-                </span>
+                <div className="w-[100px] text-center">
+                    <span className="text-sm font-black text-slate-900">${lineTotal}</span>
+                </div>
 
                 {/* Remove */}
-                <button
-                  onClick={() => dispatch(removeItem({ medicine_id: item.medicine_id, unit: item.unit }))}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg transition-all"
-                  style={{ color: '#8a8a94' }}
-                  onMouseEnter={e => { e.currentTarget.style.color = '#d95555'; e.currentTarget.style.background = 'rgba(217,85,85,0.10)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.color = '#8a8a94'; e.currentTarget.style.background = 'transparent'; }}
-                >
-                  <Trash2 size={14} />
-                </button>
+                <div className="w-[40px] flex justify-end">
+                    <button
+                        onClick={() => dispatch(removeItem({ medicine_id: item.medicine_id, unit: item.unit }))}
+                        className="w-8 h-8 flex items-center justify-center rounded-xl transition-all"
+                        style={{ color: '#8a8a94' }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#d95555'; e.currentTarget.style.background = 'rgba(217,85,85,0.10)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = '#8a8a94'; e.currentTarget.style.background = 'transparent'; }}
+                    >
+                        <Trash2 size={16} />
+                    </button>
+                </div>
               </motion.div>
             );
           })}
