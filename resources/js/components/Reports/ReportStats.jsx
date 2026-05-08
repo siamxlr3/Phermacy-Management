@@ -1,32 +1,34 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, CreditCard, Users, DollarSign, RotateCcw } from 'lucide-react';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const ReportStats = ({ summary, returnsCount }) => {
+    const { translations } = useLanguage();
     const stats = [
         { 
-            label: 'Total Revenue', 
+            label: translations.sales_reports.total_revenue, 
             value: `৳${Number(summary?.total_receivable || 0).toLocaleString()}`, 
             icon: DollarSign, 
             color: 'emerald',
             change: '+12.5%' // Mock trend for UX
         },
         { 
-            label: 'Total Transaction', 
+            label: translations.sales_reports.total_transaction, 
             value: Number(summary?.total_transactions || 0).toLocaleString(), 
             icon: TrendingUp, 
             color: 'indigo',
             change: '+8.1%'
         },
         { 
-            label: 'Avg. Order Value', 
+            label: translations.sales_reports.avg_order_value, 
             value: `৳${Number(summary?.total_transactions > 0 ? summary.total_receivable / summary.total_transactions : 0).toFixed(2)}`, 
             icon: CreditCard, 
             color: 'blue',
             change: '+2.4%'
         },
         { 
-            label: 'Total Returns', 
+            label: translations.sales_reports.total_returns, 
             value: returnsCount || 0, 
             icon: RotateCcw, 
             color: 'rose',

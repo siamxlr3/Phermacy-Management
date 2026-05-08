@@ -1,54 +1,56 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Database, TrendingUp, AlertCircle, ShoppingBag, Bell, ShieldAlert } from 'lucide-react';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const StockValuationCards = ({ summaries, alertSummary, isLoading }) => {
+    const { translations } = useLanguage();
     const cards = [
         {
-            label: 'Stock Price Total',
+            label: translations.reports.stock_valuation.total_price,
             value: summaries ? summaries.total_stock_value : null,
-            sub: 'Money in Stock',
+            sub: translations.reports.stock_valuation.money_in_stock,
             icon: Database,
             color: 'emerald',
-            badge: 'LIVE',
+            badge: translations.reports.stock_valuation.live,
             emoji: '📦',
             type: 'currency'
         },
         {
-            label: 'Unpaid Supplier Bills',
+            label: translations.reports.stock_valuation.unpaid_bills,
             value: summaries ? summaries.total_pending_payments : null,
-            sub: 'What we owe Suppliers',
+            sub: translations.reports.stock_valuation.owe_suppliers,
             icon: ShoppingBag,
             color: 'rose',
-            badge: 'UNPAID',
+            badge: translations.reports.stock_valuation.unpaid,
             emoji: '💳',
             type: 'currency'
         },
         {
-            label: 'Low Stock Items',
+            label: translations.reports.stock_valuation.low_stock,
             value: alertSummary ? alertSummary.low_stock_alerts : (summaries ? summaries.low_stock_count : null),
-            sub: 'Need Restocking',
+            sub: translations.reports.stock_valuation.need_restocking,
             icon: TrendingUp,
             color: 'teal',
-            badge: 'OK',
+            badge: translations.reports.stock_valuation.ok,
             emoji: '📉'
         },
         {
-            label: 'Expiring Soon',
+            label: translations.reports.stock_valuation.expiring_soon,
             value: summaries ? summaries.expiry_count : null,
-            sub: 'Within 90 Days',
+            sub: translations.reports.stock_valuation.within_90_days,
             icon: AlertCircle,
             color: 'amber',
-            badge: 'WATCH',
+            badge: translations.reports.stock_valuation.watch,
             emoji: '⚠️'
         },
         {
-            label: 'Expired Items',
+            label: translations.reports.stock_valuation.expired_items,
             value: summaries ? summaries.expired_count : (alertSummary ? alertSummary.expiry_alerts : 0),
-            sub: 'Non-sellable stock',
+            sub: translations.reports.stock_valuation.non_sellable,
             icon: ShieldAlert,
             color: 'rose',
-            badge: 'CRITICAL',
+            badge: translations.reports.stock_valuation.critical,
             emoji: '❌'
         }
     ];

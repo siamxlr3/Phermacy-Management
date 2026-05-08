@@ -1,8 +1,11 @@
 import React from 'react';
 import { X, Printer, CheckCircle2, ShoppingBag, Calendar, User, Phone, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
+import { printPOSReceipt } from '../../utils/printer';
 
 const InvoiceModal = ({ sale, onClose }) => {
+  const { translations } = useLanguage();
   if (!sale) return null;
 
   return (
@@ -97,7 +100,7 @@ const InvoiceModal = ({ sale, onClose }) => {
         {/* Modal Footer (Actions) */}
         <div className="shrink-0 p-8 border-t border-slate-100 flex gap-4 bg-slate-50/50">
           <button
-            onClick={() => window.print()}
+            onClick={() => printPOSReceipt(sale, translations)}
             className="flex-1 flex items-center justify-center gap-3 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold transition-all shadow-xl shadow-slate-900/10 active:scale-95 translate-y-0 active:translate-y-0.5"
           >
             <Printer size={18} /> Print Receipt

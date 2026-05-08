@@ -3,93 +3,88 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\AttendanceRequest;
-use App\Http\Resources\Api\AttendanceResource;
-use App\Services\AttendanceService;
+use App\Models\Attendance;
+use App\Models\Staff;
 use Illuminate\Http\Request;
-use Exception;
+use App\Http\Resources\Api\AttendanceResource;
+use Illuminate\Support\Facades\Cache;
 
 class AttendanceController extends Controller
 {
-    protected $attendanceService;
-
-    public function __construct(AttendanceService $attendanceService)
+    public function index(Request $request)
     {
-        $this->attendanceService = $attendanceService;
+        $perPage = $request->get('per_page', 10);
+        $search = $request->get('search');
+        $status = $request->get('status');
+        $fromDate = $request->get('from_date');
+        $toDate = $request->get('to_date');
+
+        $query = Attendance::with('staff');
+
+        if ($search) {
+            $query->whereHas('staff', function($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('employee_id', 'like', "%{$search}%");
+            });
+        }
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        if ($fromDate && $toDate) {
+            $query->whereBetween('date', [$fromDate, $toDate]);
+        }
+
+        $attendance = $query->orderBy('date', 'desc')->paginate($perPage);
+        return AttendanceResource::collection($attendance);
     }
 
-    public function index(Request $request): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+    public function store(Request $request)
     {
-        try {
-            $perPage = $request->get('per_page', 10);
-            $search = $request->get('search');
-            $status = $request->get('status');
-            $fromDate = $request->get('from_date');
-            $toDate = $request->get('to_date');
- 
-            $attendance = $this->attendanceService->getAllAttendance($perPage, $search, $status, $fromDate, $toDate);
- 
-            return AttendanceResource::collection($attendance);
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch attendance records: ' . $e->getMessage()
-            ], 500);
-        }
+        $validated = $request->validate([
+            'staff_id' => 'required|exists:staff,id',
+            'date' => 'required|date',
+            'check_in' => 'nullable|string',
+            'check_out' => 'nullable|string',
+            'status' => 'required|string|in:Present,Absent,Late,Half Day',
+            'notes' => 'nullable|string',
+        ]);
+
+        $attendance = Attendance::create($validated);
+        Cache::flush();
+        return new AttendanceResource($attendance->load('staff'));
     }
 
-    public function store(AttendanceRequest $request)
+    public function show(int $id)
     {
-        try {
-            $attendance = $this->attendanceService->createAttendance($request->validated());
-            return new AttendanceResource($attendance);
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to record attendance: ' . $e->getMessage()
-            ], 500);
-        }
+        $attendance = Attendance::with('staff')->findOrFail($id);
+        return new AttendanceResource($attendance);
     }
 
-    public function show($id)
+    public function update(Request $request, int $id)
     {
-        try {
-            $attendance = $this->attendanceService->getAttendanceById($id);
-            return new AttendanceResource($attendance);
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Attendance record not found.'
-            ], 404);
-        }
+        $attendance = Attendance::findOrFail($id);
+        $validated = $request->validate([
+            'staff_id' => 'required|exists:staff,id',
+            'date' => 'required|date',
+            'check_in' => 'nullable|string',
+            'check_out' => 'nullable|string',
+            'status' => 'required|string|in:Present,Absent,Late,Half Day',
+            'notes' => 'nullable|string',
+        ]);
+
+        $attendance->update($validated);
+        Cache::flush();
+        return new AttendanceResource($attendance->load('staff'));
     }
 
-    public function update(AttendanceRequest $request, $id)
+    public function destroy(int $id)
     {
-        try {
-            $attendance = $this->attendanceService->updateAttendance($id, $request->validated());
-            return new AttendanceResource($attendance);
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update attendance: ' . $e->getMessage()
-            ], 500);
-        }
-    }
-
-    public function destroy($id)
-    {
-        try {
-            $this->attendanceService->deleteAttendance($id);
-            return response()->json([
-                'success' => true,
-                'message' => 'Attendance record deleted successfully'
-            ]);
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to delete record: ' . $e->getMessage()
-            ], 500);
-        }
+        $attendance = Attendance::findOrFail($id);
+        $attendance->delete();
+        Cache::flush();
+        return response()->json(['success' => true, 'message' => 'Attendance record deleted successfully']);
     }
 }

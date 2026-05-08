@@ -20,6 +20,7 @@ return new class extends Migration
             $table->text('address')->nullable();
             $table->integer('credit_days')->default(0);
             $table->enum('status', ['Active', 'Inactive'])->default('Active')->index();
+            $table->softDeletes();
             $table->timestamps();
         });
     }

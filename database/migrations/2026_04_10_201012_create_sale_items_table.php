@@ -17,10 +17,12 @@ return new class extends Migration
             $table->foreignId('medicine_id')->constrained('medicines');
             $table->foreignId('stock_batch_id')->constrained('stock_batches');
             $table->string('sale_unit')->nullable();
+            $table->integer('sale_qty')->nullable();
             $table->integer('qty_tablets');
             $table->decimal('unit_price', 15, 2);
             $table->decimal('tax_amount', 15, 2)->default(0);
             $table->decimal('subtotal', 15, 2);
+            $table->softDeletes();
             $table->timestamps();
             
             $table->index('sale_id');
@@ -33,6 +35,8 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('sale_items');
+        Schema::enableForeignKeyConstraints();
     }
 };

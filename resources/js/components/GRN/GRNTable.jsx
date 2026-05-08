@@ -4,24 +4,31 @@ import { Search, Receipt, User, ChevronLeft, ChevronRight, Trash2, Edit2, Credit
 import { format, subDays } from 'date-fns';
 import DateRangeFilter from '../Shared/DateRangeFilter';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const GROUP_A = ['Tablet', 'Capsule', 'Suppository', 'Patch'];
 
-const PaymentStatusBadge = ({ status }) => {
+const PaymentStatusBadge = ({ status, translations }) => {
   const styles = {
     Paid: 'bg-emerald-50 text-emerald-700 border-emerald-100',
     'Partially Paid': 'bg-blue-50 text-blue-700 border-blue-100',
     Due: 'bg-rose-50 text-rose-700 border-rose-100',
   };
+  
+  const label = status === 'Paid' ? translations.grn.paid : 
+                status === 'Partially Paid' ? translations.grn.partially_paid : 
+                translations.grn.due;
+
   return (
     <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border ${styles[status] || styles.Due}`}>
       <CreditCard size={10} />
-      {status}
+      {label}
     </span>
   );
 };
 
 const GRNTable = ({ onAdd, onEdit }) => {
+  const { translations } = useLanguage();
   const [page, setPage] = useState(1);
   const [perPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
@@ -46,12 +53,12 @@ const GRNTable = ({ onAdd, onEdit }) => {
 
   const handleDelete = async (e, grn) => {
     e.stopPropagation();
-    if (!confirm(`Delete GRN for ${grn.supplier?.name || 'this order'}? This will reverse all stock changes.`)) return;
+    if (!confirm(translations.grn.delete_confirm.replace('{supplier}', grn.supplier?.name || translations.grn.direct_supplier))) return;
     try {
       await deleteGRN(grn.id).unwrap();
-      toast.success('GRN deleted and stock reversed');
+      toast.success(translations.grn.delete_success);
     } catch (err) {
-      toast.error(err?.data?.message || 'Failed to delete GRN');
+      toast.error(err?.data?.message || translations.grn.delete_failed);
     }
   };
 
@@ -77,7 +84,7 @@ const GRNTable = ({ onAdd, onEdit }) => {
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search Invoice or Supplier..."
+              placeholder={translations.grn.search_invoice_supplier}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 pr-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none w-full sm:w-64 placeholder:text-slate-400 transition-all"
@@ -91,13 +98,13 @@ const GRNTable = ({ onAdd, onEdit }) => {
         <table className="w-full text-left border-collapse">
           <thead className="sticky top-0 bg-white/95 backdrop-blur-sm z-10 border-b border-slate-200">
             <tr>
-              <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">Date & Receiver</th>
-              <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">Supplier</th>
-              <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Invoice #</th>
-              <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">Items Received</th>
-              <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Payment</th>
-              <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">Value</th>
-              <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>
+              <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">{translations.grn.date_receiver}</th>
+              <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">{translations.grn.supplier}</th>
+              <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">{translations.grn.invoice_no}</th>
+              <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">{translations.grn.items_received}</th>
+              <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">{translations.grn.payment}</th>
+              <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">{translations.grn.value}</th>
+              <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">{translations.grn.actions}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -120,8 +127,8 @@ const GRNTable = ({ onAdd, onEdit }) => {
                     <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center mb-5 border border-slate-100 shadow-inner">
                       <Receipt size={32} className="text-slate-200" />
                     </div>
-                    <p className="text-sm font-black text-slate-800 uppercase tracking-widest">Zero Receipts Recorded</p>
-                    <p className="text-xs text-slate-400 mt-2 font-medium">Capture incoming stock by clicking 'New Receipt'</p>
+                    <p className="text-sm font-black text-slate-800 uppercase tracking-widest">{translations.grn.zero_receipts}</p>
+                    <p className="text-xs text-slate-400 mt-2 font-medium">{translations.grn.capture_incoming}</p>
                   </div>
                 </td>
               </tr>
@@ -135,7 +142,7 @@ const GRNTable = ({ onAdd, onEdit }) => {
                       <div className="flex items-center gap-1.5 mt-1">
                         <User size={10} className="text-slate-400" />
                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                          {grn.received_by || 'Staff'}
+                          {grn.received_by || translations.grn.staff}
                         </span>
                       </div>
                     </div>
@@ -144,7 +151,7 @@ const GRNTable = ({ onAdd, onEdit }) => {
                   {/* Supplier & PO */}
                   <td className="px-5 py-5">
                     <span className="text-sm font-bold text-slate-800 tracking-tight">
-                      {grn.supplier?.name || grn.purchase_order?.supplier?.name || 'Direct Supplier'}
+                      {grn.supplier?.name || grn.purchase_order?.supplier?.name || translations.grn.direct_supplier}
                     </span>
                   </td>
 
@@ -175,26 +182,26 @@ const GRNTable = ({ onAdd, onEdit }) => {
                               </span>
                               <div className="flex items-center gap-0.5">
                                 <Calendar size={7} className="text-slate-300" />
-                                <span className="text-[8px] text-slate-400 font-medium">Exp: {item.expiry_date}</span>
+                                <span className="text-[8px] text-slate-400 font-medium">{translations.grn.exp_date.replace('{date}', item.expiry_date)}</span>
                               </div>
                             </div>
 
                             {/* Qty */}
                             <div className="text-[9px] font-bold text-slate-500">
-                              Qty: <span className="text-slate-700">{item.qty_boxes_received} {isGroupA ? 'Box' : 'Unit'}</span>
+                              {translations.grn.qty_n_unit.replace('{n}', item.qty_boxes_received).replace('{unit}', isGroupA ? translations.grn.per_box.replace('/', '') : translations.grn.per_unit.replace('/', ''))}
                             </div>
 
                             {/* Cost Structure */}
                             {isGroupA ? (
                               <div className="flex flex-wrap gap-x-2 gap-y-0.5 border-t border-slate-100 pt-1 mt-0.5">
                                 {item.cost_per_box && (
-                                  <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.cost_per_box).toFixed(2)}<span className="text-slate-400 font-medium">/Box</span></span>
+                                  <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.cost_per_box).toFixed(2)}<span className="text-slate-400 font-medium">{translations.grn.per_box}</span></span>
                                 )}
                                 {item.cost_per_stripe && (
-                                  <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.cost_per_stripe).toFixed(2)}<span className="text-slate-400 font-medium">/Stripe</span></span>
+                                  <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.cost_per_stripe).toFixed(2)}<span className="text-slate-400 font-medium">{translations.grn.per_stripe}</span></span>
                                 )}
                                 {item.cost_per_tablet && (
-                                  <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.cost_per_tablet).toFixed(2)}<span className="text-slate-400 font-medium">/Tab</span></span>
+                                  <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.cost_per_tablet).toFixed(2)}<span className="text-slate-400 font-medium">{translations.grn.per_tab}</span></span>
                                 )}
                                 {item.strength && (
                                   <span className="text-[8px] font-bold text-indigo-400">{item.strength}</span>
@@ -203,7 +210,7 @@ const GRNTable = ({ onAdd, onEdit }) => {
                             ) : (
                               <div className="flex flex-wrap gap-x-2 gap-y-0.5 border-t border-slate-100 pt-1 mt-0.5">
                                 {item.price && (
-                                  <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.price).toFixed(2)}<span className="text-slate-400 font-medium">/Unit</span></span>
+                                  <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.price).toFixed(2)}<span className="text-slate-400 font-medium">{translations.grn.per_unit}</span></span>
                                 )}
                                 {item.volume && (
                                   <span className="text-[8px] font-bold text-blue-500">{item.volume}</span>
@@ -213,7 +220,7 @@ const GRNTable = ({ onAdd, onEdit }) => {
                           </div>
                         );
                       }) : (
-                        <span className="text-xs text-slate-300 font-bold">No items</span>
+                        <span className="text-xs text-slate-300 font-bold">{translations.grn.no_items}</span>
                       )}
                     </div>
                   </td>
@@ -221,10 +228,10 @@ const GRNTable = ({ onAdd, onEdit }) => {
                   {/* Payment Status */}
                   <td className="px-5 py-5 text-center">
                     <div className="flex flex-col items-center gap-1.5">
-                      <PaymentStatusBadge status={grn.payment_status} />
+                      <PaymentStatusBadge status={grn.payment_status} translations={translations} />
                       {parseFloat(grn.paid_amount) > 0 && (
                         <span className="text-[9px] font-bold text-emerald-600 uppercase">
-                          Pd: ৳{parseFloat(grn.paid_amount).toLocaleString()}
+                          {translations.grn.paid_amount.replace('{n}', parseFloat(grn.paid_amount).toLocaleString())}
                         </span>
                       )}
                     </div>
@@ -265,7 +272,10 @@ const GRNTable = ({ onAdd, onEdit }) => {
       {/* Pagination Footer */}
       <div className="shrink-0 flex items-center justify-between px-8 py-5 border-t border-slate-100 bg-slate-50/50">
         <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-          Page {meta.current_page || 1} of {meta.last_page || 1} &nbsp;·&nbsp; {meta.total || 0} Records
+          {translations.grn.page_info
+            .replace('{current}', meta.current_page || 1)
+            .replace('{total}', meta.last_page || 1)
+            .replace('{records}', meta.total || 0)}
         </span>
         <div className="flex items-center gap-2">
           <button

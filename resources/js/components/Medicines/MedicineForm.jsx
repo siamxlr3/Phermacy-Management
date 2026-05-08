@@ -5,6 +5,7 @@ import {
 } from '../../store/api/medicineApi';
 import { X, Loader2, Pill, Boxes, Droplets, Tag, Factory } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const DOSAGE_FORMS = {
   GROUP_A: ['Tablet', 'Capsule', 'Suppository', 'Patch'],
@@ -12,6 +13,7 @@ const DOSAGE_FORMS = {
 };
 
 const MedicineForm = ({ initialData, onClose }) => {
+  const { translations } = useLanguage();
   const [addMedicine, { isLoading: isAdding }] = useAddMedicineMutation();
   const [updateMedicine, { isLoading: isUpdating }] = useUpdateMedicineMutation();
 
@@ -43,18 +45,18 @@ const MedicineForm = ({ initialData, onClose }) => {
 
   const validate = () => {
     const e = {};
-    if (!formData.name.trim()) e.name = 'Medicine name is required';
-    if (!formData.category_name.trim()) e.category_name = 'Category name is required';
-    if (!formData.manufacturer_name.trim()) e.manufacturer_name = 'Manufacturer name is required';
-    if (!formData.dosage_form) e.dosage_form = 'Dosage form is required';
+    if (!formData.name.trim()) e.name = translations.medicine.name_required;
+    if (!formData.category_name.trim()) e.category_name = translations.medicine.category_required;
+    if (!formData.manufacturer_name.trim()) e.manufacturer_name = translations.medicine.manuf_required;
+    if (!formData.dosage_form) e.dosage_form = translations.medicine.dosage_required;
 
     if (isGroupA) {
-      if (!formData.tablet_per_stripe) e.tablet_per_stripe = 'Required';
-      if (!formData.stripe_per_box) e.stripe_per_box = 'Required';
-      if (!formData.price_per_tablet || formData.price_per_tablet <= 0) e.price_per_tablet = 'Required';
+      if (!formData.tablet_per_stripe) e.tablet_per_stripe = translations.medicine.required;
+      if (!formData.stripe_per_box) e.stripe_per_box = translations.medicine.required;
+      if (!formData.price_per_tablet || formData.price_per_tablet <= 0) e.price_per_tablet = translations.medicine.required;
     } else {
-      if (!formData.volume) e.volume = 'Volume is required';
-      if (!formData.price || formData.price <= 0) e.price = 'Price is required';
+      if (!formData.volume) e.volume = translations.medicine.volume_required;
+      if (!formData.price || formData.price <= 0) e.price = translations.medicine.price_required;
     }
 
     setErrors(e);
@@ -80,14 +82,14 @@ const MedicineForm = ({ initialData, onClose }) => {
     try {
       if (initialData) {
         await updateMedicine({ id: initialData.id, ...payload }).unwrap();
-        toast.success('Medicine updated');
+        toast.success(translations.medicine.update_success);
       } else {
         await addMedicine(payload).unwrap();
-        toast.success('Medicine created');
+        toast.success(translations.medicine.create_success);
       }
       onClose();
     } catch (err) {
-      toast.error(err?.data?.message || 'Something went wrong');
+      toast.error(err?.data?.message || translations.medicine.error_generic);
       if (err?.data?.errors) setErrors(err.data.errors);
     }
   };
@@ -103,10 +105,10 @@ const MedicineForm = ({ initialData, onClose }) => {
           </div>
           <div>
             <h3 className="text-sm font-semibold text-slate-900">
-              {initialData ? 'Edit Medicine' : 'New Medicine'}
+              {initialData ? translations.medicine.edit_medicine : translations.medicine.new_medicine}
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              {initialData ? 'Update item details' : 'Add product to inventory'}
+              {initialData ? translations.medicine.update_details : translations.medicine.add_to_inventory}
             </p>
           </div>
         </div>
@@ -118,17 +120,17 @@ const MedicineForm = ({ initialData, onClose }) => {
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
         {/* Core Info */}
         <div className="space-y-4">
-          <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">Core Info</h4>
+          <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">{translations.medicine.core_info}</h4>
           
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2 md:col-span-1">
-              <label className="block text-xs font-semibold text-slate-600 mb-2">Medicine Name</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine.medicine_name}</label>
               <input type="text" placeholder="e.g. Napa" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className={`w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl transition-all focus:outline-none focus:ring-2 ${errors.name ? 'border-red-300 focus:ring-red-500/20 focus:border-red-400' : 'border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-400 hover:border-slate-300'}`} />
               {errors.name && <p className="text-xs text-red-500 mt-1.5">⚠ {errors.name}</p>}
             </div>
             <div className="col-span-2 md:col-span-1">
-              <label className="block text-xs font-semibold text-slate-600 mb-2">Generic Name</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine.generic_name}</label>
               <input type="text" placeholder="e.g. Paracetamol" value={formData.generic_name} onChange={(e) => setFormData({ ...formData, generic_name: e.target.value })}
                 className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 hover:border-slate-300" />
             </div>
@@ -136,7 +138,7 @@ const MedicineForm = ({ initialData, onClose }) => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-2">Category Name</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine.category_name}</label>
               <div className="relative">
                  <Tag size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300" />
                  <input type="text" placeholder="e.g. Fever" value={formData.category_name} onChange={(e) => setFormData({ ...formData, category_name: e.target.value })}
@@ -145,7 +147,7 @@ const MedicineForm = ({ initialData, onClose }) => {
               {errors.category_name && <p className="text-xs text-red-500 mt-1.5">⚠ {errors.category_name}</p>}
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-2">Manufacturer Name</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine.manufacturer_name}</label>
               <div className="relative">
                 <Factory size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-300" />
                 <input type="text" placeholder="e.g. Square" value={formData.manufacturer_name} onChange={(e) => setFormData({ ...formData, manufacturer_name: e.target.value })}
@@ -158,23 +160,23 @@ const MedicineForm = ({ initialData, onClose }) => {
 
         {/* Classification */}
         <div className="space-y-4 pt-2">
-          <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">Classification & Dosage</h4>
+          <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">{translations.medicine.classification_dosage}</h4>
           <div className="grid grid-cols-2 gap-4">
             <div className={isGroupA ? '' : 'col-span-2'}>
-              <label className="block text-xs font-semibold text-slate-600 mb-2">Dosage Form</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine.dosage_form}</label>
               <select value={formData.dosage_form} onChange={(e) => setFormData({ ...formData, dosage_form: e.target.value })}
                 className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400">
-                <optgroup label="Group A (Solid/Patch)">
+                <optgroup label={translations.medicine.group_a}>
                   {DOSAGE_FORMS.GROUP_A.map(f => <option key={f} value={f}>{f}</option>)}
                 </optgroup>
-                <optgroup label="Group B (Liquid/Cream/Others)">
+                <optgroup label={translations.medicine.group_b}>
                   {DOSAGE_FORMS.GROUP_B.map(f => <option key={f} value={f}>{f}</option>)}
                 </optgroup>
               </select>
             </div>
             {isGroupA && (
               <div className="animate-in fade-in duration-200">
-                <label className="block text-xs font-semibold text-slate-600 mb-2">Strength</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine.strength}</label>
                 <input type="text" placeholder="e.g. 500mg, 250mg/5ml" value={formData.strength} onChange={(e) => setFormData({ ...formData, strength: e.target.value })}
                   className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 hover:border-slate-300" />
               </div>
@@ -186,7 +188,7 @@ const MedicineForm = ({ initialData, onClose }) => {
         <div className="space-y-4 pt-2">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-              {isGroupA ? 'Packaging & Group A Pricing' : 'Volume & Group B Pricing'}
+              {isGroupA ? translations.medicine.packaging_group_a : translations.medicine.volume_group_b}
             </h4>
             {isGroupA ? <Boxes size={14} className="text-slate-300" /> : <Droplets size={14} className="text-slate-300" />}
           </div>
@@ -195,29 +197,29 @@ const MedicineForm = ({ initialData, onClose }) => {
             <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-2">Tablets per Strip</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine.tabs_strip}</label>
                   <input type="number" placeholder="10" value={formData.tablet_per_stripe} onChange={(e) => setFormData({ ...formData, tablet_per_stripe: e.target.value })}
                     className={`w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl transition-all ${errors.tablet_per_stripe ? 'border-red-300' : 'border-slate-200'}`} />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-2">Stripes per Box</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine.strips_box}</label>
                   <input type="number" placeholder="10" value={formData.stripe_per_box} onChange={(e) => setFormData({ ...formData, stripe_per_box: e.target.value })}
                     className={`w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl transition-all ${errors.stripe_per_box ? 'border-red-300' : 'border-slate-200'}`} />
                 </div>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-2">Price/Tablet</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine.price_tab}</label>
                   <input type="number" step="0.01" placeholder="0.00" value={formData.price_per_tablet} onChange={(e) => setFormData({ ...formData, price_per_tablet: e.target.value })}
                     className="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-2">Price/Strip</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine.price_strip}</label>
                   <input type="number" step="0.01" placeholder="0.00" value={formData.price_per_stripe} onChange={(e) => setFormData({ ...formData, price_per_stripe: e.target.value })}
                     className="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-2">Price/Box</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine.price_box}</label>
                   <input type="number" step="0.01" placeholder="0.00" value={formData.price_per_box} onChange={(e) => setFormData({ ...formData, price_per_box: e.target.value })}
                     className="w-full px-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl" />
                 </div>
@@ -226,12 +228,12 @@ const MedicineForm = ({ initialData, onClose }) => {
           ) : (
             <div className="grid grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-1 duration-200">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-2">Volume (Unit)</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine.volume_unit}</label>
                 <input type="text" placeholder="e.g. 100ml" value={formData.volume} onChange={(e) => setFormData({ ...formData, volume: e.target.value })}
                   className={`w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl transition-all ${errors.volume ? 'border-red-300' : 'border-slate-200'}`} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-2">Price</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine.price}</label>
                 <input type="number" step="0.01" placeholder="0.00" value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                   className={`w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl transition-all ${errors.price ? 'border-red-300' : 'border-slate-200'}`} />
               </div>
@@ -242,16 +244,16 @@ const MedicineForm = ({ initialData, onClose }) => {
         {/* Logistics */}
         <div className="grid grid-cols-2 gap-4 pt-2">
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-2">Reorder Level</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine.reorder_level}</label>
             <input type="number" value={formData.reorder_level} onChange={(e) => setFormData({ ...formData, reorder_level: e.target.value })}
               className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-2">Status</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine.status}</label>
             <select value={formData.status} onChange={(e) => setFormData({ ...formData, status: e.target.value })}
               className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400">
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
+              <option value="Active">{translations.medicine.active}</option>
+              <option value="Inactive">{translations.medicine.inactive}</option>
             </select>
           </div>
         </div>
@@ -263,10 +265,10 @@ const MedicineForm = ({ initialData, onClose }) => {
             className="w-full flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-semibold rounded-xl transition-all shadow-sm shadow-emerald-200/50 disabled:opacity-60"
           >
             {isLoading && <Loader2 size={16} className="animate-spin" />}
-            {initialData ? 'Update Medicine' : 'Create Medicine'}
+            {initialData ? translations.medicine.update_medicine : translations.medicine.create_medicine}
           </button>
           <button type="button" onClick={onClose} className="w-full py-2 text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors">
-            Discard Changes
+            {translations.medicine.discard_changes}
           </button>
         </div>
       </form>

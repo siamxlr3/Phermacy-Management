@@ -3,125 +3,244 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\ExpenseService;
-use App\Http\Requests\Api\StoreExpenseRequest;
-use App\Http\Requests\Api\UpdateExpenseRequest;
-use App\Http\Resources\Api\ExpenseResource;
 use App\Models\Expense;
+use App\Models\ExpenseItem;
 use Illuminate\Http\Request;
+use App\Http\Resources\Api\ExpenseResource;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use App\Models\CashTransaction;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class ExpenseController extends Controller
 {
-    protected $expenseService;
-
-    public function __construct(ExpenseService $expenseService)
+    public function index(Request $request): AnonymousResourceCollection
     {
-        $this->expenseService = $expenseService;
-    }
+        $perPage = $request->get('per_page', 10);
+        // FIX: hard limit per_page to prevent memory exhaustion
+        if ($perPage > 100) $perPage = 100;
 
-    public function index(Request $request): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
-    {
-        try {
-            $perPage = $request->get('per_page', 10);
-            $search = $request->get('search');
-            $status = $request->get('status');
-            $fromDate = $request->get('from_date');
-            $toDate = $request->get('to_date');
+        $search = $request->get('search');
+        $status = $request->get('status');
+        $fromDate = $request->get('from_date');
+        $toDate = $request->get('to_date');
 
-            $expenses = $this->expenseService->getExpenses($perPage, $search, $status, $fromDate, $toDate);
+        $query = Expense::with(['items']);
 
-            return ExpenseResource::collection($expenses);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('transaction_id', 'like', "%{$search}%")
+                  ->orWhere('supplier_name', 'like', "%{$search}%");
+            });
         }
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        if ($fromDate && $toDate) {
+            $query->whereBetween('expense_date', [$fromDate, $toDate]);
+        }
+
+        $expenses = $query->latest('expense_date')->paginate($perPage);
+
+        return ExpenseResource::collection($expenses);
     }
 
     public function summary(): JsonResponse
     {
-        try {
-            $summary = $this->expenseService->getExpenseSummary();
-            
-            return response()->json([
-                'success' => true,
-                'message' => 'Expense summary fetched successfully',
-                'data' => $summary
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
+        // FIX 1: Convert 4 separate queries into a single SQL aggregation query
+        // This is significantly faster on large datasets.
+        $summary = Expense::selectRaw("
+            SUM(grand_total) as total_expenses,
+            SUM(CASE WHEN status = 'Paid' THEN grand_total ELSE 0 END) as total_paid,
+            SUM(CASE WHEN status = 'Unpaid' THEN grand_total ELSE 0 END) as total_unpaid,
+            SUM(CASE WHEN DATE(expense_date) = ? THEN grand_total ELSE 0 END) as today_expenses
+        ", [now()->toDateString()])->first();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total_expenses' => (float) ($summary->total_expenses ?? 0),
+                'total_paid' => (float) ($summary->total_paid ?? 0),
+                'total_unpaid' => (float) ($summary->total_unpaid ?? 0),
+                'today_expenses' => (float) ($summary->today_expenses ?? 0),
+            ]
+        ]);
     }
 
-    public function show(int $id): JsonResponse
+    public function store(Request $request): JsonResponse
     {
-        try {
-            $expense = $this->expenseService->getExpenseById($id);
-            if (!$expense) {
-                return response()->json(['success' => false, 'message' => 'Expense not found'], 404);
-            }
+        $data = $request->validate([
+            'supplier_name' => 'required|string|max:255',
+            'contact_person' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string',
+            'expense_date' => 'required|date',
+            'status' => 'required|string|in:Paid,Unpaid',
+            'grand_total' => 'required|numeric|min:0',
+            'items' => 'required|array|min:1',
+            'items.*.items_name' => 'required|string|max:255',
+            'items.*.category' => 'required|string|in:Piece,Packet,Box',
+            'items.*.qty' => 'required|integer|min:1',
+            'items.*.price' => 'required|numeric|min:0',
+            'items.*.total_price' => 'required|numeric|min:0',
+        ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Expense fetched successfully',
-                'data' => new ExpenseResource($expense)
-            ]);
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
-        }
-    }
-
-    public function store(StoreExpenseRequest $request): JsonResponse
-    {
         try {
-            $expense = $this->expenseService->createExpense($request->validated());
-            
+            $expense = DB::transaction(function () use ($data) {
+                // FIX 2: Race-condition safe ID generation using lockForUpdate()
+                $lastExpense = DB::table('expenses')->lockForUpdate()->latest('id')->first();
+                $number = $lastExpense && isset($lastExpense->transaction_id) 
+                    ? (int) substr($lastExpense->transaction_id, 4) + 1 
+                    : 1;
+                $transactionId = 'EXP-' . str_pad($number, 6, '0', STR_PAD_LEFT);
+
+                $expense = Expense::create([
+                    'transaction_id' => $transactionId,
+                    'supplier_name' => $data['supplier_name'],
+                    'contact_person' => $data['contact_person'] ?? null,
+                    'phone' => $data['phone'] ?? null,
+                    'address' => $data['address'] ?? null,
+                    'expense_date' => $data['expense_date'],
+                    'status' => $data['status'],
+                    'grand_total' => $data['grand_total'],
+                ]);
+
+                // FIX 3: Bulk Insertion for items (replaces N+1 loop)
+                $expense->items()->createMany($data['items']);
+
+                // FIX 4: Only clear expense and report caches, not the whole system
+                Cache::tags(['expenses', 'reports'])->flush();
+
+                // Record Cash Transaction if Paid
+                if ($expense->status === 'Paid') {
+                    $itemNames = collect($data['items'])->pluck('items_name')->join(', ');
+                    CashTransaction::record(
+                        'Out',
+                        $expense->grand_total,
+                        "{$itemNames} ({$expense->transaction_id})"
+                    );
+                }
+
+                return $expense;
+            });
+
             return response()->json([
                 'success' => true,
                 'message' => 'Expense created successfully',
-                'data' => new ExpenseResource($expense)
+                'data' => new ExpenseResource($expense->load('items'))
             ], 201);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
     }
 
-    public function update(UpdateExpenseRequest $request, int $id): JsonResponse
+    public function show(int $id): ExpenseResource
     {
-        try {
-            $expense = $this->expenseService->getExpenseById($id);
-            if (!$expense) {
-                return response()->json(['success' => false, 'message' => 'Expense not found'], 404);
-            }
+        $expense = Expense::with(['items'])->findOrFail($id);
+        return new ExpenseResource($expense);
+    }
 
-            $updatedExpense = $this->expenseService->updateExpense($expense, $request->validated());
-            
+    public function update(Request $request, int $id): JsonResponse
+    {
+        $expense = Expense::findOrFail($id);
+        $data = $request->validate([
+            'supplier_name' => 'required|string|max:255',
+            'contact_person' => 'nullable|string|max:255',
+            'phone' => 'nullable|string|max:20',
+            'address' => 'nullable|string',
+            'expense_date' => 'required|date',
+            'status' => 'required|string|in:Paid,Unpaid',
+            'grand_total' => 'required|numeric|min:0',
+            'items' => 'required|array|min:1',
+            'items.*.items_name' => 'required|string|max:255',
+            'items.*.category' => 'required|string|in:Piece,Packet,Box',
+            'items.*.qty' => 'required|integer|min:1',
+            'items.*.price' => 'required|numeric|min:0',
+            'items.*.total_price' => 'required|numeric|min:0',
+        ]);
+
+        try {
+            $expense = DB::transaction(function () use ($expense, $data) {
+                $oldStatus = $expense->status;
+                $oldTotal = $expense->grand_total;
+
+                // FIX 5: Prevent financial leakage on update
+                // If it was Paid, reverse the original amount back to the drawer first
+                if ($oldStatus === 'Paid') {
+                    CashTransaction::record(
+                        'In',
+                        $oldTotal,
+                        "Reversal of Edited Expense ({$expense->transaction_id})"
+                    );
+                }
+
+                $expense->update([
+                    'supplier_name' => $data['supplier_name'],
+                    'contact_person' => $data['contact_person'] ?? null,
+                    'phone' => $data['phone'] ?? null,
+                    'address' => $data['address'] ?? null,
+                    'expense_date' => $data['expense_date'],
+                    'status' => $data['status'],
+                    'grand_total' => $data['grand_total'],
+                ]);
+
+                $expense->items()->delete();
+                $expense->items()->createMany($data['items']);
+
+                Cache::tags(['expenses', 'reports'])->flush();
+
+                // Apply the new Paid status
+                if ($expense->status === 'Paid') {
+                    $itemNames = collect($data['items'])->pluck('items_name')->join(', ');
+                    CashTransaction::record(
+                        'Out',
+                        $expense->grand_total,
+                        "Updated Expense ({$expense->transaction_id})"
+                    );
+                }
+
+                return $expense;
+            });
+
             return response()->json([
                 'success' => true,
                 'message' => 'Expense updated successfully',
-                'data' => new ExpenseResource($updatedExpense)
+                'data' => new ExpenseResource($expense->fresh('items'))
             ]);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
     }
 
     public function destroy(int $id): JsonResponse
     {
+        $expense = Expense::findOrFail($id);
+        
         try {
-            $expense = $this->expenseService->getExpenseById($id);
-            if (!$expense) {
-                return response()->json(['success' => false, 'message' => 'Expense not found'], 404);
-            }
+            DB::transaction(function () use ($expense) {
+                // FIX 6: If it was paid, we MUST reverse the cash transaction
+                if ($expense->status === 'Paid') {
+                    CashTransaction::record(
+                        'In',
+                        $expense->grand_total,
+                        "Reversal of Deleted Expense ({$expense->transaction_id})"
+                    );
+                }
 
-            $this->expenseService->deleteExpense($expense);
-            
-            return response()->json([
-                'success' => true,
-                'message' => 'Expense deleted successfully',
-                'data' => null
-            ]);
+                // Delete items and expense (SoftDeletes protects audit history)
+                $expense->items()->delete();
+                $expense->delete();
+
+                Cache::tags(['expenses', 'reports'])->flush();
+            });
+
+            return response()->json(['success' => true, 'message' => 'Expense deleted successfully']);
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
     }
 }

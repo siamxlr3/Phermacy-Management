@@ -5,9 +5,28 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+/**
+ * @property int $id
+ * @property int|null $user_id
+ * @property string $invoice_number
+ * @property string|null $customer_name
+ * @property string|null $customer_phone
+ * @property \Illuminate\Support\Carbon $sale_date
+ * @property float $subtotal
+ * @property float $tax_total
+ * @property float $discount_total
+ * @property float $grand_total
+ * @property float $paid_amount
+ * @property float $due_amount
+ * @property string $payment_method
+ * @property string $status
+ * @property string|null $notes
+ */
 class Sale extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'user_id',

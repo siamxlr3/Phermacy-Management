@@ -15,14 +15,19 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
             $table->string('invoice_number')->unique();
+            $table->string('customer_name')->nullable();
+            $table->string('customer_phone')->nullable();
             $table->dateTime('sale_date');
             $table->decimal('subtotal', 15, 2);
             $table->decimal('tax_total', 15, 2)->default(0);
             $table->decimal('discount_total', 15, 2)->default(0);
             $table->decimal('grand_total', 15, 2);
+            $table->decimal('paid_amount', 15, 2)->default(0);
+            $table->decimal('due_amount', 15, 2)->default(0);
             $table->string('payment_method')->default('Cash');
             $table->string('status')->default('Completed');
             $table->text('notes')->nullable();
+            $table->softDeletes();
             $table->timestamps();
             
             $table->index('user_id');

@@ -2,8 +2,10 @@ import React from 'react';
 import DashboardLayout from '../layouts/DashboardLayout';
 import PurchaseOrderTable from '../components/Purchases/PurchaseOrderTable';
 import { motion } from 'framer-motion';
+import { useLanguage } from '../language/GlobalTranslate.jsx';
 
 const OrdersPage = () => {
+  const { translations } = useLanguage();
   return (
     <DashboardLayout>
       <motion.div 
@@ -13,8 +15,8 @@ const OrdersPage = () => {
       >
         <div className="shrink-0 mb-6 flex items-end justify-between">
           <div>
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight">Purchase Orders</h1>
-            <p className="text-slate-400 text-sm font-medium mt-1">Track inventory procurement, supplier deliveries, and purchasing history.</p>
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight">{translations.purchase_order.title}</h1>
+            <p className="text-slate-400 text-sm font-medium mt-1">{translations.purchase_order.subtitle}</p>
           </div>
         </div>
         

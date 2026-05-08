@@ -4,21 +4,22 @@ import { Search, Plus, Pencil, Trash2, Truck, ChevronLeft, ChevronRight, Phone, 
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import SupplierForm from './SupplierForm';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
-const EmptyState = ({ onAdd }) => (
+const EmptyState = ({ onAdd, translations }) => (
   <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
     <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
       <Truck size={24} className="text-slate-400" />
     </div>
-    <h3 className="text-base font-semibold text-slate-700 mb-1">No suppliers found</h3>
+    <h3 className="text-base font-semibold text-slate-700 mb-1">{translations.supplier.no_suppliers}</h3>
     <p className="text-sm text-slate-400 mb-5 max-w-xs">
-      Add the vendors and suppliers you purchase medicines and inventory from.
+      {translations.supplier.no_suppliers_desc}
     </p>
     <button
       onClick={onAdd}
       className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm shadow-blue-200"
     >
-      <Plus size={15} /> Add First Supplier
+      <Plus size={15} /> {translations.supplier.add_first}
     </button>
   </div>
 );
@@ -35,6 +36,7 @@ const SkeletonRow = () => (
 );
 
 const SupplierTable = () => {
+  const { translations } = useLanguage();
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
@@ -57,12 +59,12 @@ const SupplierTable = () => {
   const [deleteSupplier] = useDeleteSupplierMutation();
 
   const handleDelete = async (id) => {
-    if (confirm('Delete this supplier? This action cannot be undone.')) {
+    if (confirm(translations.supplier.delete_confirm)) {
       try {
         await deleteSupplier(id).unwrap();
-        toast.success('Supplier deleted');
+        toast.success(translations.supplier.delete_success);
       } catch (err) {
-        toast.error(err?.data?.message || 'Failed to delete');
+        toast.error(err?.data?.message || translations.supplier.delete_failed);
       }
     }
   };
@@ -79,9 +81,9 @@ const SupplierTable = () => {
       <div className="flex-1 min-w-0 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col min-h-0">
         <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-b border-slate-100 gap-4">
           <div>
-            <h2 className="text-base font-semibold text-slate-900">Suppliers</h2>
+            <h2 className="text-base font-semibold text-slate-900">{translations.supplier.suppliers}</h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              {isLoadingState ? '...' : `${meta.total || suppliers.length} business partners`}
+              {isLoadingState ? '...' : translations.supplier.partners_count.replace('{n}', meta.total || suppliers.length)}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2.5">
@@ -90,15 +92,15 @@ const SupplierTable = () => {
               onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
               className="px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:outline-none transition-all text-slate-600 outline-none"
             >
-              <option value="">All Status</option>
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
+              <option value="">{translations.supplier.all_status}</option>
+              <option value="Active">{translations.supplier.active}</option>
+              <option value="Inactive">{translations.supplier.inactive}</option>
             </select>
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search suppliers..."
+                placeholder={translations.supplier.search_placeholder}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:outline-none transition-all w-48 placeholder:text-slate-400"
@@ -108,7 +110,7 @@ const SupplierTable = () => {
               onClick={handleAdd}
               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-lg transition-all duration-150 shadow-sm shadow-blue-200"
             >
-              <Plus size={15} /> Add Supplier
+              <Plus size={15} /> {translations.supplier.add_supplier}
             </button>
           </div>
         </div>
@@ -117,12 +119,12 @@ const SupplierTable = () => {
           <table className="w-full text-left">
             <thead>
               <tr>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[20%]">Supplier Name</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[20%]">Contact Details</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[25%]">Address</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 text-center w-[12%]">Credit Days</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 text-center w-[13%]">Status</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 text-right w-[10%]">Actions</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[20%]">{translations.supplier.name_col}</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[20%]">{translations.supplier.contact_col}</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[25%]">{translations.supplier.address_col}</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 text-center w-[12%]">{translations.supplier.credit_col}</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 text-center w-[13%]">{translations.supplier.status_col}</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 text-right w-[10%]">{translations.supplier.actions_col}</th>
               </tr>
             </thead>
           </table>
@@ -130,7 +132,7 @@ const SupplierTable = () => {
 
         <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
           {suppliers.length === 0 && !isLoadingState ? (
-            <EmptyState onAdd={handleAdd} />
+            <EmptyState onAdd={handleAdd} translations={translations} />
           ) : (
             <table className="w-full text-left">
               <tbody className="divide-y divide-slate-50">
@@ -147,7 +149,7 @@ const SupplierTable = () => {
                             <span className="text-sm font-semibold text-slate-800 line-clamp-1">{supplier.name}</span>
                             <div className="flex items-center gap-1 text-[11px] text-slate-400">
                               <User size={10} />
-                              <span className="line-clamp-1">{supplier.contact_person || 'No contact person'}</span>
+                              <span className="line-clamp-1">{supplier.contact_person || translations.supplier.no_contact_person}</span>
                             </div>
                           </div>
                         </div>
@@ -174,7 +176,7 @@ const SupplierTable = () => {
                       </td>
                       <td className="px-6 py-4 text-center w-[12%]">
                         <span className="text-sm font-medium text-slate-600">
-                          {supplier.credit_days} <span className="text-[10px] text-slate-400 font-normal">days</span>
+                          {supplier.credit_days} <span className="text-[10px] text-slate-400 font-normal">{translations.supplier.days}</span>
                         </span>
                       </td>
                       <td className="px-6 py-4 text-center w-[13%]">
@@ -184,7 +186,7 @@ const SupplierTable = () => {
                             : 'bg-slate-100 text-slate-500 border border-slate-200'
                         }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${supplier.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                          {supplier.status}
+                          {supplier.status === 'Active' ? translations.supplier.active : translations.supplier.inactive}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-right w-[10%]">
@@ -208,7 +210,7 @@ const SupplierTable = () => {
         {suppliers.length > 0 && (
           <div className="shrink-0 flex items-center justify-between px-6 py-3 border-t border-slate-100 bg-slate-50/40">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">Show</span>
+              <span className="text-xs text-slate-400">{translations.supplier.show}</span>
               <select
                 value={perPage}
                 onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
@@ -216,7 +218,7 @@ const SupplierTable = () => {
               >
                 {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n}</option>)}
               </select>
-              <span className="text-xs text-slate-400">per page</span>
+              <span className="text-xs text-slate-400">{translations.supplier.per_page}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <button 
@@ -226,7 +228,11 @@ const SupplierTable = () => {
               >
                 <ChevronLeft size={14} />
               </button>
-              <span className="text-xs font-medium text-slate-600 px-2">Page {meta.current_page || 1} of {meta.last_page || 1}</span>
+              <span className="text-xs font-medium text-slate-600 px-2">
+                {translations.supplier.page_meta
+                  .replace('{current}', meta.current_page || 1)
+                  .replace('{total}', meta.last_page || 1)}
+              </span>
               <button 
                 onClick={() => setPage(p => Math.min(p + 1, meta.last_page || 1))} 
                 disabled={page >= (meta.last_page || 1)} 

@@ -3,8 +3,10 @@ import { Edit2, Search, Trash2, Calendar, Filter, ChevronLeft, ChevronRight, Rec
 import { useDeleteExpenseMutation } from '../../store/api/expenseApi';
 import { toast } from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const ExpenseTable = ({ data, isLoading, page, setPage, perPage, setPerPage, onEdit, filters }) => {
+    const { translations } = useLanguage();
     const [deleteExpense, { isLoading: isDeleting }] = useDeleteExpenseMutation();
     const [expandedRow, setExpandedRow] = useState(null);
 
@@ -23,9 +25,9 @@ const ExpenseTable = ({ data, isLoading, page, setPage, perPage, setPerPage, onE
     const handleDelete = async (id) => {
         try {
             await deleteExpense(id).unwrap();
-            toast.success('Expense record deleted');
+            toast.success(translations.expense.delete_success);
         } catch (error) {
-            toast.error(error.data?.message || 'Failed to delete record');
+            toast.error(error.data?.message || translations.expense.delete_failed);
         }
     };
 
@@ -41,7 +43,7 @@ const ExpenseTable = ({ data, isLoading, page, setPage, perPage, setPerPage, onE
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                         <input
                             type="text"
-                            placeholder="Supplier or Transaction ID..."
+                            placeholder={translations.expense.search_placeholder}
                             value={searchInput}
                             onChange={(e) => setSearchInput(e.target.value)}
                             className="w-full pl-9 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all placeholder:text-slate-400 font-medium"
@@ -56,7 +58,7 @@ const ExpenseTable = ({ data, isLoading, page, setPage, perPage, setPerPage, onE
                             onChange={(e) => setDateRange(prev => ({...prev, from_date: e.target.value}))}
                             className="bg-transparent border-none text-[11px] font-bold text-slate-600 outline-none w-[105px]"
                         />
-                        <span className="text-slate-300 text-[10px] font-black tracking-widest px-1">TO</span>
+                        <span className="text-slate-300 text-[10px] font-black tracking-widest px-1">{translations.pos.to || 'TO'}</span>
                         <input 
                             type="date"
                             value={dateRange.to_date}
@@ -66,7 +68,7 @@ const ExpenseTable = ({ data, isLoading, page, setPage, perPage, setPerPage, onE
                     </div>
 
                     <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
-                        {[['', 'All'], ['Paid', 'Paid'], ['Unpaid', 'Unpaid']].map(([val, lbl]) => (
+                        {[['', translations.expense.all], ['Paid', translations.expense.paid], ['Unpaid', translations.expense.unpaid]].map(([val, lbl]) => (
                             <button
                                 key={val}
                                 onClick={() => setStatus(val)}
@@ -86,7 +88,7 @@ const ExpenseTable = ({ data, isLoading, page, setPage, perPage, setPerPage, onE
                             onClick={handleClearFilters}
                             className="text-[10px] font-black text-rose-500 hover:text-rose-700 uppercase tracking-widest px-2 transition-colors"
                         >
-                            Reset
+                            {translations.expense.reset}
                         </button>
                     )}
                 </div>
@@ -97,14 +99,14 @@ const ExpenseTable = ({ data, isLoading, page, setPage, perPage, setPerPage, onE
                 <table className="w-full text-left border-collapse">
                     <thead className="sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10 border-b border-slate-200">
                         <tr>
-                            <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Trace ID & Date</th>
-                            <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Supplier Details</th>
-                            <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Phone</th>
-                            <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Address</th>
-                            <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Items</th>
-                            <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">Grand Total</th>
-                            <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Payment</th>
-                            <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right pr-6">Actions</th>
+                            <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{translations.expense.trace_id_date}</th>
+                            <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{translations.expense.supplier_details}</th>
+                            <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{translations.expense.phone}</th>
+                            <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{translations.expense.address}</th>
+                            <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.expense.items}</th>
+                            <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.expense.grand_total}</th>
+                            <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.expense.payment}</th>
+                            <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right pr-6">{translations.expense.actions}</th>
                             <th className="w-10"></th>
                         </tr>
                     </thead>
@@ -129,8 +131,8 @@ const ExpenseTable = ({ data, isLoading, page, setPage, perPage, setPerPage, onE
                                         <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 border border-slate-100">
                                             <Receipt size={24} className="text-slate-300" />
                                         </div>
-                                        <p className="text-sm font-bold text-slate-800">No expense reports found</p>
-                                        <p className="text-xs text-slate-400 mt-1">Try adjusted filters or add a new entry.</p>
+                                        <p className="text-sm font-bold text-slate-800">{translations.expense.no_reports}</p>
+                                        <p className="text-xs text-slate-400 mt-1">{translations.expense.no_reports_desc}</p>
                                     </div>
                                 </td>
                             </tr>
@@ -174,7 +176,7 @@ const ExpenseTable = ({ data, isLoading, page, setPage, perPage, setPerPage, onE
                                             </td>
                                             <td className="px-6 py-4 text-center">
                                                 <span className="text-xs font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                                                    {expense.items?.length || 0} Items
+                                                    {expense.items?.length || 0} {translations.expense.items}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right">
@@ -186,7 +188,7 @@ const ExpenseTable = ({ data, isLoading, page, setPage, perPage, setPerPage, onE
                                                         ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
                                                         : 'bg-rose-50 text-rose-600 border-rose-100 animate-pulse'
                                                 }`}>
-                                                    {expense.status}
+                                                    {expense.status === 'Paid' ? translations.expense.paid : translations.expense.unpaid}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 text-right pr-6" onClick={(e) => e.stopPropagation()}>
@@ -233,17 +235,17 @@ const ExpenseTable = ({ data, isLoading, page, setPage, perPage, setPerPage, onE
                                                             <>
                                                                 <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                                                                     <Package size={11} />
-                                                                    Expense Line Items — {expense.items.length} record{expense.items.length !== 1 ? 's' : ''}
+                                                                    {translations.expense.line_items.replace('{n}', expense.items.length)}
                                                                 </p>
                                                                 <div className="bg-white rounded-xl border border-indigo-100 overflow-hidden shadow-sm">
                                                                     <table className="w-full text-left">
                                                                         <thead className="bg-slate-50 border-b border-slate-100">
                                                                             <tr>
-                                                                                <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Item Description</th>
-                                                                                <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Type</th>
-                                                                                <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Qty</th>
-                                                                                <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Unit Price</th>
-                                                                                <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Amount</th>
+                                                                                <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{translations.expense.item_desc}</th>
+                                                                                <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{translations.expense.type}</th>
+                                                                                <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.expense.qty}</th>
+                                                                                <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.expense.unit_price}</th>
+                                                                                <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.expense.amount}</th>
                                                                             </tr>
                                                                         </thead>
                                                                         <tbody className="divide-y divide-slate-50">
@@ -269,7 +271,7 @@ const ExpenseTable = ({ data, isLoading, page, setPage, perPage, setPerPage, onE
                                                                         </tbody>
                                                                         <tfoot className="bg-slate-50 border-t border-slate-200">
                                                                             <tr>
-                                                                                <td colSpan="5" className="px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Grand Total</td>
+                                                                                <td colSpan="4" className="px-4 py-2.5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{translations.expense.grand_total}</td>
                                                                                 <td className="px-4 py-2.5 text-right">
                                                                                     <span className="text-sm font-black text-indigo-600">৳{Number(expense.grand_total).toLocaleString()}</span>
                                                                                 </td>
@@ -281,7 +283,7 @@ const ExpenseTable = ({ data, isLoading, page, setPage, perPage, setPerPage, onE
                                                         ) : (
                                                             <div className="flex items-center gap-3 py-2 text-slate-400">
                                                                 <Package size={16} className="text-slate-300" />
-                                                                <span className="text-sm font-medium">No line items recorded for this expense.</span>
+                                                                <span className="text-sm font-medium">{translations.expense.no_line_items}</span>
                                                             </div>
                                                         )}
                                                     </div>
@@ -299,7 +301,7 @@ const ExpenseTable = ({ data, isLoading, page, setPage, perPage, setPerPage, onE
             {/* Pagination Footer */}
             <div className="shrink-0 flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/30">
                 <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Rows per page:</span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{translations.expense.rows_per_page}</span>
                     <select
                         value={perPage}
                         onChange={(e) => {
@@ -316,7 +318,9 @@ const ExpenseTable = ({ data, isLoading, page, setPage, perPage, setPerPage, onE
 
                 <div className="flex items-center gap-3">
                     <span className="text-xs font-bold text-slate-500 px-3 py-1.5 bg-white rounded-lg border border-slate-200 shadow-sm shadow-indigo-100/20">
-                        Page <span className="text-indigo-600">{meta.current_page || 1}</span> of <span className="text-indigo-600">{meta.last_page || 1}</span>
+                        {translations.expense.page_meta
+                            .replace('{current}', meta.current_page || 1)
+                            .replace('{total}', meta.last_page || 1)}
                     </span>
                     <div className="flex items-center gap-1.5">
                         <button

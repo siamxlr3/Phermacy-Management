@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -22,6 +22,7 @@ import { useGetSalesQuery, useUpdateSaleStatusMutation } from '../store/api/sale
 import { cn } from '../lib/utils';
 import { Toaster, toast } from 'react-hot-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useLanguage } from '../language/GlobalTranslate.jsx';
 
 const statusStyle = {
   Completed: 'bg-emerald-50 text-emerald-600 border-emerald-100',
@@ -37,7 +38,26 @@ const paymentStyle = {
   Due: 'bg-orange-50 text-orange-600 border-orange-100',
 };
 
+const formatSoldQty = (item) => {
+  if (item.sale_qty !== undefined && item.sale_qty !== null) {
+    const qty = Number(item.sale_qty);
+    return Number.isInteger(qty) ? qty : qty.toFixed(2);
+  }
+
+  // Fallback calculation for older records
+  if (item.sale_unit === 'Box') {
+    const boxQty = item.qty_tablets / ((item.tablet_per_stripe || 1) * (item.stripe_per_box || 1));
+    return Number.isInteger(boxQty) ? boxQty : boxQty.toFixed(2);
+  } else if (item.sale_unit === 'Stripe') {
+    const stripeQty = item.qty_tablets / (item.tablet_per_stripe || 1);
+    return Number.isInteger(stripeQty) ? stripeQty : stripeQty.toFixed(2);
+  }
+  return item.qty_tablets;
+};
+
+
 const SalesHistoryPage = () => {
+  const { translations } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
@@ -50,6 +70,12 @@ const SalesHistoryPage = () => {
     from: '',
     to: format(new Date(), 'yyyy-MM-dd')
   });
+
+  useEffect(() => {
+    if (location.state?.showDueOnly !== undefined) {
+      setShowDueOnly(location.state.showDueOnly);
+    }
+  }, [location.state]);
 
   const { data: salesData, isLoading, isFetching } = useGetSalesQuery({
     page,
@@ -68,9 +94,9 @@ const SalesHistoryPage = () => {
         paid_amount: grandTotal,
         due_amount: 0 
       }).unwrap();
-      toast.success('Payment updated successfully');
+      toast.success(translations.sales_history.payment_success);
     } catch (err) {
-      toast.error(err.data?.message || 'Failed to update payment');
+      toast.error(err.data?.message || translations.sales_history.payment_failed);
     }
   };
 
@@ -98,9 +124,9 @@ const SalesHistoryPage = () => {
                   <History size={24} className="text-white" />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-black text-slate-900 tracking-tight">Sales History</h1>
+                  <h1 className="text-2xl font-black text-slate-900 tracking-tight">{translations.sales_history.title}</h1>
                   <p className="text-sm font-bold text-slate-400 flex items-center gap-2">
-                    Comprehensive record of all pharmacy transactions
+                    {translations.sales_history.subtitle}
                   </p>
                 </div>
               </div>
@@ -120,7 +146,7 @@ const SalesHistoryPage = () => {
                 )}
               >
                 <BadgeDollarSign size={16} />
-                {showDueOnly ? "Show All Sales" : "Show Due Sales"}
+                {showDueOnly ? translations.sales_history.show_all : translations.sales_history.show_due}
               </button>
             </div>
           </div>
@@ -140,9 +166,9 @@ const SalesHistoryPage = () => {
                   <AlertCircle size={120} />
                 </div>
                 <div className="relative z-10">
-                  <p className="text-[10px] font-black text-orange-100 uppercase tracking-[0.2em] mb-2 opacity-80">Total Outstanding Due</p>
+                  <p className="text-[10px] font-black text-orange-100 uppercase tracking-[0.2em] mb-2 opacity-80">{translations.sales_history.total_due}</p>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-xl font-bold text-orange-200">$</span>
+                    <span className="text-3xl font-black text-orange-200">৳</span>
                     <h2 className="text-4xl font-black text-white tracking-tighter">
                       {parseFloat(salesData?.summary?.total_due || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </h2>
@@ -161,9 +187,9 @@ const SalesHistoryPage = () => {
                   <BadgeDollarSign size={120} />
                 </div>
                 <div className="relative z-10">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Total Transaction Volume</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">{translations.sales_history.total_volume}</p>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-xl font-bold text-slate-500">$</span>
+                    <span className="text-3xl font-black text-slate-500">৳</span>
                     <h2 className="text-4xl font-black text-white tracking-tighter">
                       {parseFloat(salesData?.summary?.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </h2>
@@ -185,7 +211,7 @@ const SalesHistoryPage = () => {
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
                   <input
                     type="text"
-                    placeholder="Search by invoice number or customer..."
+                    placeholder={translations.sales_history.search_placeholder}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 outline-none transition-all placeholder:text-slate-400 text-slate-600"
@@ -205,7 +231,7 @@ const SalesHistoryPage = () => {
                             : "text-slate-400 hover:text-slate-600"
                         )}
                       >
-                        {f}
+                        {f === 'all' ? translations.sales_history.all : (f === 'Completed' ? translations.sales_history.completed : translations.sales_history.returned)}
                       </button>
                     ))}
                   </div>
@@ -213,7 +239,7 @@ const SalesHistoryPage = () => {
 
                 <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
                   <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100 text-xs font-bold text-slate-500">
-                    <Calendar size={14} /> Date
+                    <Calendar size={14} /> {translations.sales_history.date}
                     <input 
                       type="date" 
                       value={dateRange.from} 
@@ -230,9 +256,9 @@ const SalesHistoryPage = () => {
                   onChange={(e) => setPerPage(Number(e.target.value))}
                   className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-600 outline-none focus:ring-4 focus:ring-slate-500/5 transition-all cursor-pointer"
                 >
-                  <option value={10}>10 per page</option>
-                  <option value={20}>20 per page</option>
-                  <option value={50}>50 per page</option>
+                  <option value={10}>10 {translations.sales_history.per_page.replace('{n}', '')}</option>
+                  <option value={20}>20 {translations.sales_history.per_page.replace('{n}', '')}</option>
+                  <option value={50}>50 {translations.sales_history.per_page.replace('{n}', '')}</option>
                 </select>
               </div>
             </div>
@@ -243,25 +269,25 @@ const SalesHistoryPage = () => {
             <table className="w-full text-left border-collapse min-w-[1100px]">
               <thead className="sticky top-0 bg-white z-10 border-b border-slate-100 shadow-sm shadow-slate-200/5">
                 <tr>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Invoice</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Customer</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{translations.sales_history.invoice}</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{translations.sales_history.customer}</th>
                   {showDueOnly ? (
                     <>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Phone</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-center">Status</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Due Amount</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{translations.sales_history.phone}</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-center">{translations.sales_history.status}</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{translations.sales_history.due_amount}</th>
                     </>
                   ) : (
                     <>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Sold Items</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-center">Sale Unit</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Payment</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Total Amount</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-center">Status</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Date</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{translations.sales_history.sold_items}</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-center">{translations.sales_history.sale_unit}</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{translations.sales_history.payment}</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{translations.sales_history.total_amount}</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-center">{translations.sales_history.status}</th>
+                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{translations.sales_history.date}</th>
                     </>
                   )}
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-right">Actions</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-right">{translations.sales_history.actions}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -283,8 +309,8 @@ const SalesHistoryPage = () => {
                           <ShoppingBag size={32} />
                         </div>
                         <div className="text-center">
-                          <p className="font-black text-slate-900 text-lg tracking-tight">No transactions found</p>
-                          <p className="text-sm font-medium text-slate-500">Try adjusting your filters or search term</p>
+                          <p className="font-black text-slate-900 text-lg tracking-tight">{translations.sales_history.no_transactions}</p>
+                          <p className="text-sm font-medium text-slate-500">{translations.sales_history.adjust_filters}</p>
                         </div>
                       </div>
                     </td>
@@ -302,7 +328,7 @@ const SalesHistoryPage = () => {
                           <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 text-[10px] font-black border border-slate-200 transition-colors group-hover:bg-white">
                             {(item.customer_name || 'Walk-in').substring(0, 2).toUpperCase()}
                           </div>
-                          <span className="text-sm font-bold text-slate-700">{item.customer_name || 'Walk-in Customer'}</span>
+                          <span className="text-sm font-bold text-slate-700">{item.customer_name || translations.sales_history.walk_in}</span>
                         </div>
                       </td>
 
@@ -318,12 +344,12 @@ const SalesHistoryPage = () => {
                                 statusStyle[item.status] || 'bg-slate-50 text-slate-400 border-slate-100'
                               )}>
                                 <AlertCircle size={10} />
-                                {item.status}
+                                {item.status === 'Completed' ? translations.sales_history.completed : (item.status === 'Returned' ? translations.sales_history.returned : item.status)}
                               </span>
                             </div>
                           </td>
                           <td className="px-8 py-6">
-                            <span className="text-sm font-black text-orange-600">${parseFloat(item.due_amount || item.grand_total).toFixed(2)}</span>
+                            <span className="text-sm font-black text-orange-600">৳{parseFloat(item.due_amount || item.grand_total).toFixed(2)}</span>
                           </td>
                         </>
                       ) : (
@@ -338,7 +364,7 @@ const SalesHistoryPage = () => {
                                         <span className="text-xs font-bold text-slate-700">{ritem.medicine_name}</span>
                                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Batch: {ritem.batch_number}</span>
                                       </div>
-                                      <span className="text-[10px] font-black px-1.5 py-0.5 bg-blue-50 text-blue-500 rounded border border-blue-100 italic shrink-0">x{ritem.qty_tablets}</span>
+                                      <span className="text-[10px] font-black px-1.5 py-0.5 bg-blue-50 text-blue-500 rounded border border-blue-100 italic shrink-0">x{formatSoldQty(ritem)}</span>
                                     </div>
                                   ))}
                                   {item.items.length > 3 && (
@@ -346,7 +372,7 @@ const SalesHistoryPage = () => {
                                   )}
                                 </>
                               ) : (
-                                <span className="text-sm font-bold text-slate-700">{item.items_count || 0} Items</span>
+                                <span className="text-sm font-bold text-slate-700">{item.items_count || 0} {translations.pos.order}</span>
                               )}
                             </div>
                           </td>
@@ -355,12 +381,12 @@ const SalesHistoryPage = () => {
                               {Array.isArray(item.items) ? (
                                 item.items.slice(0, 3).map((ritem, idx) => (
                                   <span key={idx} className="text-[10px] font-black px-2 py-0.5 bg-slate-100 text-slate-500 rounded uppercase tracking-tighter whitespace-nowrap">
-                                    {ritem.sale_unit || 'Tablet'}
+                                    {ritem.sale_unit === 'Tablet' ? translations.pos.unit_tablet : (ritem.sale_unit === 'Strip' ? translations.pos.unit_strip : translations.pos.unit_box)}
                                   </span>
                                 ))
                               ) : (
                                 <span className="text-[10px] font-black px-2 py-0.5 bg-slate-100 text-slate-500 rounded uppercase tracking-tighter">
-                                  Tablet
+                                  {translations.pos.unit_tablet}
                                 </span>
                               )}
                             </div>
@@ -374,7 +400,7 @@ const SalesHistoryPage = () => {
                             </span>
                           </td>
                           <td className="px-8 py-6">
-                            <span className="text-sm font-black text-slate-900">${parseFloat(item.grand_total).toFixed(2)}</span>
+                            <span className="text-sm font-black text-slate-900">৳{parseFloat(item.grand_total).toFixed(2)}</span>
                           </td>
                           <td className="px-8 py-6">
                             <div className="flex justify-center">
@@ -382,7 +408,7 @@ const SalesHistoryPage = () => {
                                 "px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-tight",
                                 statusStyle[item.status] || 'bg-slate-50 text-slate-400 border-slate-100'
                               )}>
-                                {item.status}
+                                {item.status === 'Completed' ? translations.sales_history.completed : (item.status === 'Returned' ? translations.sales_history.returned : item.status)}
                               </span>
                             </div>
                           </td>
@@ -400,7 +426,7 @@ const SalesHistoryPage = () => {
                               className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-200 hover:bg-emerald-600 transition-all mr-2"
                             >
                               <CheckCircle2 size={14} />
-                              Mark Paid
+                              {translations.sales_history.mark_paid}
                             </button>
                           )}
                           <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
@@ -436,7 +462,10 @@ const SalesHistoryPage = () => {
           {!isLoading && meta.last_page > 1 && (
             <div className="shrink-0 p-6 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between">
               <p className="text-[11px] font-black text-slate-400 uppercase tracking-[2px]">
-                Showing {meta.from}-{meta.to} of {meta.total} transactions
+                {translations.sales_history.showing_meta
+                  .replace('{from}', meta.from)
+                  .replace('{to}', meta.to)
+                  .replace('{total}', meta.total)}
               </p>
               <div className="flex items-center gap-2">
                 <button 

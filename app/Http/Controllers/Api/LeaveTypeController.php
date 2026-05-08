@@ -3,103 +3,79 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\LeaveTypeRequest;
-use App\Http\Resources\Api\LeaveTypeResource;
-use App\Services\LeaveTypeService;
+use App\Models\LeaveType;
 use Illuminate\Http\Request;
-use Exception;
+use App\Http\Resources\Api\LeaveTypeResource;
+use Illuminate\Support\Facades\Cache;
 
 class LeaveTypeController extends Controller
 {
-    protected $leaveTypeService;
-
-    public function __construct(LeaveTypeService $leaveTypeService)
-    {
-        $this->leaveTypeService = $leaveTypeService;
-    }
-
     public function index(Request $request)
     {
-        try {
-            $perPage = $request->get('per_page', 10);
-            $search = $request->get('search');
-            $status = $request->get('status');
+        $perPage = $request->get('per_page', 10);
+        $search = $request->get('search');
+        $status = $request->get('status');
 
-            $leaveTypes = $this->leaveTypeService->getAllLeaveTypes($perPage, $search, $status);
-            return LeaveTypeResource::collection($leaveTypes);
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch leave types: ' . $e->getMessage()
-            ], 500);
+        $query = LeaveType::query();
+
+        if ($search) {
+            $query->where('name', 'like', "%{$search}%");
         }
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        $leaveTypes = $query->orderBy('name')->paginate($perPage);
+        return LeaveTypeResource::collection($leaveTypes);
     }
 
     public function active()
     {
-        try {
-            $leaveTypes = $this->leaveTypeService->getActiveLeaveTypes();
-            return LeaveTypeResource::collection($leaveTypes);
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to fetch active leave types.'
-            ], 500);
-        }
+        $leaveTypes = Cache::remember('leavetype_active', 3600, function () {
+            return LeaveType::where('status', 'Active')->orderBy('name')->get();
+        });
+        return LeaveTypeResource::collection($leaveTypes);
     }
 
-    public function store(LeaveTypeRequest $request)
+    public function store(Request $request)
     {
-        try {
-            $leaveType = $this->leaveTypeService->createLeaveType($request->validated());
-            return new LeaveTypeResource($leaveType);
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to create leave type: ' . $e->getMessage()
-            ], 500);
-        }
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:leave_types,name',
+            'days_per_year' => 'required|integer|min:0',
+            'status' => 'required|string|in:Active,Inactive',
+        ]);
+
+        $leaveType = LeaveType::create($validated);
+        Cache::flush();
+        return new LeaveTypeResource($leaveType);
     }
 
-    public function show($id)
+    public function show(int $id)
     {
-        try {
-            $leaveType = $this->leaveTypeService->getLeaveTypeById($id);
-            return new LeaveTypeResource($leaveType);
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Leave type not found.'
-            ], 404);
-        }
+        $leaveType = LeaveType::findOrFail($id);
+        return new LeaveTypeResource($leaveType);
     }
 
-    public function update(LeaveTypeRequest $request, $id)
+    public function update(Request $request, int $id)
     {
-        try {
-            $leaveType = $this->leaveTypeService->updateLeaveType($id, $request->validated());
-            return new LeaveTypeResource($leaveType);
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to update leave type: ' . $e->getMessage()
-            ], 500);
-        }
+        $leaveType = LeaveType::findOrFail($id);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255|unique:leave_types,name,' . $id,
+            'days_per_year' => 'required|integer|min:0',
+            'status' => 'required|string|in:Active,Inactive',
+        ]);
+
+        $leaveType->update($validated);
+        Cache::flush();
+        return new LeaveTypeResource($leaveType);
     }
 
-    public function destroy($id)
+    public function destroy(int $id)
     {
-        try {
-            $this->leaveTypeService->deleteLeaveType($id);
-            return response()->json([
-                'success' => true,
-                'message' => 'Leave type deleted successfully'
-            ]);
-        } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to delete leave type: ' . $e->getMessage()
-            ], 500);
-        }
+        $leaveType = LeaveType::findOrFail($id);
+        $leaveType->delete();
+        Cache::flush();
+        return response()->json(['success' => true, 'message' => 'Leave type deleted successfully']);
     }
 }

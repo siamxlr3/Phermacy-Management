@@ -23,9 +23,9 @@ return new class extends Migration
             $table->decimal('subtotal', 15, 2);
             
             // Group A (Solid/Patch)
-            $table->decimal('cost_per_box', 15, 2)->nullable();
-            $table->decimal('cost_per_stripe', 15, 2)->nullable();
-            $table->decimal('cost_per_tablet', 15, 2)->nullable();
+            $table->decimal('cost_per_box', 15, 4)->nullable();
+            $table->decimal('cost_per_stripe', 15, 4)->nullable();
+            $table->decimal('cost_per_tablet', 15, 4)->nullable();
             $table->string('strength')->nullable();
             
             // Group B (Liquid/Cream/Other)
@@ -33,6 +33,7 @@ return new class extends Migration
             $table->decimal('price', 15, 2)->nullable(); // Cost price for liquid units
             
             $table->timestamps();
+            $table->softDeletes();
             
             $table->index('batch_number');
         });

@@ -5,9 +5,27 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+/**
+ * @property int $id
+ * @property int $medicine_id
+ * @property int $supplier_id
+ * @property int|null $grn_id
+ * @property string $batch_number
+ * @property \Illuminate\Support\Carbon $expiry_date
+ * @property int $qty_tablets
+ * @property int $qty_tablets_remaining
+ * @property float|null $cost_per_tablet
+ * @property float|null $cost_per_stripe
+ * @property float|null $cost_per_box
+ * @property string|null $volume
+ * @property float|null $price
+ * @property \Illuminate\Support\Carbon $received_date
+ */
 class StockBatch extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'medicine_id',
@@ -28,9 +46,9 @@ class StockBatch extends Model
     protected $casts = [
         'expiry_date' => 'date',
         'received_date' => 'date',
-        'cost_per_tablet' => 'decimal:2',
-        'cost_per_stripe' => 'decimal:2',
-        'cost_per_box' => 'decimal:2',
+        'cost_per_tablet' => 'decimal:4',
+        'cost_per_stripe' => 'decimal:4',
+        'cost_per_box' => 'decimal:4',
         'price' => 'decimal:2',
     ];
 

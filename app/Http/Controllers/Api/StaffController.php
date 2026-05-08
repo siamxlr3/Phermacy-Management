@@ -3,94 +3,105 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\StoreStaffRequest;
-use App\Http\Requests\Api\UpdateStaffRequest;
-use App\Http\Resources\Api\StaffResource;
-use App\Services\StaffService;
-use Illuminate\Http\JsonResponse;
+use App\Models\Staff;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use App\Http\Resources\Api\StaffResource;
+use Illuminate\Support\Facades\Cache;
 
 class StaffController extends Controller
 {
-    protected $staffService;
-
-    public function __construct(StaffService $staffService)
-    {
-        $this->staffService = $staffService;
-    }
-
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(Request $request)
     {
         $perPage = $request->get('per_page', 10);
         $search = $request->get('search');
         $status = $request->get('status');
         $fromDate = $request->get('from_date');
         $toDate = $request->get('to_date');
-        
-        $staff = $this->staffService->getAllStaff($perPage, $search, $status, $fromDate, $toDate);
-        return StaffResource::collection($staff);
-    }
 
-    public function active(): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
-    {
-        $staff = $this->staffService->getActiveStaff();
-        return StaffResource::collection($staff);
-    }
+        $query = Staff::query();
 
-    public function store(StoreStaffRequest $request): JsonResponse
-    {
-        try {
-            $staff = $this->staffService->createStaff($request->validated());
-            return response()->json([
-                'success' => true,
-                'message' => 'Staff member recorded successfully',
-                'data' => new StaffResource($staff)
-            ], 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 422);
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('first_name', 'like', "%{$search}%")
+                  ->orWhere('last_name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere('employee_id', 'like', "%{$search}%");
+            });
         }
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        if ($fromDate && $toDate) {
+            $query->whereBetween('join_date', [$fromDate, $toDate]);
+        }
+
+        $staff = $query->orderBy('first_name')->paginate($perPage);
+        return StaffResource::collection($staff);
     }
 
-    public function show($id): StaffResource
+    public function active()
     {
-        $staff = $this->staffService->getStaffById($id);
+        $staff = Cache::remember('staff_active', 3600, function () {
+            return Staff::where('status', 'Active')->orderBy('first_name')->get();
+        });
+        return StaffResource::collection($staff);
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'employee_id' => 'required|string|unique:staff,employee_id',
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'email' => 'required|email|unique:staff,email',
+            'phone' => 'required|string|max:20',
+            'designation' => 'required|string',
+            'department' => 'required|string',
+            'join_date' => 'required|date',
+            'salary' => 'required|numeric|min:0',
+            'status' => 'required|string|in:Active,Inactive,On Leave',
+        ]);
+
+        $staff = Staff::create($validated);
+        Cache::flush();
         return new StaffResource($staff);
     }
 
-    public function update(UpdateStaffRequest $request, $id): JsonResponse
+    public function show(int $id)
     {
-        try {
-            $staff = $this->staffService->updateStaff($id, $request->validated());
-            return response()->json([
-                'success' => true,
-                'message' => 'Staff records updated successfully',
-                'data' => new StaffResource($staff)
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 422);
-        }
+        $staff = Staff::findOrFail($id);
+        return new StaffResource($staff);
     }
 
-    public function destroy($id): JsonResponse
+    public function update(Request $request, int $id)
     {
-        try {
-            $this->staffService->deleteStaff($id);
-            return response()->json([
-                'success' => true,
-                'message' => 'Staff member removed successfully'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 422);
-        }
+        $staff = Staff::findOrFail($id);
+        $validated = $request->validate([
+            'employee_id' => 'required|string|unique:staff,employee_id,' . $id,
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'email' => 'required|email|unique:staff,email,' . $id,
+            'phone' => 'required|string|max:20',
+            'designation' => 'required|string',
+            'department' => 'required|string',
+            'join_date' => 'required|date',
+            'salary' => 'required|numeric|min:0',
+            'status' => 'required|string|in:Active,Inactive,On Leave',
+        ]);
+
+        $staff->update($validated);
+        Cache::flush();
+        return new StaffResource($staff);
+    }
+
+    public function destroy(int $id)
+    {
+        $staff = Staff::findOrFail($id);
+        $staff->delete();
+        Cache::flush();
+        return response()->json(['success' => true, 'message' => 'Staff deleted successfully']);
     }
 }

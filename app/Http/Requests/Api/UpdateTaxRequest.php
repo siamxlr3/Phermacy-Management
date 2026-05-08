@@ -22,7 +22,7 @@ class UpdateTaxRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'sometimes|required|string|max:255|unique:taxes,name,' . $this->route('tax')->id,
+            'name' => 'sometimes|required|string|max:255|unique:taxes,name,' . ($this->route('tax')->id ?? $this->route('tax')),
             'rate' => 'sometimes|required|numeric|min:0|max:100',
             'status' => 'sometimes|required|in:Active,Inactive',
         ];

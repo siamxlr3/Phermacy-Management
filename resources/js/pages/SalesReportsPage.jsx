@@ -21,8 +21,10 @@ import ReportStats from '../components/Reports/ReportStats';
 import TopMedicinesTable from '../components/Reports/TopMedicinesTable';
 import CategoryRevenue from '../components/Reports/CategoryRevenue';
 import { Toaster, toast } from 'react-hot-toast';
+import { useLanguage } from '../language/GlobalTranslate.jsx';
 
 const SalesReportsPage = () => {
+    const { translations } = useLanguage();
     // Default to last 30 days using local timezone
     const [dateRange, setDateRange] = useState({
         from_date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA'),
@@ -36,17 +38,17 @@ const SalesReportsPage = () => {
     const handleRefresh = async () => {
         try {
             await refreshReports().unwrap();
-            toast.success('Report data refreshed');
+            toast.success(translations.sales_reports.refresh_success);
         } catch (err) {
-            toast.error('Failed to refresh data');
+            toast.error(translations.sales_reports.refresh_failed);
         }
     };
 
     const quickFilters = [
-        { label: 'Today', days: 0 },
-        { label: 'Last 7 Days', days: 7 },
-        { label: 'Last 30 Days', days: 30 },
-        { label: 'This Month', type: 'month' }
+        { label: translations.sales_reports.today, days: 0 },
+        { label: translations.sales_reports.last_7_days, days: 7 },
+        { label: translations.sales_reports.last_30_days, days: 30 },
+        { label: translations.sales_reports.this_month, type: 'month' }
     ];
 
     const applyQuickFilter = (filter) => {
@@ -81,10 +83,10 @@ const SalesReportsPage = () => {
                             />
                         </div>
                         <div>
-                            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Sales & Financials</h1>
+                            <h1 className="text-3xl font-black text-slate-900 tracking-tight">{translations.sales_reports.title}</h1>
                             <p className="text-sm font-bold text-slate-400 flex items-center gap-2 uppercase tracking-widest text-[10px]">
                                 <Clock size={12} className="text-indigo-500" />
-                                Comprehensive Business Intelligence
+                                {translations.sales_reports.subtitle}
                             </p>
                         </div>
                     </div>
@@ -111,7 +113,7 @@ const SalesReportsPage = () => {
 
                         <button className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-[2px] shadow-lg shadow-slate-900/20 active:scale-95 transition-all">
                             <Download size={14} />
-                            Export Data
+                            {translations.sales_reports.export_data}
                         </button>
                     </div>
                 </div>
@@ -127,7 +129,7 @@ const SalesReportsPage = () => {
                                 onChange={(e) => setDateRange(prev => ({ ...prev, from_date: e.target.value }))}
                                 className="bg-transparent border-none outline-none text-xs font-black text-slate-600 w-full"
                             />
-                            <span className="text-slate-300 font-bold">to</span>
+                            <span className="text-slate-300 font-bold">{translations.sales_reports.to}</span>
                             <input 
                                 type="date" 
                                 value={dateRange.to_date}

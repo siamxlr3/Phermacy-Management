@@ -4,10 +4,21 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property int $id
+ * @property int $supplier_id
+ * @property \Illuminate\Support\Carbon $order_date
+ * @property string $status
+ * @property string $payment_status
+ * @property float $total_amount
+ * @property float $paid_amount
+ * @property string|null $notes
+ */
 class PurchaseOrder extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'supplier_id',
@@ -38,14 +49,5 @@ class PurchaseOrder extends Model
     public function grns()
     {
         return $this->hasMany(GRN::class, 'purchase_order_id');
-    }
-
-    /**
-     * Recalculate and save the total amount based on items
-     */
-    public function syncTotal(): void
-    {
-        $this->total_amount = $this->items()->sum('subtotal');
-        $this->save();
     }
 }

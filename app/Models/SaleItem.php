@@ -5,29 +5,29 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+/**
+ * @property int $id
+ * @property int $sale_id
+ * @property int $medicine_id
+ * @property int $stock_batch_id
+ * @property string|null $sale_unit
+ * @property float|null $sale_qty
+ * @property int $qty_tablets
+ * @property float $unit_price
+ * @property float $tax_amount
+ * @property float $subtotal
+ */
 class SaleItem extends Model
 {
-    use HasFactory;
-
-    protected static function booted()
-    {
-        static::saved(function ($item) {
-            if ($item->sale) {
-                $item->sale->syncTotal();
-            }
-        });
-
-        static::deleted(function ($item) {
-            if ($item->sale) {
-                $item->sale->syncTotal();
-            }
-        });
-    }
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'sale_id',
         'medicine_id',
         'sale_unit',
+        'sale_qty',
         'stock_batch_id',
         'qty_tablets',
         'unit_price',
@@ -40,6 +40,7 @@ class SaleItem extends Model
         'tax_amount' => 'decimal:2',
         'subtotal' => 'decimal:2',
         'qty_tablets' => 'integer',
+        'sale_qty' => 'decimal:2',
     ];
 
     public function sale()

@@ -22,6 +22,7 @@ return new class extends Migration
             $table->decimal('paid_amount', 15, 2)->default(0);
             $table->enum('payment_status', ['Paid', 'Due', 'Partially Paid'])->default('Due');
             $table->text('notes')->nullable();
+            $table->softDeletes();
             $table->timestamps();
             
             $table->index('received_date');

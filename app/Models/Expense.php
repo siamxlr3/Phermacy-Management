@@ -5,9 +5,22 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+/**
+ * @property int $id
+ * @property string $transaction_id
+ * @property string|null $supplier_name
+ * @property string|null $contact_person
+ * @property string|null $phone
+ * @property string|null $address
+ * @property \Illuminate\Support\Carbon $expense_date
+ * @property float $grand_total
+ * @property string $status
+ */
 class Expense extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'transaction_id',

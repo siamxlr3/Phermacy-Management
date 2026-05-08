@@ -22,11 +22,13 @@ import InventoryReportsPage from './pages/InventoryReportsPage';
 import ExpensePage from './pages/ExpensePage';
 import HRMPage from './pages/HRMPage';
 import CashRegisterPage from './pages/CashRegisterPage';
+import { LanguageProvider } from './language/GlobalTranslate.jsx';
 
 const App = () => {
     return (
         <Provider store={store}>
-            <BrowserRouter>
+            <LanguageProvider>
+                <BrowserRouter>
                 <Routes>
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
                     <Route path="/dashboard" element={<Dashboard />} />
@@ -75,8 +77,9 @@ const App = () => {
                     <Route path="/settings" element={<SettingPage />} />
                 </Routes>
             </BrowserRouter>
-        </Provider>
-    );
+        </LanguageProvider>
+    </Provider>
+);
 };
 
 const container = document.getElementById('app');

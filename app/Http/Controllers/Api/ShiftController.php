@@ -3,84 +3,76 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Api\ShiftRequest;
-use App\Http\Resources\Api\ShiftResource;
-use App\Services\ShiftService;
-use Illuminate\Http\JsonResponse;
+use App\Models\Shift;
 use Illuminate\Http\Request;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use App\Http\Resources\Api\ShiftResource;
+use Illuminate\Support\Facades\Cache;
 
 class ShiftController extends Controller
 {
-    protected $shiftService;
-
-    public function __construct(ShiftService $shiftService)
-    {
-        $this->shiftService = $shiftService;
-    }
-
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(Request $request)
     {
         $perPage = $request->get('per_page', 10);
         $search = $request->get('search');
-        
-        $shifts = $this->shiftService->getAllShifts($perPage, $search);
+
+        $query = Shift::query();
+
+        if ($search) {
+            $query->where('name', 'like', "%{$search}%");
+        }
+
+        $shifts = $query->orderBy('start_time')->paginate($perPage);
         return ShiftResource::collection($shifts);
     }
 
     public function active()
     {
-        $shifts = $this->shiftService->getActiveShifts();
+        $shifts = Cache::remember('active_shifts', 3600, function () {
+            return Shift::where('status', 'Active')->orderBy('start_time')->get();
+        });
         return ShiftResource::collection($shifts);
     }
 
-    public function store(ShiftRequest $request): JsonResponse
+    public function store(Request $request)
     {
-        try {
-            $shift = $this->shiftService->createShift($request->validated());
-            return response()->json([
-                'success' => true,
-                'message' => 'Shift created successfully',
-                'data' => new ShiftResource($shift)
-            ], 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 422);
-        }
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'start_time' => 'required|string',
+            'end_time' => 'required|string',
+            'status' => 'required|string|in:Active,Inactive',
+        ]);
+
+        $shift = Shift::create($validated);
+        Cache::flush();
+        return new ShiftResource($shift);
     }
 
-    public function update(ShiftRequest $request, $id): JsonResponse
+    public function show(int $id)
     {
-        try {
-            $shift = $this->shiftService->updateShift($id, $request->validated());
-            return response()->json([
-                'success' => true,
-                'message' => 'Shift updated successfully',
-                'data' => new ShiftResource($shift)
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 422);
-        }
+        $shift = Shift::findOrFail($id);
+        return new ShiftResource($shift);
     }
 
-    public function destroy($id): JsonResponse
+    public function update(Request $request, int $id)
     {
-        try {
-            $this->shiftService->deleteShift($id);
-            return response()->json([
-                'success' => true,
-                'message' => 'Shift deleted successfully'
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 422);
-        }
+        $shift = Shift::findOrFail($id);
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'start_time' => 'required|string',
+            'end_time' => 'required|string',
+            'status' => 'required|string|in:Active,Inactive',
+        ]);
+
+        $shift->update($validated);
+        Cache::flush();
+        return new ShiftResource($shift);
+    }
+
+    public function destroy(int $id)
+    {
+        $shift = Shift::findOrFail($id);
+        $shift->delete();
+        Cache::flush();
+        return response()->json(['success' => true, 'message' => 'Shift deleted successfully']);
     }
 }

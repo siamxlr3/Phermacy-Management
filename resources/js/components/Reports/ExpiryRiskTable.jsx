@@ -1,18 +1,20 @@
 import React from 'react';
 import { AlertCircle, Calendar, Package, Truck } from 'lucide-react';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const ExpiryRiskTable = ({ risks }) => {
+    const { translations } = useLanguage();
     return (
         <div className="flex flex-col h-full bg-transparent overflow-hidden min-h-0">
             <div className="flex-1 overflow-auto custom-scrollbar">
                 <table className="w-full text-left border-collapse">
                     <thead className="sticky top-0 bg-slate-50/80 backdrop-blur-md z-10 border-b border-slate-200/60">
                         <tr>
-                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Medicine</th>
-                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Batch</th>
-                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Expiry Date</th>
-                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Supplier</th>
-                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-right">Qty Units</th>
+                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{translations.reports.expiry_risk.medicine}</th>
+                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{translations.reports.expiry_risk.batch}</th>
+                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{translations.reports.expiry_risk.expiry_date}</th>
+                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{translations.reports.expiry_risk.supplier}</th>
+                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-right">{translations.reports.expiry_risk.qty_units}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100/60">
@@ -34,7 +36,7 @@ const ExpiryRiskTable = ({ risks }) => {
                                         <span className="text-[12px] font-extrabold text-rose-500 jetbrains-mono">
                                             {risk.expiry_date?.split('T')[0]}
                                         </span>
-                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Expiring Risk</span>
+                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{translations.reports.expiry_risk.expiring_risk}</span>
                                     </div>
                                 </td>
                                 <td className="px-6 py-5">
@@ -47,7 +49,7 @@ const ExpiryRiskTable = ({ risks }) => {
                                 </td>
                                 <td className="px-6 py-5 text-right">
                                     <span className="text-[13px] font-extrabold text-[#0f1923] jetbrains-mono">{risk.qty_tablets_remaining}</span>
-                                    <span className="text-[10px] text-slate-400 font-bold uppercase ml-1.5">Units</span>
+                                    <span className="text-[10px] text-slate-400 font-bold uppercase ml-1.5">{translations.reports.expiry_risk.units}</span>
                                 </td>
                             </tr>
                         ))}

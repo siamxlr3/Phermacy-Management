@@ -3,42 +3,33 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\StockBatch;
+use App\Models\Medicine;
 use Illuminate\Http\Request;
-use App\Services\StockService;
+use App\Http\Resources\Api\StockResource;
 use App\Http\Resources\Api\BatchResource;
-use App\Http\Resources\Api\MedicineResource;
-use App\Http\Resources\Api\SupplierResource;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class StockController extends Controller
 {
-    protected $stockService;
-
-    public function __construct(StockService $stockService)
-    {
-        $this->stockService = $stockService;
-    }
-
-    /**
-     * Aggregated stock view
-     */
-    public function overview(Request $request)
+    public function index(Request $request): AnonymousResourceCollection
     {
         $perPage = $request->get('per_page', 10);
         $search = $request->get('search');
 
-        $stock = $this->stockService->getStockOverview($perPage, $search);
-        
-        // We handle aggregation resource mapping manually or return as is
-        return response()->json([
-            'success' => true,
-            'data' => $stock
-        ]);
+        $query = Medicine::withSum('stockBatches as total_stock', 'qty_tablets_remaining');
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "{$search}%")
+                  ->orWhere('generic_name', 'like', "{$search}%");
+            });
+        }
+
+        $medicines = $query->orderBy('name')->simplePaginate($perPage);
+        return StockResource::collection($medicines);
     }
 
-    /**
-     * Individual batch view
-     */
     public function batches(Request $request): AnonymousResourceCollection
     {
         $perPage = $request->get('per_page', 10);
@@ -46,16 +37,32 @@ class StockController extends Controller
         $fromExpiry = $request->get('from_expiry');
         $toExpiry = $request->get('to_expiry');
 
-        $batches = $this->stockService->getBatchDetails($perPage, $search, $fromExpiry, $toExpiry);
+        $query = StockBatch::select('stock_batches.*')
+            ->with(['medicine', 'supplier', 'grn'])
+            ->join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id');
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('medicines.name', 'like', "{$search}%")
+                  ->orWhere('stock_batches.batch_number', 'like', "{$search}%");
+            });
+        }
+
+        if ($fromExpiry && $toExpiry) {
+            $query->whereBetween('stock_batches.expiry_date', [$fromExpiry, $toExpiry]);
+        }
+
+        $batches = $query->orderBy('stock_batches.expiry_date', 'asc')->simplePaginate($perPage);
         return BatchResource::collection($batches);
     }
 
-    /**
-     * Get available batches for a medicine
-     */
-    public function batchesByMedicine(int $medicineId)
+    public function medicineBatches(Medicine $medicine): AnonymousResourceCollection
     {
-        $batches = $this->stockService->getBatchesByMedicine($medicineId);
+        $batches = StockBatch::where('medicine_id', $medicine->id)
+            ->where('qty_tablets_remaining', '>', 0)
+            ->orderBy('expiry_date', 'asc')
+            ->get();
+            
         return BatchResource::collection($batches);
     }
 }

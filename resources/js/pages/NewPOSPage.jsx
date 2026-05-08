@@ -1,46 +1,58 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShoppingBag, Search, Plus, Package, Tablet, Layers, Loader2, AlertCircle, Pill, Sparkles, X, Play, Tag, Factory } from 'lucide-react';
+import { Search, Plus, Loader2, AlertCircle, X, Play, Pill, Boxes, Droplets, AlertTriangle, ChevronRight } from 'lucide-react';
 import { useDispatch, useSelector } from 'react-redux';
 import { addItem, clearCart, setTaxConfig, resumeHeldSell, removeHeldSell, setRegister } from '../store/slices/posSlice';
 import { useGetMedicinesQuery } from '../store/api/medicineApi';
 import { useGetTaxesQuery } from '../store/api/settingApi';
-import { useProcessSaleMutation } from '../store/api/salesApi';
-import { useGetRegisterStatusQuery, useOpenRegisterMutation, useCloseRegisterMutation } from '../store/api/cashRegisterApi';
+import { useGetSalesQuery, useProcessSaleMutation } from '../store/api/salesApi';
+import { useGetRegisterStatusQuery } from '../store/api/cashRegisterApi';
 import CartTable from '../components/POS/CartTable';
 import BillingSummary from '../components/POS/BillingSummary';
 import InvoiceModal from '../components/POS/InvoiceModal';
-import { OpenRegisterModal, CloseRegisterModal } from '../components/POS/RegisterModals';
 import toast, { Toaster } from 'react-hot-toast';
+import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../language/GlobalTranslate.jsx';
+import { printPOSReceipt } from '../utils/printer';
+
+/* ── Design tokens from sample ── */
+const T = {
+  bg: '#f7f8fa', surface: '#fff', s2: '#f0f2f6', s3: '#e6e9f0',
+  border: '#dde1ea', border2: '#c8cdd9',
+  text: '#0e1117', text2: '#4a5068', text3: '#8890a8',
+  teal: '#00897b', tealL: '#e0f2f0', tealD: '#00695c',
+  blue: '#2563eb', blueL: '#eff4ff',
+  amber: '#d97706', amberL: '#fef3c7',
+  red: '#dc2626', redL: '#fef2f2',
+  green: '#16a34a', greenL: '#f0fdf4',
+  purple: '#7c3aed', purpleL: '#f5f3ff',
+};
+
+const GROUP_A = ['Tablet', 'Capsule', 'Suppository', 'Patch'];
 
 const NewPOSPage = () => {
+  const { translations } = useLanguage();
   const dispatch = useDispatch();
+  const navigate = useNavigate();
+  const searchRef = useRef(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [lastSale, setLastSale] = useState(null);
-  const [isCloseRegisterModalOpen, setIsCloseRegisterModalOpen] = useState(false);
+  const [selectedUnits, setSelectedUnits] = useState({});
+  const [clock, setClock] = useState('');
 
   const cartState = useSelector((state) => state.pos);
-  const { heldSells } = cartState;
-  const { data: medicinesData, isLoading: loadingMedicines, isFetching: fetchingMedicines } = useGetMedicinesQuery({ search: debouncedSearch });
-  const isSearchLoading = loadingMedicines || fetchingMedicines || (searchTerm !== debouncedSearch);
+  const { heldSells, cart } = cartState;
+  const { data: medicinesData, isLoading: loadingMedicines, isFetching: fetchingMedicines } = useGetMedicinesQuery({ search: debouncedSearch, perPage: 50 });
+  const isSearchLoading = loadingMedicines || fetchingMedicines;
   const { data: taxesData } = useGetTaxesQuery({ perPage: 100 });
   const [processSale, { isLoading: isProcessing }] = useProcessSaleMutation();
-  
-  const { data: registerStatus, isLoading: loadingRegister } = useGetRegisterStatusQuery();
-  const [openRegister, { isLoading: isOpeningRegister }] = useOpenRegisterMutation();
-  const [closeRegister, { isLoading: isClosingRegister }] = useCloseRegisterMutation();
+  const { data: salesData } = useGetSalesQuery({ perPage: 1 });
+  const { data: registerStatus } = useGetRegisterStatusQuery();
 
-  useEffect(() => {
-    if (registerStatus?.register) {
-      dispatch(setRegister(registerStatus.register));
-    } else {
-      dispatch(setRegister(null));
-    }
-  }, [registerStatus, dispatch]);
 
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedSearch(searchTerm), 400);
@@ -50,18 +62,27 @@ const NewPOSPage = () => {
   useEffect(() => {
     if (taxesData?.data) {
       const activeTax = taxesData.data.find(t => t.status === 'Active');
-      if (activeTax) {
-        dispatch(setTaxConfig({ rate: activeTax.rate, name: activeTax.name }));
-      }
+      if (activeTax) dispatch(setTaxConfig({ rate: activeTax.rate, name: activeTax.name }));
     }
   }, [taxesData, dispatch]);
 
+  // Clock
+  useEffect(() => {
+    const update = () => setClock(new Date().toLocaleTimeString('en-BD', { hour: '2-digit', minute: '2-digit' }));
+    update();
+    const id = setInterval(update, 10000);
+    return () => clearInterval(id);
+  }, []);
+
+  // F2 shortcut
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'F2') { e.preventDefault(); searchRef.current?.focus(); } };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
   const handleProcessSale = async () => {
-    if (cartState.cart.length === 0) return;
-    if (!cartState.activeRegister) {
-      toast.error('You must open a cash register before making sales');
-      return;
-    }
+    if (cart.length === 0) return;
     try {
       const saleData = {
         customer_name: cartState.customer_name,
@@ -71,10 +92,9 @@ const NewPOSPage = () => {
         discount_total: cartState.discount_total,
         grand_total: cartState.grand_total,
         payment_method: cartState.payment_method,
-        items: cartState.cart.map(item => {
+        items: cart.map(item => {
           const tabletsPerUnit = item.qty_tablets / item.quantity;
           const pricePerTablet = item.price_per_unit / tabletsPerUnit;
-          
           return {
             medicine_id: item.medicine_id,
             sale_unit: item.unit,
@@ -88,16 +108,19 @@ const NewPOSPage = () => {
       };
       const result = await processSale(saleData).unwrap();
       setLastSale(result.data);
-      setIsInvoiceOpen(true);
+      
+      // Automate POS Print
+      printPOSReceipt(result.data, translations);
+
       dispatch(clearCart());
-      toast.success('Sale processed successfully');
+      toast.success('Sale processed successfully. Printing receipt...');
     } catch (err) {
       toast.error(err?.data?.message || 'Failed to process sale');
     }
   };
 
   const handleResume = (index) => {
-    if (cartState.cart.length > 0) {
+    if (cart.length > 0) {
       if (!window.confirm('Current cart has items. Replacing with held sell?')) return;
     }
     dispatch(resumeHeldSell(index));
@@ -105,231 +128,256 @@ const NewPOSPage = () => {
     toast.success('Sell resumed successfully');
   };
 
+  const handleAddToCart = (med, unit) => {
+    dispatch(addItem({ medicine: med, selectedUnit: unit }));
+  };
+
+  const getSelectedUnit = (medId) => selectedUnits[medId] || 'Tablet';
+  const setMedUnit = (medId, unit) => setSelectedUnits(prev => ({ ...prev, [medId]: unit }));
+
+  const getUnitPrice = (med, unit) => {
+    if (unit === 'Box' && med.price_per_box) return parseFloat(med.price_per_box);
+    if (unit === 'Strip' && med.price_per_stripe) return parseFloat(med.price_per_stripe);
+    if (unit === 'Tablet' && med.price_per_tablet) return parseFloat(med.price_per_tablet);
+    return parseFloat(med.price || med.price_per_tablet || 0);
+  };
+
+  const getCartQtyForMed = (medId) => cart.filter(c => c.medicine_id === medId).reduce((a, c) => a + c.quantity, 0);
+
   const medicines = medicinesData?.data || [];
-  const cartCount = cartState.cart.reduce((s, i) => s + i.quantity, 0);
+  const summary = registerStatus?.summary || { today_in: 0, today_out: 0 };
+  const dueSummary = salesData?.summary || { total_due: 0, total_due_customers: 0 };
+
+  const iconBgs = ['#e8f4fd', '#fef9e7', '#f3e8ff', '#fff7e6', '#e8f5e9', '#e3f2fd', '#fce4ec', '#e0f7fa'];
 
   return (
     <DashboardLayout noScroll>
       <Toaster position="top-right" toastOptions={{
-        style: { background: '#162035', border: '1px solid rgba(255,255,255,0.1)', color: '#fff', fontFamily: 'Outfit, sans-serif' }
+        style: { background: T.surface, border: `1px solid ${T.border}`, color: T.text, fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 13 }
       }} />
 
-      <div className="flex flex-col h-full min-h-0 -m-6 overflow-hidden"
-        style={{ background: 'linear-gradient(135deg, #e8e8eb 0%, #dddde0 100%)', backgroundImage: "radial-gradient(ellipse 80% 50% at 20% -10%, rgba(201,151,42,0.06) 0%, transparent 60%)" }}
-      >
-        {/* ── Search Bar ── */}
-        <div className="shrink-0 px-7 pt-5 pb-4">
-          <div className="relative group">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 transition-colors text-gray-400 group-focus-within:text-amber-500" size={17} />
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+        .pos-shell * { font-family: 'IBM Plex Sans', sans-serif; }
+        .pos-mono { font-family: 'IBM Plex Mono', monospace !important; }
+        .pos-grid::-webkit-scrollbar { width: 4px; }
+        .pos-grid::-webkit-scrollbar-thumb { background: ${T.border2}; border-radius: 4px; }
+        .pos-grid::-webkit-scrollbar-track { background: transparent; }
+      `}</style>
+
+      <div className="pos-shell flex flex-col h-full min-h-0 -m-6 overflow-hidden" style={{ background: T.bg }}>
+
+        {/* ══════ TOPBAR ══════ */}
+        <div className="shrink-0 flex items-center gap-2.5 px-3.5 h-12"
+          style={{ background: T.surface, borderBottom: `1px solid ${T.border}` }}>
+          <div className="flex-1 relative">
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-sm" style={{ color: T.text3 }}>⌕</span>
             <input
+              ref={searchRef}
               type="text"
-              placeholder="Search medicine by name or generic name…"
+              placeholder={translations.pos.search_placeholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-20 py-3.5 rounded-xl text-sm font-medium outline-none transition-all"
-              style={{
-                background: '#f8f8fa',
-                border: searchTerm ? '1px solid rgba(201,151,42,0.45)' : '1px solid rgba(0,0,0,0.11)',
-                boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)',
-                color: '#1a1a1f'
-              }}
+              className="w-full py-1.5 pl-8 pr-12 rounded-lg text-[13px] outline-none transition-colors"
+              style={{ background: T.bg, border: `1px solid ${searchTerm ? T.teal : T.border}`, color: T.text }}
             />
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-semibold px-2 py-0.5 rounded"
-              style={{ background: '#d2d2d6', border: '1px solid rgba(0,0,0,0.11)', color: '#8a8a94' }}>
-              ⌘ K
-            </span>
-
-            {/* Close Register Button */}
-            {cartState.activeRegister && (
-              <button 
-                onClick={() => setIsCloseRegisterModalOpen(true)}
-                className="absolute right-20 top-1/2 -translate-y-1/2 px-4 py-2 bg-rose-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest shadow-lg shadow-rose-200 flex items-center gap-2 hover:bg-rose-600 transition-all active:scale-95"
-              >
-                <X size={12} />
-                Close Shift
-              </button>
-            )}
-
-            {/* Search Dropdown */}
-            <AnimatePresence>
-              {searchTerm && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden z-50"
-                  style={{ background: '#f8f8fa', border: '1px solid rgba(0,0,0,0.11)', boxShadow: '0 8px 32px rgba(0,0,0,0.13), 0 4px 12px rgba(0,0,0,0.07)' }}
-                >
-                  <div className="p-2 max-h-[380px] overflow-y-auto">
-                    {isSearchLoading ? (
-                      <div className="p-10 text-center flex flex-col items-center gap-3" style={{ color: '#8a8a94' }}>
-                        <Loader2 className="animate-spin" size={28} />
-                        <span className="text-xs font-semibold">Searching pharmacy inventory…</span>
-                      </div>
-                    ) : medicines.length === 0 ? (
-                      <div className="p-10 text-center flex flex-col items-center gap-3" style={{ color: '#8a8a94' }}>
-                        <AlertCircle size={28} />
-                        <span className="text-xs font-semibold">No medicines found for "{searchTerm}"</span>
-                      </div>
-                    ) : (
-                      medicines.map((m) => (
-                        <div key={m.id}
-                          onClick={() => { dispatch(addItem({ medicine: m, selectedUnit: 'Tablet' })); setSearchTerm(''); }}
-                          className="p-4 rounded-xl mb-1 last:mb-0 transition-all cursor-pointer group"
-                          style={{ border: '1px solid transparent' }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(201,151,42,0.35)'; e.currentTarget.style.background = '#f0f0f3'; }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
-                        >
-                          <div className="flex items-center justify-between gap-4">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                                style={{ background: '#e8e8eb', border: '1px solid rgba(0,0,0,0.07)' }}>
-                                <Pill size={18} style={{ color: '#c9972a' }} />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm font-bold truncate" style={{ color: '#1a1a1f' }}>{m.name}</p>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <span className="text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ background: '#e8e8eb', color: '#8a8a94' }}>{m.dosage_form}</span>
-                                  <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: '#8a8a94' }}>{m.generic_name}</span>
-                                </div>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <div className="flex items-center gap-1">
-                                    <Tag size={10} className="text-amber-500" />
-                                    <span className="text-[10px] font-medium" style={{ color: '#6a6a74' }}>{m.category_name}</span>
-                                  </div>
-                                  <span className="w-1 h-1 rounded-full" style={{ background: '#c9c9cc' }} />
-                                  <div className="flex items-center gap-1">
-                                    <Factory size={10} className="text-blue-500" />
-                                    <span className="text-[10px] font-medium" style={{ color: '#6a6a74' }}>{m.manufacturer_name}</span>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 mt-1.5">
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: 'rgba(74,144,217,0.12)', color: '#4a90d9', border: '1px solid rgba(74,144,217,0.25)' }}>Stock: {m.stock}</span>
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md" style={{ background: 'rgba(201,151,42,0.12)', color: '#c9972a', border: '1px solid rgba(201,151,42,0.30)' }}>${m.price_per_tablet || m.price}/unit</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex flex-col gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider"
-                                style={{ background: '#e8922a', color: '#1a0d00', boxShadow: '0 4px 12px rgba(232,146,42,0.2)' }}>
-                                <Plus size={12} /> Add to Cart
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))
-
-                    )}
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <span className="pos-mono absolute right-2 top-1/2 -translate-y-1/2 text-[10px] px-1.5 py-px rounded"
+              style={{ background: T.s2, border: `1px solid ${T.border}`, color: T.text3 }}>F2</span>
           </div>
+          <span className="pos-mono text-xs whitespace-nowrap" style={{ color: T.text2 }}>{clock}</span>
         </div>
 
-        {/* ── Workspace ── */}
-        <div className="flex-1 flex gap-5 min-h-0 px-7 pb-6">
+        {/* ══════ MAIN GRID ══════ */}
+        <div className="flex-1 flex min-h-0 overflow-hidden">
 
-          {/* Cart Panel */}
-          <div className="flex-1 flex flex-col min-h-0 rounded-2xl overflow-hidden relative"
-            style={{
-              background: '#f8f8fa',
-              border: '1px solid rgba(0,0,0,0.11)',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)'
-            }}>
-            {/* Gold top shimmer */}
-            <div className="absolute top-0 left-0 right-0 h-[3px]"
-              style={{ background: 'linear-gradient(90deg,transparent,rgba(201,151,42,0.35),transparent)' }} />
+          {/* ── LEFT PANEL ── */}
+          <div className="flex-1 flex flex-col overflow-hidden" style={{ borderRight: `1px solid ${T.border}` }}>
 
-            {/* Cart Header */}
-            <div className="shrink-0 flex items-center justify-between px-5 py-4"
-              style={{ borderBottom: '1px solid rgba(0,0,0,0.07)' }}>
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white"
-                  style={{ background: 'linear-gradient(135deg,#1e2d47,#0f1b2d)', boxShadow: '0 2px 8px rgba(15,27,45,0.25)' }}>
-                  <ShoppingBag size={16} />
+            {/* Stats Strip */}
+            <div className="shrink-0 grid grid-cols-2 gap-1.5 p-2.5">
+              <div className="rounded-lg p-2" style={{ background: T.surface, border: `1px solid ${T.border}` }}>
+                <div className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: T.text3, letterSpacing: '0.4px' }}>{translations.pos.today_sales}</div>
+                <div className="pos-mono text-[15px] font-semibold" style={{ color: T.teal }}>৳{summary.today_in}</div>
+                <div className="text-[10px] mt-px" style={{ color: T.text3 }}>{translations.pos.cash_inflow}</div>
+              </div>
+              <div 
+                onClick={() => navigate('/sales-history', { state: { showDueOnly: true } })}
+                className="rounded-lg p-2 cursor-pointer transition-all hover:bg-rose-50/30 group" 
+                style={{ background: T.surface, border: `1px solid ${T.border}` }}
+              >
+                <div className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: T.text3 }}>{translations.pos.due_pending}</div>
+                <div className="pos-mono text-[15px] font-semibold flex items-center justify-between" style={{ color: T.red }}>
+                  <span>৳{Number(dueSummary.total_due || 0).toLocaleString()}</span>
+                  <ChevronRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-                <div>
-                  <p className="text-[15px] font-semibold" style={{ color: '#1a1a1f', fontFamily: "'Playfair Display', serif" }}>Active POS Cart</p>
-                  <p className="text-[11px]" style={{ color: '#8a8a94' }}>
-                    {cartCount > 0 ? `${cartCount} item${cartCount !== 1 ? 's' : ''} in cart` : 'No items yet'}
-                  </p>
+                <div className="text-[10px] mt-px flex items-center justify-between" style={{ color: T.text3 }}>
+                  <span>{dueSummary.total_due_customers || 0} {translations.pos.customers}</span>
+                  <span className="text-[9px] font-medium opacity-0 group-hover:opacity-100">{translations.pos.view_details}</span>
                 </div>
               </div>
-              <button
-                onClick={() => dispatch(clearCart())}
-                className="text-[11px] font-semibold px-3 py-1.5 rounded-lg uppercase tracking-wider transition-all"
-                style={{ color: '#d95555', background: 'rgba(217,85,85,0.10)', border: '1px solid rgba(217,85,85,0.2)' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(217,85,85,0.18)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(217,85,85,0.10)'}
-              >
-                ✕ Clear cart
-              </button>
             </div>
 
-            {/* Cart Body */}
-            <div className="flex-1 min-h-0 overflow-hidden">
-              <CartTable />
+
+            {/* Medicine Grid */}
+            <div className="pos-grid flex-1 overflow-y-auto grid grid-cols-4 gap-1.5 p-3 pt-0 content-start">
+              {isSearchLoading ? (
+                <div className="col-span-4 flex flex-col items-center justify-center py-16 gap-3" style={{ color: T.text3 }}>
+                  <Loader2 className="animate-spin" size={28} />
+                  <span className="text-xs font-medium">{translations.pos.searching}</span>
+                </div>
+              ) : medicines.length === 0 ? (
+                <div className="col-span-4 flex flex-col items-center justify-center py-16 gap-3" style={{ color: T.text3 }}>
+                  <AlertCircle size={28} />
+                  <span className="text-xs font-medium">{translations.pos.no_medicines}</span>
+                </div>
+              ) : (
+                medicines.map((med, idx) => {
+                  const isGA = GROUP_A.includes(med.dosage_form);
+                  const selUnit = getSelectedUnit(med.id);
+                  const price = getUnitPrice(med, isGA ? selUnit : 'Tablet');
+                  const cartQty = getCartQtyForMed(med.id);
+                  const isLow = (med.stock || 0) <= (med.reorder_level || 10);
+                  const bgColor = iconBgs[idx % iconBgs.length];
+
+                  return (
+                    <div key={med.id}
+                      className="relative flex flex-col rounded-xl p-2.5 transition-colors"
+                      style={{
+                        background: T.surface,
+                        border: `1.5px solid ${cartQty > 0 ? T.teal : T.border}`,
+                      }}>
+                      
+                      <div className="flex flex-col min-w-0">
+                        {/* Cart quantity bubble */}
+                        {cartQty > 0 && (
+                          <div className="pos-mono absolute top-1.5 right-1.5 w-[18px] h-[18px] rounded-full flex items-center justify-center text-[9px] font-semibold text-white"
+                            style={{ background: T.teal }}>{cartQty}</div>
+                        )}
+
+                        {/* Icon */}
+                        <div className="w-[30px] h-[30px] rounded-lg flex items-center justify-center mb-1.5 text-base shrink-0"
+                          style={{ background: bgColor }}>
+                          {isGA ? <Pill size={15} style={{ color: T.teal }} /> : <Droplets size={15} style={{ color: T.blue }} />}
+                        </div>
+
+                        {/* Name & generic */}
+                        <div className="text-[11.5px] font-medium leading-tight mb-px truncate" style={{ color: T.text }} title={med.name}>{med.name}</div>
+                        <div className="flex flex-col gap-0.5 mb-1.5">
+                          <div className="text-[9.5px] font-medium italic leading-tight truncate" style={{ color: T.text3 }} title={med.generic_name}>{med.generic_name || '—'}</div>
+                          <div className="text-[9px] font-bold uppercase tracking-tight truncate" style={{ color: T.tealD }} title={med.manufacturer_name}>{med.manufacturer_name || '—'}</div>
+                        </div>
+
+                        {/* Badges */}
+                        {isLow && (
+                          <span className="pos-mono inline-block text-[9px] px-1.5 py-px rounded mb-1.5 self-start shrink-0"
+                            style={{ background: T.amberL, color: T.amber, border: '1px solid #fcd34d' }}>LOW</span>
+                        )}
+
+                        {/* Unit Selector (Group A only) */}
+                        {isGA && (
+                          <div className="grid grid-cols-3 gap-0.5 mb-1.5 shrink-0" style={{ marginTop: isLow ? '0' : '4px' }}>
+                            {[
+                              { u: 'Tablet', label: translations.pos.piece, sub: `1 ${translations.pos.unit_tablet}`, cls: 'piece' },
+                              { u: 'Strip', label: translations.pos.strip, sub: `${med.tablet_per_stripe || '—'} ${translations.pos.tabs}`, cls: 'strip' },
+                              { u: 'Box', label: translations.pos.box, sub: `${med.stripe_per_box || '—'} ${translations.pos.unit_strip}s`, cls: 'box' },
+                            ].map(({ u, label, sub, cls }) => {
+                              const isOn = selUnit === u;
+                              const colors = cls === 'piece'
+                                ? { bg: T.tealL, border: T.teal, color: T.tealD }
+                                : cls === 'strip'
+                                ? { bg: T.blueL, border: T.blue, color: T.blue }
+                                : { bg: T.purpleL, border: T.purple, color: T.purple };
+                              return (
+                                <button key={u}
+                                  onClick={() => setMedUnit(med.id, u)}
+                                  className="py-1 px-0.5 rounded text-[10px] font-medium text-center transition-all leading-tight cursor-pointer"
+                                  style={{
+                                    background: isOn ? colors.bg : T.bg,
+                                    border: `1px solid ${isOn ? colors.border : T.border}`,
+                                    color: isOn ? colors.color : T.text2,
+                                  }}>
+                                  {label}
+                                  <span className="block text-[9px] font-normal opacity-80 truncate">{sub}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Footer: price + stock + add */}
+                      <div className="flex items-center justify-between mt-auto pt-2 shrink-0">
+                        <div className="min-w-0 pr-1">
+                          <span className="pos-mono text-[13px] font-semibold block truncate" style={{ color: T.teal }}>৳{(price || 0).toFixed(2)}</span>
+                          <span className="block text-[9.5px] truncate" style={{ color: T.text3 }}>{med.stock || 0} {translations.pos.piece}s</span>
+                        </div>
+                        <button
+                          onClick={() => handleAddToCart(med, isGA ? selUnit : 'Tablet')}
+                          className="py-1 px-2.5 rounded text-[11px] font-medium text-white transition-colors cursor-pointer shrink-0"
+                          style={{ background: T.teal }}
+                          onMouseEnter={e => e.currentTarget.style.background = T.tealD}
+                          onMouseLeave={e => e.currentTarget.style.background = T.teal}>
+                          {translations.pos.add}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
 
-          {/* Billing Panel */}
-          <div className="flex-shrink-0 w-[340px] flex flex-col">
+          {/* ── RIGHT SIDEBAR ── */}
+          <div className="shrink-0 flex flex-col overflow-hidden" style={{ width: 320, background: T.surface }}>
             <BillingSummary onProcess={handleProcessSale} isProcessing={isProcessing} onOpenResume={() => setIsResumeModalOpen(true)} />
           </div>
         </div>
       </div>
 
-      {/* Held Sells Modal */}
+      {/* ══════ HELD SELLS MODAL ══════ */}
       <AnimatePresence>
         {isResumeModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsResumeModalOpen(false)}
-              className="absolute inset-0 bg-[#0a0f19]/65 backdrop-blur-sm"
-            />
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
             <motion.div
-              initial={{ opacity: 0, scale: 0.94, y: 10 }}
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.94, y: 10 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
               className="relative w-full max-w-md max-h-[500px] overflow-hidden rounded-2xl shadow-2xl flex flex-col"
-              style={{ background: 'linear-gradient(160deg, #162035, #0f1b2d)', border: '1px solid rgba(255,255,255,0.08)' }}
-            >
-              <div className="flex items-center justify-between p-5 border-b border-[rgba(255,255,255,0.08)]">
-                <span className="text-lg font-semibold text-white" style={{ fontFamily: "'Playfair Display', serif" }}>⏸ Held Sells</span>
-                <button onClick={() => setIsResumeModalOpen(false)} className="text-white/40 hover:text-white transition-colors">
-                  <X size={20} />
+              style={{ background: T.surface, border: `1px solid ${T.border}` }}>
+              <div className="flex items-center justify-between p-4" style={{ borderBottom: `1px solid ${T.border}` }}>
+                <span className="text-[13px] font-semibold" style={{ color: T.text }}>⏸ {translations.pos.held_orders}</span>
+                <button onClick={() => setIsResumeModalOpen(false)} style={{ color: T.text3 }}>
+                  <X size={18} />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto p-3">
                 {heldSells.length === 0 ? (
-                  <div className="text-center py-10" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                    <p className="text-sm">No held sells yet.</p>
-                    <p className="text-xs mt-1">Hold a sell to see it here.</p>
+                  <div className="text-center py-10" style={{ color: T.text3 }}>
+                    <p className="text-xs font-medium">{translations.pos.no_held_orders}</p>
+                    <p className="text-[10px] mt-1">{translations.pos.hold_to_see}</p>
                   </div>
                 ) : (
                   heldSells.map((h, idx) => (
-                    <div
-                      key={h.id}
-                      onClick={() => handleResume(idx)}
-                      className="group p-4 mb-3 rounded-xl cursor-pointer transition-all border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.04)] hover:bg-[rgba(255,255,255,0.08)] hover:border-[rgba(58,170,114,0.30)]"
-                    >
+                    <div key={h.id} onClick={() => handleResume(idx)}
+                      className="p-3 mb-2 rounded-lg cursor-pointer transition-all"
+                      style={{ background: T.bg, border: `1px solid ${T.border}` }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = T.teal}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = T.border}>
                       <div className="flex justify-between items-center mb-1">
-                        <span className="text-sm font-bold text-white tracking-tight">{h.label}</span>
-                        <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.35)' }}>🕐 {h.time}</span>
+                        <span className="text-[11.5px] font-semibold" style={{ color: T.text }}>{h.label}</span>
+                        <span className="text-[10px]" style={{ color: T.text3 }}>🕐 {h.time}</span>
                       </div>
-                      <div className="text-[11px] leading-relaxed mb-2" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                      <div className="text-[10px] mb-2" style={{ color: T.text3 }}>
                         {h.items.map(i => `${i.name} x${i.quantity}`).join(' · ')}
                       </div>
                       <div className="flex justify-between items-end">
-                        <span className="text-base font-bold" style={{ color: '#e8b84b' }}>${h.grand_total.toFixed(2)}</span>
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold"
-                          style={{ background: 'rgba(58,170,114,0.12)', border: '1px solid rgba(58,170,114,0.30)', color: '#3aaa72' }}>
-                          <Play size={10} /> Tap to Resume
+                        <span className="pos-mono text-sm font-semibold" style={{ color: T.teal }}>৳{h.grand_total.toFixed(2)}</span>
+                        <div className="flex items-center gap-1 text-[10px] font-medium px-2 py-1 rounded"
+                          style={{ background: T.tealL, border: `1px solid ${T.teal}`, color: T.tealD }}>
+                          <Play size={10} /> {translations.pos.resume}
                         </div>
                       </div>
                     </div>
@@ -341,41 +389,7 @@ const NewPOSPage = () => {
         )}
       </AnimatePresence>
 
-      {/* Register Modals */}
-      <AnimatePresence>
-        {!loadingRegister && !cartState.activeRegister && (
-          <OpenRegisterModal 
-            onOpen={async (balance) => {
-              try {
-                await openRegister({ opening_balance: balance }).unwrap();
-                toast.success('Shift started successfully');
-              } catch (err) {
-                toast.error('Failed to open register');
-              }
-            }}
-            isProcessing={isOpeningRegister}
-          />
-        )}
-
-        {isCloseRegisterModalOpen && (
-          <CloseRegisterModal 
-            registerData={cartState.activeRegister}
-            onClose={() => setIsCloseRegisterModalOpen(false)}
-            onCloseRegister={async (data) => {
-              try {
-                await closeRegister(data).unwrap();
-                setIsCloseRegisterModalOpen(false);
-                toast.success('Shift closed successfully');
-              } catch (err) {
-                toast.error('Failed to close register');
-              }
-            }}
-            isProcessing={isClosingRegister}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Success Modal / Invoice */}
+      {/* Invoice Modal */}
       {isInvoiceOpen && (
         <InvoiceModal sale={lastSale} onClose={() => setIsInvoiceOpen(false)} />
       )}

@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAddSupplierMutation, useUpdateSupplierMutation } from '../../store/api/supplierApi';
 import { X, Loader2, Truck, User, Phone, Mail, MapPin, CalendarDays } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const SupplierForm = ({ initialData, onClose }) => {
+  const { translations } = useLanguage();
   const [addSupplier, { isLoading: isAdding }] = useAddSupplierMutation();
   const [updateSupplier, { isLoading: isUpdating }] = useUpdateSupplierMutation();
 
@@ -46,8 +48,8 @@ const SupplierForm = ({ initialData, onClose }) => {
 
   const validate = () => {
     const e = {};
-    if (!formData.name.trim()) e.name = 'Supplier name is required';
-    if (!formData.phone.trim()) e.phone = 'Phone number is required';
+    if (!formData.name.trim()) e.name = translations.supplier.name_required;
+    if (!formData.phone.trim()) e.phone = translations.supplier.phone_required;
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -58,14 +60,14 @@ const SupplierForm = ({ initialData, onClose }) => {
     try {
       if (initialData) {
         await updateSupplier({ id: initialData.id, ...formData }).unwrap();
-        toast.success('Supplier updated successfully');
+        toast.success(translations.supplier.update_success);
       } else {
         await addSupplier(formData).unwrap();
-        toast.success('Supplier added successfully');
+        toast.success(translations.supplier.add_success);
       }
       onClose();
     } catch (err) {
-      toast.error(err?.data?.message || 'Something went wrong');
+      toast.error(err?.data?.message || translations.supplier.error);
       if (err?.data?.errors) setErrors(err.data.errors);
     }
   };
@@ -81,10 +83,10 @@ const SupplierForm = ({ initialData, onClose }) => {
           </div>
           <div>
             <h3 className="text-sm font-semibold text-slate-900">
-              {initialData ? 'Edit Supplier' : 'New Supplier'}
+              {initialData ? translations.supplier.edit_title : translations.supplier.new_title}
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              {initialData ? 'Update vendor credentials' : 'Add a new business partner'}
+              {initialData ? translations.supplier.edit_subtitle : translations.supplier.new_subtitle}
             </p>
           </div>
         </div>
@@ -95,13 +97,13 @@ const SupplierForm = ({ initialData, onClose }) => {
 
       <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[calc(100vh-200px)] overflow-y-auto custom-scrollbar">
         <div>
-          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Company Detail</label>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">{translations.supplier.company_detail}</label>
           <div className="space-y-3">
             <div className="relative">
               <Truck size={14} className="absolute left-3.5 top-3 text-slate-400" />
               <input
                 type="text"
-                placeholder="Supplier Name"
+                placeholder={translations.supplier.name_col}
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className={`w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border rounded-xl transition-all focus:outline-none focus:ring-2 ${
@@ -115,7 +117,7 @@ const SupplierForm = ({ initialData, onClose }) => {
               <User size={14} className="absolute left-3.5 top-3 text-slate-400" />
               <input
                 type="text"
-                placeholder="Contact Person (Optional)"
+                placeholder={`${translations.supplier.contact_person || 'Contact Person'} (${translations.pos.optional || 'Optional'})`}
                 value={formData.contact_person}
                 onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
                 className="w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 hover:border-slate-300 placeholder:text-slate-300"
@@ -125,13 +127,13 @@ const SupplierForm = ({ initialData, onClose }) => {
         </div>
 
         <div>
-          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Contact & Finance</label>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">{translations.supplier.contact_finance}</label>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div className="relative">
               <Phone size={14} className="absolute left-3.5 top-3 text-slate-400" />
               <input
                 type="text"
-                placeholder="Phone"
+                placeholder={translations.supplier.phone}
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 className={`w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border rounded-xl transition-all focus:outline-none focus:ring-2 ${
@@ -143,7 +145,7 @@ const SupplierForm = ({ initialData, onClose }) => {
               <CalendarDays size={14} className="absolute left-3.5 top-3 text-slate-400" />
               <input
                 type="text"
-                placeholder="Credit Days"
+                placeholder={translations.supplier.credit_col}
                 value={formData.credit_days}
                 onChange={(e) => setFormData({ ...formData, credit_days: e.target.value.replace(/[^0-9]/g, '') })}
                 className="w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 hover:border-slate-300 placeholder:text-slate-300"
@@ -154,7 +156,7 @@ const SupplierForm = ({ initialData, onClose }) => {
             <Mail size={14} className="absolute left-3.5 top-3 text-slate-400" />
             <input
               type="email"
-              placeholder="Email Address"
+              placeholder={translations.supplier.email}
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className={`w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border rounded-xl transition-all focus:outline-none focus:ring-2 ${
@@ -165,11 +167,11 @@ const SupplierForm = ({ initialData, onClose }) => {
         </div>
 
         <div>
-          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Address</label>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">{translations.supplier.address_col}</label>
           <div className="relative">
             <MapPin size={14} className="absolute left-3.5 top-3 text-slate-400" />
             <textarea
-              placeholder="Street address, city, state..."
+              placeholder={translations.supplier.address_placeholder}
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
               rows={2}
@@ -179,7 +181,7 @@ const SupplierForm = ({ initialData, onClose }) => {
         </div>
 
         <div>
-          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Account Status</label>
+          <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">{translations.supplier.account_status}</label>
           <div className="flex gap-2">
             {['Active', 'Inactive'].map((s) => (
               <button
@@ -195,7 +197,7 @@ const SupplierForm = ({ initialData, onClose }) => {
                 }`}
               >
                 <span className={`w-2 h-2 rounded-full ${formData.status === s ? (s === 'Active' ? 'bg-emerald-500' : 'bg-slate-400') : 'bg-slate-200'}`} />
-                {s}
+                {s === 'Active' ? translations.supplier.active : translations.supplier.inactive}
               </button>
             ))}
           </div>
@@ -208,10 +210,10 @@ const SupplierForm = ({ initialData, onClose }) => {
             className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-xl transition-all duration-150 shadow-sm shadow-blue-200/80 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isLoading && <Loader2 size={15} className="animate-spin" />}
-            {initialData ? 'Save Changes' : 'Create Supplier'}
+            {initialData ? translations.supplier.save_changes : translations.supplier.create_supplier}
           </button>
           <button type="button" onClick={onClose} className="w-full mt-2 py-2 text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors">
-            Cancel
+            {translations.supplier.cancel}
           </button>
         </div>
       </form>

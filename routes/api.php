@@ -68,7 +68,7 @@ Route::get('cash-registers', [CashRegisterController::class, 'index']);
 Route::get('cash-registers/status', [CashRegisterController::class, 'status']);
 Route::post('cash-registers/open', [CashRegisterController::class, 'open']);
 Route::post('cash-registers/close', [CashRegisterController::class, 'close']);
-Route::patch('sales/{id}/status', [SaleController::class, 'updateStatus']);
+Route::patch('sales/{sale}/status', [SaleController::class, 'updateStatus']);
 Route::apiResource('sales', SaleController::class)->only(['index', 'store', 'show']);
 
 // Sale Returns
@@ -83,7 +83,7 @@ Route::apiResource('alerts', AlertController::class)->only(['index']);
 
 // Reports
 Route::get('reports/dashboard', [ReportController::class, 'dashboard']);
-Route::get('reports/inventory', [InventoryReportController::class, 'dashboard']);
+Route::get('reports/inventory', [InventoryReportController::class, 'index']);
 Route::post('reports/refresh', [ReportController::class, 'refresh']);
 Route::post('reports/inventory/refresh', [InventoryReportController::class, 'refresh']);
 

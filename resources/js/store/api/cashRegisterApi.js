@@ -5,35 +5,27 @@ export const cashRegisterApi = createApi({
   baseQuery: fetchBaseQuery({
     baseUrl: '/api/v1',
     prepareHeaders: (headers) => {
-      headers.set('Accept', 'application/json');
-      // Auth token if needed, usually handled by a wrapper or interceptor
+      const token = localStorage.getItem('token');
+      if (token) headers.set('authorization', `Bearer ${token}`);
       return headers;
     },
   }),
   tagTypes: ['CashRegister'],
   endpoints: (builder) => ({
+    getTransactions: builder.query({
+      query: (params) => ({
+        url: '/cash-registers',
+        params,
+      }),
+      providesTags: ['CashRegister'],
+    }),
     getRegisterStatus: builder.query({
       query: () => '/cash-registers/status',
       providesTags: ['CashRegister'],
     }),
-    getRegisterHistory: builder.query({
-      query: (params) => ({
+    recordTransaction: builder.mutation({
+      query: (data) => ({
         url: '/cash-registers',
-        params: params
-      }),
-      providesTags: ['CashRegister'],
-    }),
-    openRegister: builder.mutation({
-      query: (data) => ({
-        url: '/cash-registers/open',
-        method: 'POST',
-        body: data,
-      }),
-      invalidatesTags: ['CashRegister'],
-    }),
-    closeRegister: builder.mutation({
-      query: (data) => ({
-        url: '/cash-registers/close',
         method: 'POST',
         body: data,
       }),
@@ -43,8 +35,7 @@ export const cashRegisterApi = createApi({
 });
 
 export const {
+  useGetTransactionsQuery,
   useGetRegisterStatusQuery,
-  useGetRegisterHistoryQuery,
-  useOpenRegisterMutation,
-  useCloseRegisterMutation,
+  useRecordTransactionMutation,
 } = cashRegisterApi;

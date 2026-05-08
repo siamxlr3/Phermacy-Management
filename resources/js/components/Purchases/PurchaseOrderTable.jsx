@@ -6,14 +6,20 @@ import toast from 'react-hot-toast';
 import DateRangeFilter from '../Shared/DateRangeFilter';
 import { format, subDays } from 'date-fns';
 import GRNForm from '../GRN/GRNForm';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const GROUP_A = ['Tablet', 'Capsule', 'Suppository', 'Patch'];
 
-const StatusBadge = ({ status }) => {
+const StatusBadge = ({ status, translations }) => {
   const styles = {
     Pending: 'bg-amber-50 text-amber-700 border-amber-100',
     Received: 'bg-emerald-50 text-emerald-700 border-emerald-100',
     Cancelled: 'bg-red-50 text-red-700 border-red-100',
+  };
+  const labels = {
+    Pending: translations.purchase_order.pending,
+    Received: translations.purchase_order.received,
+    Cancelled: translations.purchase_order.cancelled,
   };
   const icons = {
     Pending: <Clock size={10} />,
@@ -23,27 +29,34 @@ const StatusBadge = ({ status }) => {
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${styles[status]}`}>
       {icons[status]}
-      {status}
+      {labels[status] || status}
     </span>
   );
 };
 
-const PaymentStatusBadge = ({ status }) => {
+const PaymentStatusBadge = ({ status, translations }) => {
   const styles = {
     Pending: 'bg-slate-50 text-slate-600 border-slate-100',
     'Partially Paid': 'bg-blue-50 text-blue-700 border-blue-100',
     Paid: 'bg-indigo-50 text-indigo-700 border-indigo-100',
     Due: 'bg-rose-50 text-rose-700 border-rose-100',
   };
+  const labels = {
+    Pending: translations.purchase_order.pending,
+    'Partially Paid': translations.purchase_order.partially_paid,
+    Paid: translations.purchase_order.paid,
+    Due: translations.purchase_order.due,
+  };
   return (
     <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-tighter border ${styles[status] || styles.Pending}`}>
       <CreditCard size={9} />
-      {status}
+      {labels[status] || status}
     </span>
   );
 };
 
 const PurchaseOrderTable = () => {
+  const { translations } = useLanguage();
   const [page, setPage] = useState(1);
   const [perPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
@@ -72,21 +85,21 @@ const PurchaseOrderTable = () => {
   const [updateStatus] = useUpdatePurchaseOrderStatusMutation();
 
   const handleDelete = async (id) => {
-    if (!confirm('Are you sure you want to delete this purchase order?')) return;
+    if (!confirm(translations.purchase_order.delete_confirm)) return;
     try {
       await deleteOrder(id).unwrap();
-      toast.success('Order deleted');
+      toast.success(translations.purchase_order.delete_success);
     } catch (err) {
-      toast.error(err?.data?.message || 'Failed to delete');
+      toast.error(err?.data?.message || translations.purchase_order.delete_failed);
     }
   };
 
   const handleStatusUpdate = async (id, newStatus) => {
     try {
       await updateStatus({ id, status: newStatus }).unwrap();
-      toast.success(`Order marked as ${newStatus}`);
+      toast.success(translations.purchase_order.status_updated.replace('{status}', newStatus));
     } catch (err) {
-      toast.error(err?.data?.message || 'Update failed');
+      toast.error(err?.data?.message || translations.purchase_order.update_failed);
     }
   };
 
@@ -113,29 +126,22 @@ const PurchaseOrderTable = () => {
             onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
             className="px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none text-slate-600 font-bold min-w-[150px] shadow-sm transition-all"
           >
-            <option value="">All Statuses</option>
-            <option value="Received">Received</option>
-            <option value="Paid">Paid</option>
-            <option value="Due">Due</option>
+            <option value="">{translations.purchase_order.all_statuses}</option>
+            <option value="Received">{translations.purchase_order.received}</option>
+            <option value="Paid">{translations.purchase_order.paid}</option>
+            <option value="Due">{translations.purchase_order.due}</option>
           </select>
 
           <div className="relative flex-1 sm:flex-initial">
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Search PO # or Supplier..."
+              placeholder={translations.purchase_order.search_placeholder}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none w-full sm:w-64 font-medium transition-all"
             />
           </div>
-
-          <button
-            onClick={() => { setEditingOrder(null); setIsFormOpen(true); }}
-            className="inline-flex items-center gap-2 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-black rounded-xl shadow-lg shadow-indigo-100 transition-all active:scale-95 whitespace-nowrap"
-          >
-            <Plus size={16} /> New Order
-          </button>
         </div>
       </div>
 
@@ -146,20 +152,20 @@ const PurchaseOrderTable = () => {
             <div className="w-20 h-20 bg-slate-50 rounded-[2.5rem] flex items-center justify-center mb-6 border border-slate-100 shadow-inner">
               <ShoppingBag size={32} className="text-slate-200" />
             </div>
-            <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-2">No active orders</h3>
+            <h3 className="text-lg font-black text-slate-800 uppercase tracking-widest mb-2">{translations.purchase_order.no_orders}</h3>
             <p className="text-sm text-slate-400 mb-8 max-w-xs mx-auto font-medium">
-              Establish relationships with suppliers by creating your first procurement order today.
+              {translations.purchase_order.no_orders_desc}
             </p>
           </div>
         ) : (
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 bg-white/95 backdrop-blur-sm z-10 border-b border-slate-200">
               <tr>
-                <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">Supplier</th>
-                <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">Items Ordered</th>
-                <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Payment</th>
-                <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">Value</th>
-                <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
+                <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">{translations.purchase_order.supplier_col}</th>
+                <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">{translations.purchase_order.items_col}</th>
+                <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">{translations.purchase_order.payment_col}</th>
+                <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">{translations.purchase_order.value_col}</th>
+                <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">{translations.purchase_order.status_col}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -204,17 +210,17 @@ const PurchaseOrderTable = () => {
                               </div>
                               <div className="flex items-center gap-1.5 mt-0.5">
                                 <span className="text-[9px] font-bold text-slate-500">
-                                  {item.qty_boxes} {isGroupA ? 'Box' : 'Unit'}
+                                  {item.qty_boxes} {isGroupA ? translations.purchase_order.box : translations.purchase_order.unit}
                                 </span>
                                 <span className="text-[8px] text-slate-300">•</span>
                                 <span className="text-[9px] font-bold text-emerald-600">
-                                  ৳{parseFloat(item.unit_cost).toFixed(2)}/{isGroupA ? 'Box' : 'Unit'}
+                                  ৳{parseFloat(item.unit_cost).toFixed(2)}/{isGroupA ? translations.purchase_order.box : translations.purchase_order.unit}
                                 </span>
                               </div>
                             </div>
                           );
                         }) : (
-                          <span className="text-xs text-slate-300 font-bold">No items</span>
+                          <span className="text-xs text-slate-300 font-bold">{translations.purchase_order.no_items}</span>
                         )}
                       </div>
                     </td>
@@ -222,11 +228,11 @@ const PurchaseOrderTable = () => {
                     {/* Payment */}
                     <td className="px-5 py-5 text-center">
                       <div className="flex flex-col items-center gap-1">
-                        <PaymentStatusBadge status={order.payment_status} />
+                        <PaymentStatusBadge status={order.payment_status} translations={translations} />
                         {order.payment_status === 'Paid' ? (
                           <span className="text-[9px] font-bold text-emerald-600 uppercase">৳{parseFloat(order.total_amount).toLocaleString()}</span>
                         ) : order.paid_amount > 0 ? (
-                          <span className="text-[9px] font-bold text-blue-500 uppercase">Pd: ৳{parseFloat(order.paid_amount).toLocaleString()}</span>
+                          <span className="text-[9px] font-bold text-blue-500 uppercase">{translations.purchase_order.pd_label}{parseFloat(order.paid_amount).toLocaleString()}</span>
                         ) : null}
                       </div>
                     </td>
@@ -238,7 +244,7 @@ const PurchaseOrderTable = () => {
 
                     {/* Order Status */}
                     <td className="px-5 py-5 text-center">
-                      <StatusBadge status={order.status} />
+                      <StatusBadge status={order.status} translations={translations} />
                     </td>
 
 
@@ -253,7 +259,10 @@ const PurchaseOrderTable = () => {
       {/* Pagination */}
       <div className="shrink-0 flex items-center justify-between px-8 py-5 border-t border-slate-100 bg-slate-50/50">
         <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-          Page {meta.current_page || 1} of {meta.last_page || 1} &nbsp;·&nbsp; {meta.total || 0} Records
+          {translations.purchase_order.page_meta
+            .replace('{current}', meta.current_page || 1)
+            .replace('{total}', meta.last_page || 1)
+            .replace('{total_records}', meta.total || 0)}
         </span>
         <div className="flex items-center gap-2">
           <button

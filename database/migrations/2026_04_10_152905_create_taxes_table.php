@@ -13,9 +13,10 @@ return new class extends Migration
     {
         Schema::create('taxes', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->index();
-            $table->decimal('rate', 5, 2)->index();
+            $table->string('name')->unique()->index();
+            $table->decimal('rate', 8, 4)->index();
             $table->enum('status', ['Active', 'Inactive'])->default('Active')->index();
+            $table->softDeletes();
             $table->timestamps();
         });
     }

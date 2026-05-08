@@ -3,61 +3,51 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-
 use App\Models\Tax;
-use App\Services\TaxService;
-use Illuminate\Http\Request;
 use App\Http\Requests\Api\StoreTaxRequest;
 use App\Http\Requests\Api\UpdateTaxRequest;
 use App\Http\Resources\Api\TaxResource;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\JsonResponse;
 
 class TaxController extends Controller
 {
-    private TaxService $taxService;
-
-    public function __construct(TaxService $taxService)
-    {
-        $this->taxService = $taxService;
-    }
-
-    public function index(Request $request)
+    public function index(Request $request): AnonymousResourceCollection
     {
         $perPage = $request->get('per_page', 10);
         $search = $request->get('search');
-        
-        $taxes = $this->taxService->getAllTaxes($perPage, $search);
+
+        $query = Tax::query();
+
+        if ($search) {
+            $query->where('name', 'like', "{$search}%");
+        }
+
+        $taxes = $query->orderBy('name')->simplePaginate($perPage);
         return TaxResource::collection($taxes);
     }
 
-    public function active()
+    public function store(StoreTaxRequest $request): TaxResource
     {
-        $taxes = $this->taxService->getActiveTaxesList();
-        return response()->json([
-            'success' => true,
-            'data' => TaxResource::collection($taxes)
-        ]);
-    }
-
-    public function store(StoreTaxRequest $request)
-    {
-        $tax = $this->taxService->createTax($request->validated());
+        $tax = Tax::create($request->validated());
         return new TaxResource($tax);
     }
 
-    public function show(Tax $tax)
+    public function show(Tax $tax): TaxResource
     {
         return new TaxResource($tax);
     }
 
-    public function update(UpdateTaxRequest $request, Tax $tax)
+    public function update(UpdateTaxRequest $request, Tax $tax): TaxResource
     {
-        $tax = $this->taxService->updateTax($tax, $request->validated());
+        $tax->update($request->validated());
         return new TaxResource($tax);
     }
 
-    public function destroy(Tax $tax)
+    public function destroy(Tax $tax): JsonResponse
     {
-        $this->taxService->deleteTax($tax);
-        return response()->noContent();
+        $tax->delete();
+        return response()->json(null, 204);
     }
 }

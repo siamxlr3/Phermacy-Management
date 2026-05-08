@@ -1,6 +1,8 @@
 import React from 'react';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const AlertActionBadge = ({ severity }) => {
+    const { translations } = useLanguage();
     const getStyles = () => {
         switch (severity) {
             case 'Critical':
@@ -17,7 +19,9 @@ const AlertActionBadge = ({ severity }) => {
     return (
         <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-widest border shadow-sm ${getStyles()}`}>
             {severity === 'Critical' && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 mr-1.5 animate-pulse" />}
-            {severity}
+            {severity === 'Critical' ? translations.reports.alerts.critical : 
+             severity === 'Warning' ? translations.reports.alerts.warning : 
+             severity === 'Info' ? translations.reports.alerts.info : severity}
         </span>
     );
 };

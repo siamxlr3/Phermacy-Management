@@ -5,9 +5,23 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+/**
+ * @property int $id
+ * @property int|null $purchase_order_id
+ * @property int $supplier_id
+ * @property \Illuminate\Support\Carbon $received_date
+ * @property string|null $invoice_number
+ * @property string|null $received_by
+ * @property float $total_amount
+ * @property float $paid_amount
+ * @property string $payment_status
+ * @property string|null $notes
+ */
 class GRN extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'grns';
 

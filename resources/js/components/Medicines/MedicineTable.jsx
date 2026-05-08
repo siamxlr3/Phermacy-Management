@@ -4,6 +4,7 @@ import { Search, Plus, Pencil, Trash2, Pill, ChevronLeft, ChevronRight, Boxes, D
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import MedicineForm from './MedicineForm';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const getStatusStyle = (stock, reorderLevel = 10) => {
   if (stock <= 0) return 'bg-red-50 text-red-600 border-red-100';
@@ -11,26 +12,26 @@ const getStatusStyle = (stock, reorderLevel = 10) => {
   return 'bg-emerald-50 text-emerald-600 border-emerald-100';
 };
 
-const getStatusLabel = (stock, reorderLevel = 10) => {
-  if (stock <= 0) return 'Out of Stock';
-  if (stock <= reorderLevel) return 'Low Stock';
-  return 'In Stock';
+const getStatusLabel = (stock, translations, reorderLevel = 10) => {
+  if (stock <= 0) return translations.medicine.out_of_stock;
+  if (stock <= reorderLevel) return translations.medicine.low_stock;
+  return translations.medicine.in_stock;
 };
 
-const EmptyState = ({ onAdd }) => (
+const EmptyState = ({ onAdd, translations }) => (
   <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
     <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
       <Pill size={24} className="text-slate-400" />
     </div>
-    <h3 className="text-base font-semibold text-slate-700 mb-1">No medicines found</h3>
+    <h3 className="text-base font-semibold text-slate-700 mb-1">{translations.medicine.no_medicines}</h3>
     <p className="text-sm text-slate-400 mb-5 max-w-xs">
-      Build your inventory by adding pharmaceuticals, products, and medical supplies.
+      {translations.medicine.no_medicines_desc}
     </p>
     <button
       onClick={onAdd}
       className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm shadow-emerald-200"
     >
-      <Plus size={15} /> Add First Medicine
+      <Plus size={15} /> {translations.medicine.add_first}
     </button>
   </div>
 );
@@ -64,6 +65,7 @@ const SkeletonRow = () => (
 );
 
 const MedicineTable = () => {
+  const { translations } = useLanguage();
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,12 +82,12 @@ const MedicineTable = () => {
   const [deleteMedicine] = useDeleteMedicineMutation();
 
   const handleDelete = async (id) => {
-    if (confirm('Delete this medicine? This action cannot be undone.')) {
+    if (confirm(translations.medicine.delete_confirm)) {
       try {
         await deleteMedicine(id).unwrap();
-        toast.success('Medicine deleted');
+        toast.success(translations.medicine.delete_success);
       } catch (err) {
-        toast.error(err?.data?.message || 'Failed to delete');
+        toast.error(err?.data?.message || translations.medicine.delete_failed);
       }
     }
   };
@@ -104,9 +106,9 @@ const MedicineTable = () => {
       <div className="flex-1 min-w-0 bg-white border border-slate-200 rounded-2xl shadow-sm flex flex-col min-h-0">
         <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
-            <h2 className="text-base font-semibold text-slate-900">Inventory Management</h2>
+            <h2 className="text-base font-semibold text-slate-900">{translations.medicine.inventory_mgmt}</h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              {isLoadingState ? '...' : `${meta.total || medicines.length} medicines in catalog`}
+              {isLoadingState ? '...' : translations.medicine.medicines_in_catalog.replace('{n}', meta.total || medicines.length)}
             </p>
           </div>
           <div className="flex items-center gap-2.5">
@@ -114,7 +116,7 @@ const MedicineTable = () => {
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search inventory..."
+                placeholder={translations.medicine.search_placeholder}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 focus:outline-none transition-all w-56 placeholder:text-slate-400"
@@ -124,7 +126,7 @@ const MedicineTable = () => {
               onClick={handleAdd}
               className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-semibold rounded-lg transition-all duration-150 shadow-sm shadow-emerald-200"
             >
-              <Plus size={15} /> Add Medicine
+              <Plus size={15} /> {translations.medicine.add_medicine}
             </button>
           </div>
         </div>
@@ -133,14 +135,14 @@ const MedicineTable = () => {
           <table className="w-full text-left">
             <thead>
               <tr>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[22%]">Medicine Info</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[12%]">Dosage & Strength</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[14%]">Category/Manuf.</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[14%] text-right">Pricing</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[14%] text-center">Packaging/Volume</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[8%] text-center">Reorder</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[12%] text-center">Status</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[8%] text-right">Actions</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[22%]">{translations.medicine.medicine_info}</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[12%]">{translations.medicine.dosage_strength}</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[14%]">{translations.medicine.category_manuf}</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[14%] text-right">{translations.medicine.pricing}</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[14%] text-center">{translations.medicine.packaging_volume}</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[8%] text-center">{translations.medicine.reorder}</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[12%] text-center">{translations.medicine.status}</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-[8%] text-right">{translations.medicine.actions}</th>
               </tr>
             </thead>
           </table>
@@ -148,7 +150,7 @@ const MedicineTable = () => {
 
         <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
           {medicines.length === 0 && !isLoadingState ? (
-            <EmptyState onAdd={handleAdd} />
+            <EmptyState onAdd={handleAdd} translations={translations} />
           ) : (
             <table className="w-full text-left">
               <tbody className="divide-y divide-slate-50">
@@ -168,7 +170,7 @@ const MedicineTable = () => {
                                 <div className="flex items-center gap-2 mb-0.5">
                                   <span className="text-sm font-bold text-slate-900 truncate">{med.name}</span>
                                   <span className={`px-1.5 py-0.5 rounded text-[9px] font-black border uppercase tracking-tighter shrink-0 ${getStatusStyle(med.stock || 0, med.reorder_level)}`}>
-                                    {getStatusLabel(med.stock || 0, med.reorder_level)}
+                                    {getStatusLabel(med.stock || 0, translations, med.reorder_level)}
                                   </span>
                                 </div>
                                 <p className="text-[11px] text-slate-400 font-medium truncate italic">{med.generic_name || '—'}</p>
@@ -195,14 +197,24 @@ const MedicineTable = () => {
                           <td className="px-6 py-4 text-right w-[14%]">
                             <div className="flex flex-col gap-1 items-end">
                               {isGroupA ? (
-                                <>
-                                  <span className="text-sm font-bold text-emerald-600">৳{parseFloat(med.price_per_tablet || 0).toFixed(2)}</span>
-                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">per tablet</span>
-                                </>
+                                  <div className="flex flex-col items-end gap-0.5">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-xs font-black text-emerald-600">৳{parseFloat(med.price_per_tablet || 0).toFixed(2)}</span>
+                                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{translations.medicine.per_tab}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-xs font-black text-indigo-600">৳{parseFloat(med.price_per_stripe || 0).toFixed(2)}</span>
+                                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{translations.medicine.per_strip}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-xs font-black text-purple-600">৳{parseFloat(med.price_per_box || 0).toFixed(2)}</span>
+                                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-tighter">{translations.medicine.per_box}</span>
+                                    </div>
+                                  </div>
                               ) : (
                                 <>
                                   <span className="text-sm font-bold text-emerald-600">৳{parseFloat(med.price || 0).toFixed(2)}</span>
-                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">per unit</span>
+                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{translations.medicine.per_unit.replace('{volume}', med.volume || 'unit')}</span>
                                 </>
                               )}
                             </div>
@@ -213,16 +225,19 @@ const MedicineTable = () => {
                               {isGroupA ? (
                                 <>
                                   <span className="text-[11px] font-semibold text-slate-600 whitespace-nowrap">
-                                    {med.tablet_per_stripe} Tabs/Strip
+                                    {translations.medicine.tabs_per_strip.replace('{n}', med.tablet_per_stripe)}
                                   </span>
                                   <span className="text-[10px] font-medium text-slate-400 whitespace-nowrap">
-                                    {med.stripe_per_box} Stripes/Box
+                                    {translations.medicine.strips_per_box.replace('{n}', med.stripe_per_box)}
                                   </span>
                                 </>
                               ) : (
-                                <span className="text-[11px] font-semibold text-slate-600">
-                                  {med.volume || '—'}
-                                </span>
+                                <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-50 border border-slate-100 w-fit mx-auto">
+                                  <Droplets size={12} className="text-blue-500" />
+                                  <span className="text-[11px] font-bold text-slate-600 uppercase tracking-tight">
+                                    {med.volume || '—'}
+                                  </span>
+                                </div>
                               )}
                             </div>
                           </td>
@@ -238,7 +253,7 @@ const MedicineTable = () => {
                                 : 'bg-slate-50 text-slate-400 border-slate-200'
                             }`}>
                               <div className={`w-1 h-1 rounded-full ${med.status === 'Active' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-                              {med.status || 'Active'}
+                              {med.status === 'Active' ? translations.medicine.active : translations.medicine.inactive}
                             </span>
                           </td>
                           {/* Actions */}
@@ -264,7 +279,7 @@ const MedicineTable = () => {
         {medicines.length > 0 && (
           <div className="shrink-0 flex items-center justify-between px-6 py-3 border-t border-slate-100 bg-slate-50/40">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">Show</span>
+              <span className="text-xs text-slate-400">{translations.medicine.show_per_page}</span>
               <select
                 value={perPage}
                 onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
@@ -272,13 +287,13 @@ const MedicineTable = () => {
               >
                 {[5, 10, 20, 50].map(n => <option key={n} value={n}>{n}</option>)}
               </select>
-              <span className="text-xs text-slate-400">per page</span>
+              <span className="text-xs text-slate-400">{translations.medicine.per_page}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <button onClick={() => setPage(p => Math.max(p - 1, 1))} disabled={page === 1} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                 <ChevronLeft size={14} />
               </button>
-              <span className="text-xs font-medium text-slate-600 px-2">Page {meta.current_page || 1}</span>
+              <span className="text-xs font-medium text-slate-600 px-2">{translations.medicine.page_n.replace('{current}', meta.current_page || 1)}</span>
               <button onClick={() => setPage(p => Math.min(p + 1, meta.last_page || 1))} disabled={page >= (meta.last_page || 1)} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
                 <ChevronRight size={14} />
               </button>

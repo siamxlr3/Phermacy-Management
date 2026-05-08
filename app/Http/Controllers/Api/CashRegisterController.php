@@ -3,125 +3,91 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Services\CashRegisterService;
+use App\Models\CashTransaction;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Carbon\Carbon;
 
 class CashRegisterController extends Controller
 {
-    protected $service;
-
-    public function __construct(CashRegisterService $service)
-    {
-        $this->service = $service;
-    }
-
+    /**
+     * Get the transaction ledger.
+     */
     public function index(Request $request): JsonResponse
     {
-        $userId = Auth::id() ?? (\App\Models\User::first()->id ?? null);
-        $query = \App\Models\CashRegister::where('user_id', $userId);
+        $query = CashTransaction::query();
 
-        if ($request->has('from') && $request->from) {
-            $query->whereDate('shift_date', '>=', $request->from);
+        // FIX 1: Index-friendly date filtering (no SQL functions on the column)
+        if ($request->filled('from')) {
+            $query->where('created_at', '>=', Carbon::parse($request->from)->startOfDay());
         }
-        if ($request->has('to') && $request->to) {
-            $query->whereDate('shift_date', '<=', $request->to);
+        if ($request->filled('to')) {
+            $query->where('created_at', '<=', Carbon::parse($request->to)->endOfDay());
+        }
+        if ($request->filled('type')) {
+            $query->where('type', $request->type);
         }
 
-        $registers = $query->with('denominations')
-            ->orderBy('created_at', 'desc')
-            ->paginate(15);
+        // FIX 2: simplePaginate is much faster for endless ledgers, limits memory exhaustion
+        $transactions = $query->latest('id')->simplePaginate(50);
 
         return response()->json([
             'success' => true,
-            'data' => $registers
+            'data' => $transactions
         ]);
     }
 
+    /**
+     * Get current cash status (Running Balance, Total In, Total Out).
+     */
     public function status(): JsonResponse
     {
-        $userId = Auth::id() ?? (\App\Models\User::first()->id ?? null);
+        $today = Carbon::today()->toDateString();
         
-        if (!$userId) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized: No users found in the system. Please seed the database.'
-            ], 401);
-        }
-
-        $register = $this->service->getActiveRegister($userId);
+        // FIX 3: Combine 4 full-table scans into a single highly optimized SQL aggregation
+        $summary = CashTransaction::selectRaw("
+            SUM(CASE WHEN type = 'In' THEN amount ELSE 0 END) as total_in,
+            SUM(CASE WHEN type = 'Out' THEN amount ELSE 0 END) as total_out,
+            SUM(CASE WHEN type = 'In' AND DATE(created_at) = ? THEN amount ELSE 0 END) as today_in,
+            SUM(CASE WHEN type = 'Out' AND DATE(created_at) = ? THEN amount ELSE 0 END) as today_out
+        ", [$today, $today])->first();
 
         return response()->json([
             'success' => true,
-            'is_open' => !!$register,
-            'register' => $register
+            'is_open' => true, // POS always active
+            'summary' => [
+                'current_balance' => CashTransaction::getCurrentBalance(),
+                'total_in' => (float) ($summary->total_in ?? 0),
+                'total_out' => (float) ($summary->total_out ?? 0),
+                'today_in' => (float) ($summary->today_in ?? 0),
+                'today_out' => (float) ($summary->today_out ?? 0),
+            ]
         ]);
     }
 
-    public function open(Request $request): JsonResponse
+    /**
+     * Manual adjustment (e.g. adding initial cash or withdrawing).
+     */
+    public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'opening_balance' => 'required|numeric|min:0',
+            'type' => 'required|in:In,Out',
+            'amount' => 'required|numeric|min:0.01',
+            'items' => 'required|string|max:255',
         ]);
 
-        $userId = Auth::id() ?? (\App\Models\User::first()->id ?? null);
-        
-        if (!$userId) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized: No users found in the system. Please seed the database.'
-            ], 401);
-        }
-
-        $register = $this->service->openRegister($userId, $request->opening_balance);
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Cash register opened successfully',
-            'register' => $register
-        ]);
-    }
-
-    public function close(Request $request): JsonResponse
-    {
-        $request->validate([
-            'counted_cash' => 'required|numeric|min:0',
-            'denominations' => 'required|array',
-            'denominations.*.denomination' => 'required|numeric',
-            'denominations.*.quantity' => 'required|integer|min:0',
-            'notes' => 'nullable|string',
-        ]);
-
-        $userId = Auth::id() ?? (\App\Models\User::first()->id ?? null);
-        
-        if (!$userId) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized: No users found in the system. Please seed the database.'
-            ], 401);
-        }
-
-        $register = $this->service->getActiveRegister($userId);
-
-        if (!$register) {
-            return response()->json([
-                'success' => false,
-                'message' => 'No active cash register found'
-            ], 404);
-        }
-
-        $register = $this->service->closeRegister(
-            $register,
-            $request->counted_cash,
-            $request->denominations,
-            $request->notes
+        $transaction = CashTransaction::record(
+            $request->type,
+            $request->amount,
+            $request->items
         );
 
         return response()->json([
             'success' => true,
-            'message' => 'Cash register closed successfully',
-            'register' => $register
+            'message' => 'Cash transaction recorded successfully',
+            'data' => $transaction
         ]);
     }
 }

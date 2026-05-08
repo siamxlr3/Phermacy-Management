@@ -3,11 +3,13 @@ import DashboardLayout from '../layouts/DashboardLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Database, Package, Plus } from 'lucide-react';
 import { Toaster } from 'react-hot-toast';
+import { useLanguage } from '../language/GlobalTranslate.jsx';
 import BatchListTable from '../components/Stock/BatchListTable';
 import GRNTable from '../components/GRN/GRNTable';
 import GRNForm from '../components/GRN/GRNForm';
 
 const CurrentStockPage = () => {
+  const { translations } = useLanguage();
   const [activeTab, setActiveTab] = useState('stock'); // 'stock' or 'grn'
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingGRN, setEditingGRN] = useState(null);
@@ -40,13 +42,13 @@ const CurrentStockPage = () => {
                 {activeTab === 'stock' ? <Database size={16} className="text-blue-600" /> : <Package size={16} className="text-blue-600" />}
               </div>
               <h1 className="text-2xl font-bold text-slate-900 tracking-tight">
-                {activeTab === 'stock' ? 'Inventory Levels' : 'Goods Receiving (GRN)'}
+                {activeTab === 'stock' ? translations.stock.inventory_levels : translations.stock.goods_receiving}
               </h1>
             </div>
             <p className="text-sm text-slate-500 ml-11">
               {activeTab === 'stock' 
-                ? 'Track batch numbers, expiry dates, and accurate stock levels.' 
-                : 'Receive inventory against purchase orders and track shipments.'}
+                ? translations.stock.inventory_levels_desc 
+                : translations.stock.goods_receiving_desc}
             </p>
           </div>
 
@@ -60,7 +62,7 @@ const CurrentStockPage = () => {
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              Current Stock
+              {translations.stock.current_stock}
             </button>
             <button
               onClick={() => setActiveTab('grn')}
@@ -70,7 +72,7 @@ const CurrentStockPage = () => {
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              Receiving (GRN)
+              {translations.stock.receiving_grn}
             </button>
           </div>
         </div>

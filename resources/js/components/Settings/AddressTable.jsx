@@ -4,21 +4,22 @@ import { Search, Plus, Pencil, Trash2, MapPin, Phone, Mail, ChevronLeft, Chevron
 import { motion, AnimatePresence } from 'framer-motion';
 import toast from 'react-hot-toast';
 import AddressForm from './AddressForm';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
-const EmptyState = ({ onAdd }) => (
+const EmptyState = ({ onAdd, translations }) => (
   <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
     <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
       <MapPin size={24} className="text-slate-400" />
     </div>
-    <h3 className="text-base font-semibold text-slate-700 mb-1">No branches found</h3>
+    <h3 className="text-base font-semibold text-slate-700 mb-1">{translations.settings.address.no_branches}</h3>
     <p className="text-sm text-slate-400 mb-5 max-w-xs">
-      Add your pharmacy's branch address and contact information to get started.
+      {translations.settings.address.no_branches_desc}
     </p>
     <button
       onClick={onAdd}
       className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm shadow-blue-200"
     >
-      <Plus size={15} /> Add First Branch
+      <Plus size={15} /> {translations.settings.address.add_first_branch}
     </button>
   </div>
 );
@@ -36,6 +37,7 @@ const SkeletonRow = () => (
 );
 
 const AddressTable = () => {
+  const { translations } = useLanguage();
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,12 +54,12 @@ const AddressTable = () => {
   const [deleteAddress] = useDeleteAddressMutation();
 
   const handleDelete = async (id) => {
-    if (confirm('Delete this address? This action cannot be undone.')) {
+    if (confirm(translations.settings.address.delete_confirm)) {
       try {
         await deleteAddress(id).unwrap();
-        toast.success('Address deleted');
+        toast.success(translations.settings.address.delete_success);
       } catch (err) {
-        toast.error(err?.data?.message || 'Failed to delete');
+        toast.error(err?.data?.message || translations.settings.address.delete_failed);
       }
     }
   };
@@ -79,9 +81,9 @@ const AddressTable = () => {
         {/* Card Header — pinned */}
         <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
-            <h2 className="text-base font-semibold text-slate-900">Branch Directory</h2>
+            <h2 className="text-base font-semibold text-slate-900">{translations.settings.address.branch_directory}</h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              {isLoadingState ? '...' : `${meta.total || 0} branch${(meta.total || 0) !== 1 ? 'es' : ''} registered`}
+              {isLoadingState ? '...' : translations.settings.address.branch_count.replace('{n}', meta.total || 0)}
             </p>
           </div>
           <div className="flex items-center gap-2.5">
@@ -89,7 +91,7 @@ const AddressTable = () => {
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search branches..."
+                placeholder={translations.settings.address.search_branches}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 focus:outline-none transition-all w-48 placeholder:text-slate-400"
@@ -99,7 +101,7 @@ const AddressTable = () => {
               onClick={handleAdd}
               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-lg transition-all duration-150 shadow-sm shadow-blue-200"
             >
-              <Plus size={15} /> Add Branch
+              <Plus size={15} /> {translations.settings.address.add_branch}
             </button>
           </div>
         </div>
@@ -109,11 +111,11 @@ const AddressTable = () => {
           <table className="w-full text-left">
             <thead>
               <tr>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-1/4">Branch Name</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-1/4">Contact</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-1/4">Address</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 text-center w-[15%]">Status</th>
-                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 text-right w-[10%]">Actions</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-1/4">{translations.settings.address.branch_name}</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-1/4">{translations.settings.address.contact}</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 w-1/4">{translations.settings.address.address}</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 text-center w-[15%]">{translations.settings.address.status}</th>
+                <th className="px-6 py-3 text-[11px] font-semibold uppercase tracking-widest text-slate-400 text-right w-[10%]">{translations.settings.address.actions}</th>
               </tr>
             </thead>
           </table>
@@ -122,7 +124,7 @@ const AddressTable = () => {
         {/* Scrollable Table Body */}
         <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar">
           {addresses.length === 0 && !isLoadingState ? (
-            <EmptyState onAdd={handleAdd} />
+            <EmptyState onAdd={handleAdd} translations={translations} />
           ) : (
             <table className="w-full text-left">
               <tbody className="divide-y divide-slate-50">
@@ -150,7 +152,7 @@ const AddressTable = () => {
                             </span>
                           )}
                           {!addr.phone && !addr.email && (
-                            <span className="text-xs text-slate-300 italic">No contact info</span>
+                            <span className="text-xs text-slate-300 italic">{translations.settings.address.no_contact}</span>
                           )}
                         </div>
                       </td>
@@ -169,7 +171,7 @@ const AddressTable = () => {
                             : 'bg-slate-100 text-slate-500 border border-slate-200'
                         }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${addr.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                          {addr.status}
+                          {addr.status === 'Active' ? translations.settings.common.active : translations.settings.common.inactive}
                         </span>
                       </td>
                       {/* Actions */}
@@ -195,7 +197,7 @@ const AddressTable = () => {
         {addresses.length > 0 && (
           <div className="shrink-0 flex items-center justify-between px-6 py-3 border-t border-slate-100 bg-slate-50/40">
             <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-400">Show</span>
+              <span className="text-xs text-slate-400">{translations.settings.common.show}</span>
               <select
                 value={perPage}
                 onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
@@ -203,7 +205,7 @@ const AddressTable = () => {
               >
                 {[5, 10, 20].map(n => <option key={n} value={n}>{n}</option>)}
               </select>
-              <span className="text-xs text-slate-400">per page</span>
+              <span className="text-xs text-slate-400">{translations.settings.common.per_page}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <button onClick={() => setPage(p => Math.max(p - 1, 1))} disabled={page === 1} className="p-1.5 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">

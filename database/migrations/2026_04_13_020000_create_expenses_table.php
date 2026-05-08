@@ -21,6 +21,7 @@ return new class extends Migration
             $table->date('expense_date')->index();
             $table->decimal('grand_total', 15, 2)->default(0);
             $table->enum('status', ['Paid', 'Unpaid'])->default('Unpaid')->index();
+            $table->softDeletes();
             $table->timestamps();
         });
     }

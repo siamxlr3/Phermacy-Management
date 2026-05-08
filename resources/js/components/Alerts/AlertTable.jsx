@@ -9,8 +9,10 @@ import AlertActionBadge from './AlertActionBadge';
 import toast from 'react-hot-toast';
 import { format, subDays } from 'date-fns';
 import DateRangeFilter from '../Shared/DateRangeFilter';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const AlertTable = ({ type = '' }) => {
+  const { translations } = useLanguage();
   const [page, setPage] = useState(1);
   const [perPage, setPerPage] = useState(10);
   const [filterType, setFilterType] = useState(type);
@@ -45,9 +47,9 @@ const AlertTable = ({ type = '' }) => {
   const handleDismiss = async (id) => {
     try {
       await dismissAlert(id).unwrap();
-      toast.success('Alert dismissed');
+      toast.success(translations.reports.alerts.dismissed);
     } catch {
-      toast.error('Failed to dismiss alert');
+      toast.error(translations.reports.alerts.dismiss_failed);
     }
   };
 
@@ -65,12 +67,12 @@ const AlertTable = ({ type = '' }) => {
         <table className="w-full text-left border-collapse">
           <thead className="sticky top-0 bg-slate-50/80 backdrop-blur-md z-10 border-b border-slate-200/60">
             <tr>
-              <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Flagged At</th>
-              <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Medicine & Batch</th>
-              <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-center">Type</th>
-              <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-center">Severity</th>
-              <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Message</th>
-              <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+              <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{translations.reports.alerts.flagged_at}</th>
+              <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{translations.reports.alerts.med_batch}</th>
+              <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-center">{translations.reports.alerts.type}</th>
+              <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-center">{translations.reports.alerts.severity}</th>
+              <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{translations.reports.alerts.message}</th>
+              <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-right">{translations.reports.alerts.actions}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100/60">
@@ -92,8 +94,8 @@ const AlertTable = ({ type = '' }) => {
                     <div className="w-16 h-16 bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-2xl flex items-center justify-center mb-4 border border-emerald-100 shadow-sm mx-auto">
                       <CheckCircle2 size={32} className="text-emerald-500" />
                     </div>
-                    <p className="text-[15px] font-extrabold text-[#0f1923]">All Clear — No Alerts</p>
-                    <p className="text-[12px] text-slate-400 font-bold mt-1">No low stock items found. Your inventory is healthy.</p>
+                    <p className="text-[15px] font-extrabold text-[#0f1923]">{translations.reports.alerts.all_clear}</p>
+                    <p className="text-[12px] text-slate-400 font-bold mt-1">{translations.reports.alerts.healthy_desc}</p>
                   </div>
                 </td>
               </tr>
@@ -115,7 +117,7 @@ const AlertTable = ({ type = '' }) => {
                       <span className="text-[13px] font-extrabold text-[#0f1923] tracking-tight">{alert.medicine_name}</span>
                       {alert.batch_number !== 'N/A' && (
                         <span className="text-[10px] font-bold text-blue-500 uppercase tracking-widest mt-1">
-                          BATCH #{alert.batch_number}
+                          {translations.reports.alerts.batch_no.replace('{n}', alert.batch_number)}
                         </span>
                       )}
                     </div>
@@ -140,7 +142,7 @@ const AlertTable = ({ type = '' }) => {
                         disabled={isDismissing}
                         className="inline-flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200 hover:border-emerald-300 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl text-[10px] font-extrabold uppercase tracking-widest text-slate-500 transition-all active:scale-95 shadow-sm"
                       >
-                        <BellOff size={13} /> Dismiss
+                        <BellOff size={13} /> {translations.reports.alerts.dismiss}
                       </button>
                     </div>
                   </td>
@@ -156,7 +158,7 @@ const AlertTable = ({ type = '' }) => {
         <div className="shrink-0 flex items-center justify-between px-6 py-4 border-t border-slate-200/60 bg-white/50 backdrop-blur-sm">
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
-              Showing {alerts.length} of {meta.total} alerts
+              {translations.reports.alerts.showing_n_of_m.replace('{n}', alerts.length).replace('{total}', meta.total)}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -168,7 +170,7 @@ const AlertTable = ({ type = '' }) => {
               <ChevronLeft size={16} />
             </button>
             <span className="text-[11px] font-extrabold text-[#0f1923] px-3 tracking-widest">
-              {meta.current_page} <span className="text-slate-300 mx-1">/</span> {meta.last_page}
+              {translations.reports.alerts.page_info.replace('{current}', meta.current_page).replace('{total}', meta.last_page)}
             </span>
             <button
               onClick={() => setPage(p => Math.min(p + 1, meta.last_page))}

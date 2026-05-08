@@ -24,15 +24,16 @@ return new class extends Migration
             $table->integer('qty_tablets_remaining');
             
             // Financials (Group A)
-            $table->decimal('cost_per_tablet', 15, 2)->nullable();
-            $table->decimal('cost_per_stripe', 15, 2)->nullable();
-            $table->decimal('cost_per_box', 15, 2)->nullable();
+            $table->decimal('cost_per_tablet', 15, 4)->nullable();
+            $table->decimal('cost_per_stripe', 15, 4)->nullable();
+            $table->decimal('cost_per_box', 15, 4)->nullable();
             
             // Financials (Group B)
             $table->string('volume')->nullable();
             $table->decimal('price', 15, 2)->nullable(); // Unit cost price
             
             $table->date('received_date');
+            $table->softDeletes();
             $table->timestamps();
             
             $table->index('batch_number');

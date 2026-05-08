@@ -5,13 +5,14 @@ import { Receipt, MapPin, Settings2 } from 'lucide-react';
 import TaxTable from '../components/Settings/TaxTable';
 import AddressTable from '../components/Settings/AddressTable';
 import { Toaster } from 'react-hot-toast';
-
-const tabs = [
-  { id: 'taxes', label: 'Tax Configuration', icon: Receipt },
-  { id: 'addresses', label: 'Branch Addresses', icon: MapPin },
-];
+import { useLanguage } from '../language/GlobalTranslate.jsx';
 
 const SettingPage = () => {
+  const { translations } = useLanguage();
+  const tabs = [
+    { id: 'taxes', label: translations.settings.tax_config, icon: Receipt },
+    { id: 'addresses', label: translations.settings.branch_addresses, icon: MapPin },
+  ];
   const [activeTab, setActiveTab] = useState('taxes');
 
   return (
@@ -33,9 +34,9 @@ const SettingPage = () => {
             <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center">
               <Settings2 size={16} className="text-emerald-600" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">System Settings</h1>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{translations.settings.system_settings}</h1>
           </div>
-          <p className="text-sm text-slate-500 ml-11">Manage your pharmacy's tax policies and branch information.</p>
+          <p className="text-sm text-slate-500 ml-11">{translations.settings.settings_desc}</p>
         </div>
 
         {/* Tab Navigation — fixed, never scrolls */}

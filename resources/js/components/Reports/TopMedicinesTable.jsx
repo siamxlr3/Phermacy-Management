@@ -1,7 +1,9 @@
 import React from 'react';
 import { Package, TrendingUp, Award } from 'lucide-react';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const TopMedicinesTable = ({ medicines }) => {
+    const { translations } = useLanguage();
     return (
         <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full">
             <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
@@ -10,8 +12,8 @@ const TopMedicinesTable = ({ medicines }) => {
                         <Award size={20} className="text-white" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-black text-slate-900 tracking-tight">Top Selling Medicines</h3>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Based on quantity sold</p>
+                        <h3 className="text-sm font-black text-slate-900 tracking-tight">{translations.sales_reports.top_selling}</h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{translations.sales_reports.based_on_qty}</p>
                     </div>
                 </div>
             </div>
@@ -20,10 +22,10 @@ const TopMedicinesTable = ({ medicines }) => {
                 <table className="w-full text-left border-collapse">
                     <thead className="sticky top-0 bg-white z-10">
                         <tr className="border-b border-slate-100">
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Rank</th>
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Medicine</th>
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Qty</th>
-                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Revenue</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{translations.sales_reports.rank}</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">{translations.sales_reports.medicine}</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{translations.sales_reports.qty}</th>
+                            <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">{translations.sales_reports.revenue}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">

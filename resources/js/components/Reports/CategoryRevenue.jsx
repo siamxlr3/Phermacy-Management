@@ -1,7 +1,9 @@
 import React from 'react';
 import { Layers, PieChart } from 'lucide-react';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const CategoryRevenue = ({ categories }) => {
+    const { translations } = useLanguage();
     const maxRevenue = Math.max(...(categories?.map(c => Number(c.total_revenue)) || [1]));
 
     return (
@@ -12,8 +14,8 @@ const CategoryRevenue = ({ categories }) => {
                         <Layers size={20} className="text-white" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-black text-slate-900 tracking-tight">Revenue by Category</h3>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Financial distribution</p>
+                        <h3 className="text-sm font-black text-slate-900 tracking-tight">{translations.sales_reports.revenue_by_cat}</h3>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{translations.sales_reports.financial_dist}</p>
                     </div>
                 </div>
             </div>
@@ -34,8 +36,8 @@ const CategoryRevenue = ({ categories }) => {
                                 />
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-[9px] font-black text-slate-400 uppercase">{cat.total_items} Transactions</span>
-                                <span className="text-[9px] font-black text-slate-400">{Math.round(percentage)}% of Peak</span>
+                                <span className="text-[9px] font-black text-slate-400 uppercase">{cat.total_items} {translations.sales_reports.transactions_count}</span>
+                                <span className="text-[9px] font-black text-slate-400">{Math.round(percentage)}% {translations.sales_reports.of_peak}</span>
                             </div>
                         </div>
                     );

@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAddTaxMutation, useUpdateTaxMutation } from '../../store/api/settingApi';
 import { X, Loader2, Receipt } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const TaxForm = ({ initialData, onClose }) => {
+  const { translations } = useLanguage();
   const [addTax, { isLoading: isAdding }] = useAddTaxMutation();
   const [updateTax, { isLoading: isUpdating }] = useUpdateTaxMutation();
 
@@ -21,9 +23,9 @@ const TaxForm = ({ initialData, onClose }) => {
 
   const validate = () => {
     const e = {};
-    if (!formData.name.trim()) e.name = 'Tax name is required';
+    if (!formData.name.trim()) e.name = translations.settings.tax.name_required;
     if (formData.rate === '' || isNaN(formData.rate) || Number(formData.rate) < 0 || Number(formData.rate) > 100) {
-      e.rate = 'Enter a valid rate between 0 – 100';
+      e.rate = translations.settings.tax.valid_rate;
     }
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -35,14 +37,14 @@ const TaxForm = ({ initialData, onClose }) => {
     try {
       if (initialData) {
         await updateTax({ id: initialData.id, ...formData }).unwrap();
-        toast.success('Tax updated');
+        toast.success(translations.settings.tax.update_success);
       } else {
         await addTax(formData).unwrap();
-        toast.success('Tax created');
+        toast.success(translations.settings.tax.create_success);
       }
       onClose();
     } catch (err) {
-      toast.error(err?.data?.message || 'Something went wrong');
+      toast.error(err?.data?.message || translations.settings.common.error_generic);
       if (err?.data?.errors) setErrors(err.data.errors);
     }
   };
@@ -59,10 +61,10 @@ const TaxForm = ({ initialData, onClose }) => {
           </div>
           <div>
             <h3 className="text-sm font-semibold text-slate-900">
-              {initialData ? 'Edit Tax Rule' : 'New Tax Rule'}
+              {initialData ? translations.settings.tax.edit_rule : translations.settings.tax.new_rule}
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              {initialData ? 'Modify the existing tax details' : 'Fill in the details to create a new tax'}
+              {initialData ? translations.settings.tax.modify_desc : translations.settings.tax.create_desc}
             </p>
           </div>
         </div>
@@ -79,10 +81,10 @@ const TaxForm = ({ initialData, onClose }) => {
 
         {/* Name Field */}
         <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-2">Tax Name</label>
+          <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.settings.tax.tax_name}</label>
           <input
             type="text"
-            placeholder="e.g. VAT, GST, Service Tax"
+            placeholder={translations.settings.tax.tax_name_placeholder}
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             className={`w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl transition-all focus:outline-none focus:ring-2 ${
@@ -96,7 +98,7 @@ const TaxForm = ({ initialData, onClose }) => {
 
         {/* Rate Field */}
         <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-2">Tax Rate (%)</label>
+          <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.settings.tax.tax_rate_pct}</label>
           <div className="relative">
             <input
               type="number"
@@ -119,7 +121,7 @@ const TaxForm = ({ initialData, onClose }) => {
 
         {/* Status Toggle — Modern Pill Group */}
         <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-2">Status</label>
+          <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.settings.tax.status}</label>
           <div className="flex gap-2">
             {['Active', 'Inactive'].map((s) => (
               <button
@@ -139,7 +141,7 @@ const TaxForm = ({ initialData, onClose }) => {
                     ? s === 'Active' ? 'bg-emerald-500' : 'bg-slate-400'
                     : 'bg-slate-200'
                 }`} />
-                {s}
+                {s === 'Active' ? translations.settings.common.active : translations.settings.common.inactive}
               </button>
             ))}
           </div>
@@ -153,14 +155,14 @@ const TaxForm = ({ initialData, onClose }) => {
             className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-sm font-semibold rounded-xl transition-all duration-150 shadow-sm shadow-emerald-200/80 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isLoading && <Loader2 size={15} className="animate-spin" />}
-            {initialData ? 'Save Changes' : 'Create Tax Rule'}
+            {initialData ? translations.settings.tax.save_changes : translations.settings.tax.create_rule}
           </button>
           <button
             type="button"
             onClick={onClose}
             className="w-full mt-2 py-2 text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors"
           >
-            Cancel
+            {translations.settings.common.cancel}
           </button>
         </div>
       </form>

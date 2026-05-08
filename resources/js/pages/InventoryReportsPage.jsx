@@ -20,8 +20,10 @@ import ExpiryRiskTable from '../components/Reports/ExpiryRiskTable';
 import SupplierDebtList from '../components/Reports/SupplierDebtList';
 import AlertTable from '../components/Alerts/AlertTable';
 import { Toaster, toast } from 'react-hot-toast';
+import { useLanguage } from '../language/GlobalTranslate.jsx';
 
 const InventoryReportsPage = () => {
+    const { translations } = useLanguage();
     const [activeTab, setActiveTab] = useState('alerts'); // alerts, expiry, debts
 
     const [dateRange, setDateRange] = useState({
@@ -37,25 +39,25 @@ const InventoryReportsPage = () => {
     const handleRefresh = async () => {
         try {
             await refreshReports().unwrap();
-            toast.success('Inventory analytics refreshed');
+            toast.success(translations.reports.analytics_refreshed);
         } catch (err) {
-            toast.error('Failed to refresh data');
+            toast.error(translations.reports.refresh_failed);
         }
     };
 
     const handleRunScan = async () => {
         try {
             const res = await runProcess().unwrap();
-            toast.success(`Inventory scan complete: Found ${res.data?.expiry_alerts || 0} issues.`);
+            toast.success(translations.reports.scan_complete.replace('{n}', res.data?.expiry_alerts || 0));
         } catch (err) {
-            toast.error('Failed to run system scan');
+            toast.error(translations.reports.scan_failed);
         }
     };
 
     const tabs = [
-        { id: 'alerts', label: 'Low Stock Items', icon: AlertTriangle, color: 'rose' },
-        { id: 'expiry', label: 'Expiring Soon & Expired', icon: Clock, color: 'amber' },
-        { id: 'debts', label: 'Unpaid Supplier Bills', icon: CreditCard, color: 'indigo' },
+        { id: 'alerts', label: translations.reports.low_stock_items, icon: AlertTriangle, color: 'rose' },
+        { id: 'expiry', label: translations.reports.expiring_soon_expired, icon: Clock, color: 'amber' },
+        { id: 'debts', label: translations.reports.unpaid_supplier_bills, icon: CreditCard, color: 'indigo' },
     ];
 
     return (
@@ -67,14 +69,14 @@ const InventoryReportsPage = () => {
 
                 {/* Dashboard Header & Refresh */}
                 <div className="flex items-center justify-between mb-6">
-                    <h1 className="text-2xl font-black text-[#0f1923] tracking-tight">Inventory Analytics</h1>
+                    <h1 className="text-2xl font-black text-[#0f1923] tracking-tight">{translations.reports.inventory_analytics}</h1>
                     <button 
                         onClick={handleRefresh} 
                         disabled={isRefreshing}
                         className="flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200/60 rounded-xl shadow-sm hover:shadow-md hover:border-slate-300 text-slate-700 font-bold text-sm transition-all active:scale-95 disabled:opacity-50"
                     >
                         <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-                        Sync Data
+                        {translations.reports.sync_data}
                     </button>
                 </div>
 
@@ -134,9 +136,9 @@ const InventoryReportsPage = () => {
                                         {tabs.find(t => t.id === activeTab)?.label}
                                     </h3>
                                     <p className="text-[11px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">
-                                        {activeTab === 'alerts' ? 'Automated alerts for inventory replenishment' :
-                                         activeTab === 'expiry' ? 'Tracking pharmaceutical batches within danger zones' :
-                                         'Outstanding payments and procurement debts'}
+                                        {activeTab === 'alerts' ? translations.reports.alerts_desc :
+                                         activeTab === 'expiry' ? translations.reports.expiry_desc :
+                                         translations.reports.debts_desc}
                                     </p>
                                 </div>
                             </div>

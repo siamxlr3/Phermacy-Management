@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAddAddressMutation, useUpdateAddressMutation } from '../../store/api/settingApi';
 import { X, Loader2, MapPin, Phone, Mail, Map } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const FormField = ({ label, icon: Icon, error, children }) => (
   <div>
@@ -15,6 +16,7 @@ const FormField = ({ label, icon: Icon, error, children }) => (
 );
 
 const AddressForm = ({ initialData, onClose }) => {
+  const { translations } = useLanguage();
   const [addAddress, { isLoading: isAdding }] = useAddAddressMutation();
   const [updateAddress, { isLoading: isUpdating }] = useUpdateAddressMutation();
 
@@ -52,14 +54,14 @@ const AddressForm = ({ initialData, onClose }) => {
     try {
       if (initialData) {
         await updateAddress({ id: initialData.id, ...formData }).unwrap();
-        toast.success('Branch updated');
+        toast.success(translations.settings.address.update_success);
       } else {
         await addAddress(formData).unwrap();
-        toast.success('Branch created');
+        toast.success(translations.settings.address.create_success);
       }
       onClose();
     } catch (err) {
-      toast.error(err?.data?.message || 'Something went wrong');
+      toast.error(err?.data?.message || translations.settings.common.error_generic);
       if (err?.data?.errors) setErrors(err.data.errors);
     }
   };
@@ -77,10 +79,10 @@ const AddressForm = ({ initialData, onClose }) => {
           </div>
           <div>
             <h3 className="text-sm font-semibold text-slate-900">
-              {initialData ? 'Edit Branch' : 'New Branch'}
+              {initialData ? translations.settings.address.edit_branch : translations.settings.address.new_branch}
             </h3>
             <p className="text-xs text-slate-400 mt-0.5">
-              {initialData ? 'Update contact and location details' : 'Enter branch contact and address info'}
+              {initialData ? translations.settings.address.update_desc : translations.settings.address.create_desc}
             </p>
           </div>
         </div>
@@ -96,10 +98,10 @@ const AddressForm = ({ initialData, onClose }) => {
       <form onSubmit={handleSubmit} className="p-6 space-y-5">
 
         {/* Name */}
-        <FormField label="Branch Name" icon={MapPin} error={errors.name}>
+        <FormField label={translations.settings.address.branch_name} icon={MapPin} error={errors.name}>
           <input
             type="text"
-            placeholder="e.g. Downtown Branch"
+            placeholder={translations.settings.address.branch_name_placeholder}
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
             className={inputClass('name')}
@@ -107,10 +109,10 @@ const AddressForm = ({ initialData, onClose }) => {
         </FormField>
 
         {/* Phone */}
-        <FormField label="Phone Number" icon={Phone} error={errors.phone}>
+        <FormField label={translations.settings.address.phone_number} icon={Phone} error={errors.phone}>
           <input
             type="text"
-            placeholder="+1 234 567 890"
+            placeholder={translations.settings.address.phone_placeholder}
             value={formData.phone}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             className={inputClass('phone')}
@@ -118,10 +120,10 @@ const AddressForm = ({ initialData, onClose }) => {
         </FormField>
 
         {/* Email */}
-        <FormField label="Email Address" icon={Mail} error={errors.email}>
+        <FormField label={translations.settings.address.email_address} icon={Mail} error={errors.email}>
           <input
             type="email"
-            placeholder="contact@pharmacy.com"
+            placeholder={translations.settings.address.email_placeholder}
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             className={inputClass('email')}
@@ -129,9 +131,9 @@ const AddressForm = ({ initialData, onClose }) => {
         </FormField>
 
         {/* Physical Address */}
-        <FormField label="Physical Address" icon={MapPin} error={errors.address}>
+        <FormField label={translations.settings.address.physical_address} icon={MapPin} error={errors.address}>
           <textarea
-            placeholder="123 Health Avenue, Medical District, City..."
+            placeholder={translations.settings.address.address_placeholder}
             value={formData.address}
             onChange={(e) => setFormData({ ...formData, address: e.target.value })}
             rows={3}
@@ -140,7 +142,7 @@ const AddressForm = ({ initialData, onClose }) => {
         </FormField>
 
         {/* Google Maps Embed */}
-        <FormField label="Google Maps Embed" icon={Map}>
+        <FormField label={translations.settings.address.google_maps} icon={Map}>
           <textarea
             placeholder={'<iframe src="..." ...></iframe>'}
             value={formData.google_maps_embed}
@@ -148,12 +150,12 @@ const AddressForm = ({ initialData, onClose }) => {
             rows={2}
             className="w-full px-3.5 py-2.5 text-xs font-mono bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 hover:border-slate-300 transition-all resize-none placeholder:text-slate-300 placeholder:font-sans"
           />
-          <p className="text-[11px] text-slate-400 mt-1">Optional. Paste the embed HTML from Google Maps.</p>
+          <p className="text-[11px] text-slate-400 mt-1">{translations.settings.address.google_maps_desc}</p>
         </FormField>
 
         {/* Status Toggle */}
         <div>
-          <label className="block text-xs font-semibold text-slate-600 mb-2">Status</label>
+          <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.settings.address.status}</label>
           <div className="flex gap-2">
             {['Active', 'Inactive'].map((s) => (
               <button
@@ -173,7 +175,7 @@ const AddressForm = ({ initialData, onClose }) => {
                     ? s === 'Active' ? 'bg-emerald-500' : 'bg-slate-400'
                     : 'bg-slate-200'
                 }`} />
-                {s}
+                {s === 'Active' ? translations.settings.common.active : translations.settings.common.inactive}
               </button>
             ))}
           </div>
@@ -187,14 +189,14 @@ const AddressForm = ({ initialData, onClose }) => {
             className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white text-sm font-semibold rounded-xl transition-all duration-150 shadow-sm shadow-blue-200/80 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isLoading && <Loader2 size={15} className="animate-spin" />}
-            {initialData ? 'Save Changes' : 'Add Branch'}
+            {initialData ? translations.settings.address.save_changes : translations.settings.address.add_branch}
           </button>
           <button
             type="button"
             onClick={onClose}
             className="w-full mt-2 py-2 text-sm font-medium text-slate-400 hover:text-slate-600 transition-colors"
           >
-            Cancel
+            {translations.settings.common.cancel}
           </button>
         </div>
       </form>

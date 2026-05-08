@@ -6,8 +6,10 @@ import { useGetExpensesQuery, useGetExpenseSummaryQuery } from '../store/api/exp
 import ExpenseTable from '../components/Expenses/ExpenseTable';
 import ExpenseForm from '../components/Expenses/ExpenseForm';
 import { Toaster, toast } from 'react-hot-toast';
+import { useLanguage } from '../language/GlobalTranslate.jsx';
 
 const ExpensePage = () => {
+    const { translations } = useLanguage();
     const [page, setPage] = useState(1);
     const [perPage, setPerPage] = useState(10);
     const [search, setSearch] = useState('');
@@ -56,19 +58,19 @@ const ExpensePage = () => {
 
     const summaryCards = [
         {
-            label: 'Total Expenses',
+            label: translations.expense.total_expenses,
             value: `৳${Number(summaryData?.data?.total_expenses || 0).toLocaleString()}`,
             icon: Receipt,
             color: 'indigo'
         },
         {
-            label: 'Total Paid',
+            label: translations.expense.total_paid,
             value: `৳${Number(summaryData?.data?.total_paid || 0).toLocaleString()}`,
             icon: CheckCircle,
             color: 'emerald'
         },
         {
-            label: 'Total Unpaid',
+            label: translations.expense.total_unpaid,
             value: `৳${Number(summaryData?.data?.total_unpaid || 0).toLocaleString()}`,
             icon: XCircle,
             color: 'rose'
@@ -88,9 +90,9 @@ const ExpensePage = () => {
                             <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center">
                                 <Wallet size={16} className="text-indigo-600" />
                             </div>
-                            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Expense Management</h1>
+                            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{translations.expense.title}</h1>
                         </div>
-                        <p className="text-sm text-slate-500 ml-11">Track & manage your business expenditures.</p>
+                        <p className="text-sm text-slate-500 ml-11">{translations.expense.subtitle}</p>
                     </div>
 
                     <button 
@@ -98,7 +100,7 @@ const ExpensePage = () => {
                         className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold shadow-lg shadow-indigo-200 transition-all w-full md:w-auto justify-center"
                     >
                         <Plus size={18} />
-                        New Expense
+                        {translations.expense.new_expense}
                     </button>
                 </div>
 

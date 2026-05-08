@@ -5,10 +5,12 @@ import { useGetActiveSuppliersQuery } from '../../store/api/supplierApi';
 import { useGetActiveMedicinesQuery } from '../../store/api/medicineApi';
 import { X, Receipt, Search, User, Package, Calculator, Loader2, CheckCircle2, Edit2, Info, CreditCard, Factory, Calendar, Boxes, Droplets, Plus, Trash2, ShoppingBag } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const GROUP_A = ['Tablet', 'Capsule', 'Suppository', 'Patch'];
 
 const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
+  const { translations } = useLanguage();
   const isEditing = !!grn;
   const isPO = mode === 'PO';
 
@@ -135,25 +137,25 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!supplierId) { toast.error('Supplier is required'); return; }
-    if (items.length === 0) { toast.error('Add at least one item'); return; }
+    if (!supplierId) { toast.error(translations.grn.supplier_required); return; }
+    if (items.length === 0) { toast.error(translations.grn.add_one_item); return; }
     if (items.some(i => !i.medicine_id)) {
-      toast.error('Please select a medicine for all items');
+      toast.error(translations.grn.select_med_all);
       return;
     }
     if (!isPO && items.some(i => !i.batch_number || !i.expiry_date)) {
-      toast.error('Complete Batch # and Expiry Date for all items');
+      toast.error(translations.grn.complete_batch_exp);
       return;
     }
     if (items.some(i => !i.qty_boxes_received || i.qty_boxes_received <= 0)) {
-      toast.error('Enter a valid quantity for all items');
+      toast.error(translations.grn.valid_qty);
       return;
     }
     if (items.some(i => {
       const cost = GROUP_A.includes(i.dosage_form) ? i.cost_per_box : i.price;
       return !cost || cost < 0;
     })) {
-      toast.error('Enter a valid unit cost for all items');
+      toast.error(translations.grn.valid_cost);
       return;
     }
 
@@ -190,23 +192,23 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
       if (isPO) {
         if (isEditing) {
           await updatePO({ id: grn.id, ...payload }).unwrap();
-          toast.success('Purchase Order updated');
+          toast.success(translations.grn.po_updated);
         } else {
           await addPO(payload).unwrap();
-          toast.success('Purchase Order created successfully');
+          toast.success(translations.grn.po_created);
         }
       } else {
         if (isEditing) {
           await updateGRN({ id: grn.id, ...payload }).unwrap();
-          toast.success('GRN updated successfully');
+          toast.success(translations.grn.grn_updated);
         } else {
           await addGRN(payload).unwrap();
-          toast.success('Goods Received and Stock updated');
+          toast.success(translations.grn.grn_success);
         }
       }
       onClose();
     } catch (err) {
-      toast.error(err?.data?.message || `Failed to save ${isPO ? 'Order' : 'GRN'}`);
+      toast.error(err?.data?.message || translations.grn.failed_save.replace('{type}', isPO ? 'Order' : 'GRN'));
     }
   };
 
@@ -220,7 +222,9 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
           </div>
           <div>
             <h3 className="text-lg font-black text-slate-800 tracking-tight">
-              {isEditing ? `Edit ${isPO ? 'Purchase Order' : 'GRN'}` : `New ${isPO ? 'Purchase Order' : 'GRN'}`} — <span className="text-slate-400 font-bold">{isPO ? 'Procurement Planning' : 'Manage Inventory Receipt'}</span>
+              {isEditing 
+                ? translations.grn.edit_type.replace('{type}', isPO ? 'Purchase Order' : 'GRN') 
+                : translations.grn.new_type.replace('{type}', isPO ? 'Purchase Order' : 'GRN')} — <span className="text-slate-400 font-bold">{isPO ? translations.grn.procurement_planning : translations.grn.manage_inventory}</span>
             </h3>
           </div>
         </div>
@@ -233,7 +237,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
           <div className="space-y-1.5">
             <label className="text-[11px] font-black text-slate-500 uppercase">
-              {isPO ? 'Order Date' : 'Received Date'}
+              {isPO ? translations.grn.order_date : translations.grn.received_date}
             </label>
             <input
               type="date"
@@ -246,7 +250,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
 
           <div className="space-y-1.5">
             <label className="text-[11px] font-black text-slate-500 uppercase">
-              Supplier
+              {translations.grn.supplier}
             </label>
             <select
               required
@@ -254,7 +258,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
               onChange={(e) => setSupplierId(e.target.value)}
               className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none transition-all appearance-none font-bold text-slate-700"
             >
-              <option value="">Select Supplier</option>
+              <option value="">{translations.grn.select_supplier}</option>
               {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
@@ -262,39 +266,41 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
           {!isPO && (
             <>
               <div className="space-y-1.5">
-                <label className="text-[11px] font-black text-slate-500 uppercase">
-                  Invoice Number
+                <label className="text-[11px] font-black text-slate-500 uppercase flex items-center justify-between">
+                  {translations.grn.invoice_number}
+                  <span className="text-[9px] text-indigo-400 font-bold uppercase tracking-tighter">{translations.grn.auto_generated}</span>
                 </label>
                 <input
                   type="text"
-                  placeholder="INV-SQ-2026-047"
+                  placeholder={translations.grn.will_generate}
                   value={invoiceNumber}
+                  readOnly={!isEditing}
                   onChange={(e) => setInvoiceNumber(e.target.value)}
-                  className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none transition-all font-bold text-slate-700"
+                  className={`w-full px-4 py-3 text-sm border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none transition-all font-bold ${!isEditing ? 'bg-slate-50 text-slate-400' : 'bg-white text-slate-700'}`}
                 />
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-[11px] font-black text-slate-500 uppercase">
-                  Payment Status
+                  {translations.grn.payment_status}
                 </label>
                 <select
                   value={paymentStatus}
                   onChange={(e) => setPaymentStatus(e.target.value)}
                   className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-400 outline-none transition-all font-bold text-slate-700"
                 >
-                  <option value="Due">Due (Unpaid)</option>
-                  <option value="Paid">Fully Paid</option>
+                  <option value="Due">{translations.grn.due_unpaid}</option>
+                  <option value="Paid">{translations.grn.fully_paid}</option>
                 </select>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-[11px] font-black text-slate-500 uppercase">
-                  Received By
+                  {translations.grn.received_by}
                 </label>
                 <input
                   type="text"
-                  placeholder="Employee Name"
+                  placeholder={translations.grn.employee_name}
                   value={receivedBy}
                   onChange={(e) => setReceivedBy(e.target.value)}
                   className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none transition-all font-bold text-slate-700"
@@ -308,7 +314,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
         <div className="space-y-6 pt-4">
           <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
             <label className="text-[11px] font-black text-slate-500 uppercase">
-              Add Medicines
+              {translations.grn.add_medicines}
             </label>
           </div>
 
@@ -333,7 +339,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
                   </button>                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-500 uppercase">
-                        Select Medicine
+                        {translations.grn.select_medicine}
                       </label>
                       <select
                         required
@@ -341,7 +347,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
                         onChange={(e) => handleItemChange(index, 'medicine_id', e.target.value)}
                         className="w-full px-4 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl outline-none"
                       >
-                        <option value="">Select Medicine</option>
+                        <option value="">{translations.grn.select_medicine}</option>
                         {medicines.map(m => (
                           <option key={m.id} value={m.id}>{m.name} ({m.dosage_form})</option>
                         ))}
@@ -352,7 +358,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
                       <>
                         <div className="space-y-1.5">
                           <label className="text-[10px] font-black text-slate-500 uppercase">
-                            Batch #
+                            {translations.grn.batch_no}
                           </label>
                           <input
                             type="text"
@@ -366,7 +372,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
 
                         <div className="space-y-1.5">
                           <label className="text-[10px] font-black text-slate-500 uppercase">
-                            Expiry Date
+                            {translations.grn.expiry_date}
                           </label>
                           <input
                             type="date"
@@ -381,7 +387,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
 
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-500 uppercase">
-                        {isGroupA ? 'Qty (Boxes)' : 'Qty (Units)'}
+                        {isGroupA ? translations.grn.qty_boxes : translations.grn.qty_units}
                       </label>
                       <input
                         type="number"
@@ -395,7 +401,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
 
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-500 uppercase">
-                        {isGroupA ? 'Cost / Box' : 'Unit Cost'}
+                        {isGroupA ? translations.grn.cost_box : translations.grn.unit_cost}
                       </label>
                       <input
                         type="number"
@@ -408,7 +414,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
 
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-500 uppercase">
-                        Subtotal
+                        {translations.grn.subtotal}
                       </label>
                       <div className="w-full px-4 py-2.5 text-sm bg-slate-200/50 border border-slate-200 rounded-xl font-black text-slate-600 text-right font-mono">
                         ৳ {parseFloat(item.subtotal || 0).toFixed(2)}
@@ -418,12 +424,12 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
                     {isGroupA && (
                       <>
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-400 uppercase">Cost / Stripe</label>
+                          <label className="text-[10px] font-black text-slate-400 uppercase">{translations.grn.cost_stripe}</label>
                           <input type="number" step="0.01" value={item.cost_per_stripe} onChange={(e) => handleItemChange(index, 'cost_per_stripe', e.target.value)}
                             className="w-full px-4 py-2.5 text-sm bg-white/50 border border-slate-200 rounded-xl font-bold text-slate-500 outline-none text-right font-mono" />
                         </div>
                         <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-400 uppercase">Cost / Tablet</label>
+                          <label className="text-[10px] font-black text-slate-400 uppercase">{translations.grn.cost_tablet}</label>
                           <input type="number" step="0.01" value={item.cost_per_tablet} onChange={(e) => handleItemChange(index, 'cost_per_tablet', e.target.value)}
                             className="w-full px-4 py-2.5 text-sm bg-white/50 border border-slate-200 rounded-xl font-bold text-slate-500 outline-none text-right font-mono" />
                         </div>
@@ -432,7 +438,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
 
                     {isGroupA && (
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase">Strength</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase">{translations.grn.strength}</label>
                         <input type="text" value={item.strength} onChange={(e) => handleItemChange(index, 'strength', e.target.value)}
                           className="w-full px-4 py-2.5 text-sm bg-white/50 border border-slate-200 rounded-xl font-bold text-slate-500 outline-none" />
                       </div>
@@ -440,7 +446,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
 
                     {!isGroupA && (
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase">Volume</label>
+                        <label className="text-[10px] font-black text-slate-400 uppercase">{translations.grn.volume}</label>
                         <input type="text" value={item.volume} onChange={(e) => handleItemChange(index, 'volume', e.target.value)}
                           className="w-full px-4 py-2.5 text-sm bg-white/50 border border-slate-200 rounded-xl font-bold text-slate-500 outline-none" />
                       </div>
@@ -452,9 +458,9 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
                     <div className="bg-white px-4 py-2 rounded-lg border border-slate-100 shadow-inner">
                       <p className="text-[11px] font-medium text-slate-600">
                         {isGroupA ? (
-                          <>Stock Add: <span className="font-bold text-slate-800">{item.qty_boxes_received}</span> x <span className="font-bold text-slate-800">{item.stripe_per_box}</span> x <span className="font-bold text-slate-800">{item.tablet_per_stripe}</span> = <span className="font-black text-emerald-600">{totalStockUnits} Tablets</span> | <span className="text-slate-400 font-bold uppercase tracking-tighter text-[9px]">Cost/Tablet =</span> <span className="font-black text-indigo-600">৳ {costPerUnit}</span></>
+                          <>{translations.grn.stock_add_group_a.replace('{qty}', item.qty_boxes_received).replace('{stripes}', item.stripe_per_box).replace('{tablets}', item.tablet_per_stripe).replace('{total}', totalStockUnits)} | <span className="text-slate-400 font-bold uppercase tracking-tighter text-[9px]">{translations.grn.cost_tablet_label}</span> <span className="font-black text-indigo-600">৳ {costPerUnit}</span></>
                         ) : (
-                          <>Stock Add: <span className="font-black text-emerald-600">{totalStockUnits} Units</span> | <span className="text-slate-400 font-bold uppercase tracking-tighter text-[9px]">Unit Cost =</span> <span className="font-black text-indigo-600">৳ {costPerUnit}</span></>
+                          <>{translations.grn.stock_add_unit.replace('{total}', totalStockUnits)} | <span className="text-slate-400 font-bold uppercase tracking-tighter text-[9px]">{translations.grn.unit_cost_label}</span> <span className="font-black text-indigo-600">৳ {costPerUnit}</span></>
                         )}
                       </p>
                     </div>
@@ -469,18 +475,18 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
             onClick={handleAddItem}
             className="flex items-center gap-2 px-6 py-2.5 bg-white hover:bg-slate-50 text-slate-600 text-xs font-black uppercase tracking-widest rounded-xl transition-all border border-slate-200 shadow-sm active:scale-95"
           >
-            <Plus size={16} /> Add More Medicine
+            <Plus size={16} /> {translations.grn.add_more}
           </button>
         </div>
 
         {/* Notes */}
         <div className="space-y-1.5 pt-4">
-          <label className="text-[11px] font-black text-slate-500 uppercase">Additional Notes (Optional)</label>
+          <label className="text-[11px] font-black text-slate-500 uppercase">{translations.grn.notes_optional}</label>
           <textarea
             rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Describe any breakage or discrepancies..."
+            placeholder={translations.grn.notes_placeholder}
             className="w-full px-5 py-4 text-sm bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none transition-all resize-none font-medium"
           />
         </div>
@@ -490,15 +496,15 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
       <div className="shrink-0 p-8 bg-white border-t border-slate-100 space-y-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs font-bold text-slate-500 border-b border-slate-50 pb-2">
-            <span>Total Items</span>
-            <span>{items.length} Product(s)</span>
+            <span>{translations.grn.total_items}</span>
+            <span>{translations.grn.products_count.replace('{n}', items.length)}</span>
           </div>
           <div className="flex items-center justify-between text-xs font-bold text-slate-500 border-b border-slate-50 pb-2">
-            <span>Total Quantity</span>
-            <span>{totalBoxes} Box/Units</span>
+            <span>{translations.grn.total_quantity}</span>
+            <span>{translations.grn.box_units_count.replace('{n}', totalBoxes)}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-sm font-black text-slate-800">Total Bill</span>
+            <span className="text-sm font-black text-slate-800">{translations.grn.total_bill}</span>
             <span className="text-xl font-black text-emerald-600">৳ {calculateGrandTotal().toLocaleString()}</span>
           </div>
         </div>
@@ -509,7 +515,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
             onClick={onClose} 
             className="flex-1 px-6 py-3 text-sm font-black text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all uppercase tracking-widest"
           >
-            Cancel
+            {translations.grn.cancel}
           </button>
           <button
             type="submit"
@@ -518,7 +524,11 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
             className={`flex-[2] inline-flex items-center justify-center gap-3 px-10 py-3.5 ${isPO ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-[#1e293b] hover:bg-slate-800'} text-white text-sm font-black rounded-xl shadow-xl transition-all active:scale-95 disabled:opacity-50 uppercase tracking-widest`}
           >
             {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-            {isEditing ? `Update ${isPO ? 'Order' : 'GRN'}` : `Save ${isPO ? 'Order' : 'GRN & Update Stock'} ✓`}
+            {isEditing 
+              ? translations.grn.update_type.replace('{type}', isPO ? 'Order' : 'GRN') 
+              : isPO 
+                ? translations.grn.save_type.replace('{type}', 'Order') 
+                : translations.grn.save_grn_stock}
           </button>
         </div>
       </div>

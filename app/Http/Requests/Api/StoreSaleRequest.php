@@ -28,6 +28,7 @@ class StoreSaleRequest extends FormRequest
             'items' => 'required|array|min:1',
             'items.*.medicine_id' => 'required|exists:medicines,id',
             'items.*.sale_unit' => 'required|string',
+            'items.*.quantity' => 'required|numeric|min:1',
             'items.*.qty_tablets' => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.tax_amount' => 'nullable|numeric|min:0',

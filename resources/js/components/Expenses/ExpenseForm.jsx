@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Save, Plus, Trash2, Receipt, User, Phone, MapPin, Calendar, CreditCard, ChevronDown, Package, Activity, Info, CheckCircle2, Loader2 } from 'lucide-react';
 import { useAddExpenseMutation, useUpdateExpenseMutation } from '../../store/api/expenseApi';
 import { toast } from 'react-hot-toast';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const initialForm = {
     supplier_name: '',
@@ -17,6 +18,7 @@ const initialForm = {
 };
 
 const ExpenseForm = ({ onClose, expense }) => {
+    const { translations } = useLanguage();
     const [formData, setFormData] = useState(initialForm);
     const [addExpense, { isLoading: isAdding }] = useAddExpenseMutation();
     const [updateExpense, { isLoading: isUpdating }] = useUpdateExpenseMutation();
@@ -82,7 +84,7 @@ const ExpenseForm = ({ onClose, expense }) => {
         e.preventDefault();
         
         if (formData.items.some(i => !i.items_name || !i.price || !i.qty)) {
-            toast.error('Please fill in all required item fields');
+            toast.error(translations.expense.fill_required);
             return;
         }
 
@@ -94,14 +96,14 @@ const ExpenseForm = ({ onClose, expense }) => {
         try {
             if (expense) {
                 await updateExpense({ id: expense.id, ...payload }).unwrap();
-                toast.success('Expense record updated');
+                toast.success(translations.expense.update_success);
             } else {
                 await addExpense(payload).unwrap();
-                toast.success('New expense recorded');
+                toast.success(translations.expense.add_success);
             }
             onClose();
         } catch (error) {
-            toast.error(error.data?.message || 'Submission failed');
+            toast.error(error.data?.message || translations.expense.submission_failed);
         }
     };
 
@@ -116,9 +118,9 @@ const ExpenseForm = ({ onClose, expense }) => {
                         <Receipt size={20} />
                     </div>
                     <div>
-                        <h3 className="text-lg font-bold text-slate-900">{expense ? 'Edit Expense' : 'Record Expenditure'}</h3>
+                        <h3 className="text-lg font-bold text-slate-900">{expense ? translations.expense.edit_title : translations.expense.record_expenditure}</h3>
                         <p className="text-xs text-slate-400 font-medium">
-                            {expense ? `Voucher: ${expense.transaction_id}` : 'Fill in the supplier and item details below'}
+                            {expense ? translations.expense.voucher.replace('{id}', expense.transaction_id) : translations.expense.form_desc}
                         </p>
                     </div>
                 </div>
@@ -132,12 +134,12 @@ const ExpenseForm = ({ onClose, expense }) => {
                 <div className="space-y-6">
                     <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
                         <Info size={16} className="text-indigo-500" />
-                        <h4 className="text-sm font-bold text-slate-800 uppercase tracking-tight">Supplier & Vendor Profile</h4>
+                        <h4 className="text-sm font-bold text-slate-800 uppercase tracking-tight">{translations.expense.supplier_vendor_profile}</h4>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Supplier Name</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{translations.expense.supplier_name}</label>
                             <div className="relative">
                                 <User size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                                 <input
@@ -146,13 +148,13 @@ const ExpenseForm = ({ onClose, expense }) => {
                                     value={formData.supplier_name}
                                     onChange={(e) => setFormData({...formData, supplier_name: e.target.value})}
                                     className="w-full pl-10 pr-4 py-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
-                                    placeholder="Company or individual name"
+                                    placeholder={translations.expense.supplier_placeholder}
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Transaction Date</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{translations.expense.transaction_date}</label>
                             <input
                                 type="date"
                                 required
@@ -163,7 +165,7 @@ const ExpenseForm = ({ onClose, expense }) => {
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Contact Person</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{translations.expense.contact_person}</label>
                             <div className="relative">
                                 <Activity size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                                 <input
@@ -171,13 +173,13 @@ const ExpenseForm = ({ onClose, expense }) => {
                                     value={formData.contact_person}
                                     onChange={(e) => setFormData({...formData, contact_person: e.target.value})}
                                     className="w-full pl-10 pr-4 py-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
-                                    placeholder="Name of contact person"
+                                    placeholder={translations.expense.contact_placeholder}
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Phone Number</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{translations.expense.phone_number}</label>
                             <div className="relative">
                                 <Phone size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
                                 <input
@@ -185,13 +187,13 @@ const ExpenseForm = ({ onClose, expense }) => {
                                     value={formData.phone}
                                     onChange={(e) => setFormData({...formData, phone: e.target.value})}
                                     className="w-full pl-10 pr-4 py-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all"
-                                    placeholder="e.g. +880 1..."
+                                    placeholder={translations.expense.phone_placeholder}
                                 />
                             </div>
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Payment Status</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{translations.expense.payment_status}</label>
                             <div className="relative group">
                                 <CreditCard size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 z-10" />
                                 <select
@@ -199,15 +201,15 @@ const ExpenseForm = ({ onClose, expense }) => {
                                     onChange={(e) => setFormData({...formData, status: e.target.value})}
                                     className="w-full pl-10 pr-10 py-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all appearance-none cursor-pointer"
                                 >
-                                    <option value="Paid">Mark as Paid</option>
-                                    <option value="Unpaid">Mark as Unpaid</option>
+                                    <option value="Paid">{translations.expense.mark_paid}</option>
+                                    <option value="Unpaid">{translations.expense.mark_unpaid}</option>
                                 </select>
                                 <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-focus-within:rotate-180 transition-transform" />
                             </div>
                         </div>
 
                         <div className="md:col-span-2 space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Company Address</label>
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">{translations.expense.company_address}</label>
                             <div className="relative">
                                 <MapPin size={14} className="absolute left-3.5 top-4 text-slate-400" />
                                 <textarea
@@ -215,7 +217,7 @@ const ExpenseForm = ({ onClose, expense }) => {
                                     value={formData.address}
                                     onChange={(e) => setFormData({...formData, address: e.target.value})}
                                     className="w-full pl-10 pr-4 py-3 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all resize-none"
-                                    placeholder="Full address of the supplier..."
+                                    placeholder={translations.expense.address_placeholder}
                                 />
                             </div>
                         </div>
@@ -227,14 +229,14 @@ const ExpenseForm = ({ onClose, expense }) => {
                     <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                         <div className="flex items-center gap-2">
                             <Package size={16} className="text-indigo-500" />
-                            <h4 className="text-sm font-bold text-slate-800 uppercase tracking-tight">Detail Line Items</h4>
+                            <h4 className="text-sm font-bold text-slate-800 uppercase tracking-tight">{translations.expense.detail_line_items}</h4>
                         </div>
                         <button 
                             type="button"
                             onClick={addItem}
                             className="inline-flex items-center gap-2 px-4 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all group"
                         >
-                            <Plus size={12} className="group-hover:rotate-90 transition-transform" /> Add Row
+                            <Plus size={12} className="group-hover:rotate-90 transition-transform" /> {translations.expense.add_row}
                         </button>
                     </div>
 
@@ -242,7 +244,7 @@ const ExpenseForm = ({ onClose, expense }) => {
                         {formData.items.map((item, idx) => (
                             <div key={idx} className="bg-slate-50/40 p-4 rounded-2xl border border-slate-100 space-y-4 group/row hover:border-indigo-100 transition-all">
                                 <div className="flex items-center justify-between">
-                                    <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Item Row #{idx + 1}</span>
+                                    <span className="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">{translations.expense.item_row_n.replace('{n}', idx + 1)}</span>
                                     {formData.items.length > 1 && (
                                         <button
                                             type="button"
@@ -255,33 +257,33 @@ const ExpenseForm = ({ onClose, expense }) => {
                                 </div>
                                 <div className="grid grid-cols-12 gap-4">
                                     <div className="col-span-12 md:col-span-12 lg:col-span-4 space-y-1">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase ml-1">Item Description</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase ml-1">{translations.expense.item_desc}</span>
                                         <input
                                             type="text"
                                             required
                                             value={item.items_name}
                                             onChange={(e) => handleItemChange(idx, 'items_name', e.target.value)}
                                             className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none"
-                                            placeholder="e.g. Office Stationery"
+                                            placeholder={translations.expense.item_placeholder}
                                         />
                                     </div>
                                     <div className="col-span-6 md:col-span-4 lg:col-span-2 space-y-1">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase ml-1">Type</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase ml-1">{translations.expense.type}</span>
                                         <div className="relative">
                                             <select
                                                 value={item.category}
                                                 onChange={(e) => handleItemChange(idx, 'category', e.target.value)}
                                                 className="w-full pl-3 pr-8 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:ring-1 focus:ring-indigo-500 outline-none appearance-none cursor-pointer"
                                             >
-                                                <option value="Piece">Piece</option>
-                                                <option value="Packet">Packet</option>
-                                                <option value="Box">Box</option>
+                                                <option value="Piece">{translations.expense.piece}</option>
+                                                <option value="Packet">{translations.expense.packet}</option>
+                                                <option value="Box">{translations.expense.box}</option>
                                             </select>
                                             <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                                         </div>
                                     </div>
                                     <div className="col-span-6 md:col-span-4 lg:col-span-2 space-y-1">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase ml-1">Quantity</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase ml-1">{translations.expense.quantity}</span>
                                         <input
                                             type="number"
                                             required
@@ -292,7 +294,7 @@ const ExpenseForm = ({ onClose, expense }) => {
                                         />
                                     </div>
                                     <div className="col-span-6 md:col-span-4 lg:col-span-2 space-y-1">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase ml-1">Price</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase ml-1">{translations.expense.price}</span>
                                         <input
                                             type="number"
                                             required
@@ -304,7 +306,7 @@ const ExpenseForm = ({ onClose, expense }) => {
                                         />
                                     </div>
                                     <div className="col-span-6 md:col-span-4 lg:col-span-2 space-y-1 text-right">
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Subtotal</span>
+                                        <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">{translations.expense.subtotal}</span>
                                         <div className="px-3 py-2 text-sm bg-slate-100 border border-slate-100 rounded-lg text-right font-black text-slate-600">
                                             ৳{parseFloat(item.total_price || 0).toLocaleString()}
                                         </div>
@@ -319,14 +321,14 @@ const ExpenseForm = ({ onClose, expense }) => {
             {/* Action Footer */}
             <div className="shrink-0 p-6 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
                 <div className="flex flex-col">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">Total Payable Amount</span>
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest pl-0.5">{translations.expense.total_payable}</span>
                     <span className="text-2xl font-black text-slate-900 leading-none mt-1">
                         ৳{calculateGrandTotal(formData.items).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                     </span>
                 </div>
                 <div className="flex items-center gap-3">
                     <button type="button" onClick={onClose} className="px-6 py-3 text-sm font-bold text-slate-500 hover:text-slate-700 transition-all">
-                        Cancel
+                        {translations.expense.cancel}
                     </button>
                     <button
                         type="submit"
@@ -335,7 +337,7 @@ const ExpenseForm = ({ onClose, expense }) => {
                         className="inline-flex items-center gap-2 px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition-all disabled:opacity-50 active:scale-95"
                     >
                         {isLoading ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                        {expense ? 'Update Record' : 'Record Expenditure'}
+                        {expense ? translations.expense.update_record : translations.expense.record_expenditure}
                     </button>
                 </div>
             </div>

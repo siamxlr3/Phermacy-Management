@@ -1,17 +1,19 @@
 import React from 'react';
 import { CreditCard, Truck, ExternalLink } from 'lucide-react';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const SupplierDebtList = ({ dues }) => {
+    const { translations } = useLanguage();
     return (
         <div className="flex flex-col h-full bg-transparent overflow-hidden min-h-0">
             <div className="flex-1 overflow-auto custom-scrollbar">
                 <table className="w-full text-left border-collapse">
                     <thead className="sticky top-0 bg-slate-50/80 backdrop-blur-md z-10 border-b border-slate-200/60">
                         <tr>
-                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Supplier Partner</th>
-                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Bill Date</th>
-                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-right">Total Bill</th>
-                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-right">Balance Due</th>
+                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{translations.reports.supplier_debt.supplier_partner}</th>
+                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{translations.reports.supplier_debt.bill_date}</th>
+                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-right">{translations.reports.supplier_debt.total_bill}</th>
+                            <th className="px-6 py-3.5 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest text-right">{translations.reports.supplier_debt.balance_due}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100/60">
@@ -49,8 +51,8 @@ const SupplierDebtList = ({ dues }) => {
                                         <div className="w-20 h-20 bg-gradient-to-br from-emerald-50 to-emerald-100/50 rounded-2xl flex items-center justify-center mb-5 border border-emerald-100 shadow-sm">
                                             <CreditCard size={36} className="text-emerald-400" />
                                         </div>
-                                        <p className="text-[16px] font-extrabold text-[#0f1923]">Zero Outstanding Debts</p>
-                                        <p className="text-[12px] text-slate-400 font-bold mt-1 uppercase tracking-widest">All supplier accounts are settled</p>
+                                        <p className="text-[16px] font-extrabold text-[#0f1923]">{translations.reports.supplier_debt.zero_debts}</p>
+                                        <p className="text-[12px] text-slate-400 font-bold mt-1 uppercase tracking-widest">{translations.reports.supplier_debt.settled_desc}</p>
                                     </div>
                                 </td>
                             </tr>

@@ -24,7 +24,7 @@ return new class extends Migration
             
             // Group A (Tablets, Capsules, etc.)
             $table->integer('tablet_per_stripe')->nullable();
-            $table->integer('tablet_per_box')->nullable();
+            $table->integer('stripe_per_box')->nullable();
             $table->decimal('price_per_tablet', 10, 2)->nullable();
             $table->decimal('price_per_stripe', 10, 2)->nullable();
             $table->decimal('price_per_box', 10, 2)->nullable();
@@ -32,11 +32,13 @@ return new class extends Migration
             // Group B (Syrups, Injections, etc.)
             $table->string('volume')->nullable(); // e.g. 100ml, 120ml
             $table->decimal('price', 10, 2)->nullable(); // Generic price for liquid/cream forms
+            $table->decimal('cost_price', 10, 4)->nullable(); // Last known purchase cost
             
             $table->integer('reorder_level')->default(10);
             $table->integer('stock')->default(0);
             
             $table->enum('status', ['Active', 'Inactive'])->default('Active');
+            $table->softDeletes();
             $table->timestamps();
 
             $table->index('name');

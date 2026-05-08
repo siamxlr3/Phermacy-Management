@@ -27,6 +27,8 @@ class BatchResource extends JsonResource
             'volume' => $this->volume,
             'price' => $this->price,
             'strength' => $this->medicine?->strength,
+            'tablet_per_stripe' => $this->medicine?->tablet_per_stripe ?? 10,
+            'stripe_per_box' => $this->medicine?->stripe_per_box ?? 10,
             'received_date' => $this->received_date->format('Y-m-d'),
         ];
     }
