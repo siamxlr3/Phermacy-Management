@@ -15,7 +15,8 @@ import {
   RotateCcw,
   BadgeDollarSign,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  EyeOff
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useGetSalesQuery, useUpdateSaleStatusMutation } from '../store/api/salesApi';
@@ -65,11 +66,13 @@ const SalesHistoryPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [showDueOnly, setShowDueOnly] = useState(location.state?.showDueOnly || false);
-  const [isUpdating, setIsUpdating] = useState(null);
+  const [expandedRow, setExpandedRow] = useState(null);
   const [dateRange, setDateRange] = useState({
     from: '',
     to: format(new Date(), 'yyyy-MM-dd')
   });
+
+  const toggleRow = (id) => setExpandedRow(prev => prev === id ? null : id);
 
   useEffect(() => {
     if (location.state?.showDueOnly !== undefined) {
@@ -102,6 +105,7 @@ const SalesHistoryPage = () => {
 
   const sales = salesData?.data || [];
   const meta = salesData?.meta || {};
+  const isLoadingState = isLoading || isFetching;
 
   return (
     <DashboardLayout noScroll>
@@ -109,50 +113,50 @@ const SalesHistoryPage = () => {
       
       <div className="flex flex-col h-full min-h-0 bg-slate-50/50 -m-6 p-6">
         
-        {/* Fixed Header */}
-        <div className="shrink-0 mb-8">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
+        {/* Header */}
+        <div className="shrink-0 mb-8 px-2 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <button 
+              onClick={() => navigate('/pos')}
+              className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center border border-slate-200 text-slate-400 hover:text-slate-900 hover:border-slate-400 transition-all shadow-sm group"
+            >
+              <ChevronLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
+            </button>
             <div className="flex items-center gap-4">
-              <button 
-                onClick={() => navigate('/pos')}
-                className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center border border-slate-200 text-slate-400 hover:text-slate-900 hover:border-slate-400 transition-all shadow-sm group"
-              >
-                <ChevronLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
-              </button>
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-200">
-                  <History size={24} className="text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-black text-slate-900 tracking-tight">{translations.sales_history.title}</h1>
-                  <p className="text-sm font-bold text-slate-400 flex items-center gap-2">
-                    {translations.sales_history.subtitle}
-                  </p>
-                </div>
+              <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
+                <History size={24} className="text-white" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-none mb-1.5">{translations.sales_history.title}</h1>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  {translations.sales_history.subtitle}
+                </p>
               </div>
             </div>
+          </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => {
-                   setShowDueOnly(!showDueOnly);
-                   setStatusFilter('');
-                }}
-                className={cn(
-                  "flex items-center gap-2 px-5 py-2.5 rounded-2xl text-xs font-black transition-all",
-                  showDueOnly 
-                    ? "bg-orange-500 text-white shadow-lg shadow-orange-200" 
-                    : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50"
-                )}
-              >
-                <BadgeDollarSign size={16} />
-                {showDueOnly ? translations.sales_history.show_all : translations.sales_history.show_due}
-              </button>
-            </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                 setShowDueOnly(!showDueOnly);
+                 setStatusFilter('');
+                 setPage(1);
+              }}
+              className={cn(
+                "flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all",
+                showDueOnly 
+                  ? "bg-orange-500 text-white shadow-lg shadow-orange-200" 
+                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 shadow-sm"
+              )}
+            >
+              <BadgeDollarSign size={16} />
+              {showDueOnly ? translations.sales_history.show_all : translations.sales_history.show_due}
+            </button>
           </div>
         </div>
+
         {/* Summary Stats */}
-        <div className="shrink-0 mb-6">
+        <div className="shrink-0 flex gap-4 mb-6">
           <AnimatePresence mode="wait">
             {showDueOnly ? (
               <motion.div 
@@ -160,7 +164,7 @@ const SalesHistoryPage = () => {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="p-6 bg-orange-500 rounded-[2rem] shadow-xl shadow-orange-200 border border-orange-400/20 relative overflow-hidden group max-w-sm"
+                className="flex-1 p-6 bg-orange-500 rounded-[2rem] shadow-xl shadow-orange-200 border border-orange-400/20 relative overflow-hidden group max-w-sm"
               >
                 <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
                   <AlertCircle size={120} />
@@ -181,7 +185,7 @@ const SalesHistoryPage = () => {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="p-6 bg-slate-900 rounded-[2rem] shadow-xl shadow-slate-200 border border-slate-800 relative overflow-hidden group max-w-sm"
+                className="flex-1 p-6 bg-slate-900 rounded-[2rem] shadow-xl shadow-slate-200 border border-slate-800 relative overflow-hidden group max-w-sm"
               >
                 <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
                   <BadgeDollarSign size={120} />
@@ -201,305 +205,350 @@ const SalesHistoryPage = () => {
         </div>
 
         {/* Main Table Card */}
-        <div className="flex-1 flex flex-col bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden min-h-0">
+        <div className="flex-1 flex flex-col bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden min-h-0">
           
-          {/* Table Header / Filters */}
-          <div className="p-6 border-b border-slate-100 bg-slate-50/50 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4 flex-1 max-w-3xl">
-                <div className="relative flex-1 group">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
-                  <input
-                    type="text"
-                    placeholder={translations.sales_history.search_placeholder}
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 outline-none transition-all placeholder:text-slate-400 text-slate-600"
-                  />
-                </div>
-                
-                {!showDueOnly && (
-                  <div className="flex items-center gap-1 p-1 bg-white border border-slate-200 rounded-xl shadow-sm">
-                    {['all', 'Completed', 'Returned'].map((f) => (
-                      <button
-                        key={f}
-                        onClick={() => setStatusFilter(f)}
-                        className={cn(
-                          "px-4 py-1.5 rounded-lg text-xs font-black capitalize transition-all",
-                          statusFilter === f || (f === 'all' && statusFilter === '')
-                            ? "bg-slate-900 text-white shadow-md shadow-slate-900/10"
-                            : "text-slate-400 hover:text-slate-600"
-                        )}
-                      >
-                        {f === 'all' ? translations.sales_history.all : (f === 'Completed' ? translations.sales_history.completed : translations.sales_history.returned)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100 text-xs font-bold text-slate-500">
-                    <Calendar size={14} /> {translations.sales_history.date}
-                    <input 
-                      type="date" 
-                      value={dateRange.from} 
-                      onChange={(e) => setDateRange(prev => ({ ...prev, from: e.target.value }))}
-                      className="bg-transparent outline-none text-slate-700 w-28 cursor-pointer"
-                    />
-                  </div>
-                </div>
+          {/* Filters Row */}
+          <div className="shrink-0 p-6 border-b border-slate-100 flex flex-wrap items-center justify-between gap-6 bg-slate-50/30">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="relative flex-1 sm:flex-initial min-w-[280px] group">
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                <input
+                  type="text"
+                  placeholder={translations.sales_history.search_placeholder}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none transition-all placeholder:text-slate-400 font-medium text-slate-600"
+                />
               </div>
 
-              <div className="flex items-center gap-3">
-                <select 
-                  value={perPage}
-                  onChange={(e) => setPerPage(Number(e.target.value))}
-                  className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-600 outline-none focus:ring-4 focus:ring-slate-500/5 transition-all cursor-pointer"
-                >
-                  <option value={10}>10 {translations.sales_history.per_page.replace('{n}', '')}</option>
-                  <option value={20}>20 {translations.sales_history.per_page.replace('{n}', '')}</option>
-                  <option value={50}>50 {translations.sales_history.per_page.replace('{n}', '')}</option>
-                </select>
+              {!showDueOnly && (
+                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+                  {[['all', translations.sales_history.all], ['Completed', translations.sales_history.completed], ['Returned', translations.sales_history.returned]].map(([val, lbl]) => (
+                    <button
+                      key={val}
+                      onClick={() => { setStatusFilter(val === 'all' ? '' : val); setPage(1); }}
+                      className={cn(
+                        "px-5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                        (statusFilter === val || (val === 'all' && statusFilter === ''))
+                          ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20"
+                          : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                      )}
+                    >
+                      {lbl}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
+                <Calendar size={14} className="text-slate-400" />
+                <input 
+                  type="date"
+                  value={dateRange.from}
+                  onChange={(e) => { setDateRange(prev => ({...prev, from: e.target.value})); setPage(1); }}
+                  className="bg-transparent border-none text-[11px] font-bold text-slate-600 outline-none w-[110px] cursor-pointer"
+                />
+                <span className="text-slate-300 text-[10px] font-black tracking-widest px-1 uppercase">{translations.pos.to || 'TO'}</span>
+                <input 
+                  type="date"
+                  value={dateRange.to}
+                  onChange={(e) => { setDateRange(prev => ({...prev, to: e.target.value})); setPage(1); }}
+                  className="bg-transparent border-none text-[11px] font-bold text-slate-600 outline-none w-[110px] cursor-pointer"
+                />
               </div>
             </div>
+
+            {(searchTerm || statusFilter || dateRange.from || dateRange.to !== format(new Date(), 'yyyy-MM-dd')) && (
+              <button 
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('');
+                  setDateRange({ from: '', to: format(new Date(), 'yyyy-MM-dd') });
+                  setPage(1);
+                }}
+                className="text-[10px] font-black text-rose-500 hover:text-rose-700 uppercase tracking-[0.2em] px-2 transition-colors"
+              >
+                {translations.expense.reset || 'RESET'}
+              </button>
+            )}
           </div>
 
           {/* Table Area */}
           <div className="flex-1 overflow-x-auto custom-scrollbar min-h-0">
-            <table className="w-full text-left border-collapse min-w-[1100px]">
-              <thead className="sticky top-0 bg-white z-10 border-b border-slate-100 shadow-sm shadow-slate-200/5">
+            <table className="w-full text-left border-collapse min-w-[1000px]">
+              <thead className="sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10 border-b border-slate-200">
                 <tr>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{translations.sales_history.invoice}</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{translations.sales_history.customer}</th>
-                  {showDueOnly ? (
-                    <>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{translations.sales_history.phone}</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-center">{translations.sales_history.status}</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{translations.sales_history.due_amount}</th>
-                    </>
-                  ) : (
-                    <>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{translations.sales_history.sold_items}</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-center">{translations.sales_history.sale_unit}</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{translations.sales_history.payment}</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{translations.sales_history.total_amount}</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-center">{translations.sales_history.status}</th>
-                      <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{translations.sales_history.date}</th>
-                    </>
-                  )}
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-right">{translations.sales_history.actions}</th>
+                  <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{translations.sales_history.invoice} & {translations.sales_history.date}</th>
+                  <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{translations.sales_history.customer}</th>
+                  <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.payment}</th>
+                  <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.sales_history.total_amount}</th>
+                  <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.status}</th>
+                  <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right pr-12">{translations.sales_history.actions}</th>
+                  <th className="w-12"></th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
-                {isLoading || isFetching ? (
+              <tbody className="divide-y divide-slate-100">
+                {isLoadingState ? (
                   Array.from({ length: 5 }).map((_, idx) => (
                     <tr key={idx} className="animate-pulse">
-                      {Array.from({ length: 9 }).map((_, cellIdx) => (
+                      {Array.from({ length: 7 }).map((_, cellIdx) => (
                         <td key={cellIdx} className="px-8 py-6">
-                          <div className="h-4 bg-slate-100 rounded-full w-full"></div>
+                          <div className="h-4 bg-slate-100 rounded-md w-full"></div>
                         </td>
                       ))}
                     </tr>
                   ))
                 ) : sales.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-8 py-32">
-                      <div className="flex flex-col items-center justify-center gap-4 grayscale opacity-40">
-                        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center">
-                          <ShoppingBag size={32} />
+                    <td colSpan={7} className="px-8 py-32 text-center">
+                      <div className="flex flex-col items-center justify-center grayscale opacity-40">
+                        <div className="w-16 h-16 bg-slate-100 rounded-[1.5rem] flex items-center justify-center mb-4 border border-slate-200">
+                          <ShoppingBag size={28} className="text-slate-400" />
                         </div>
-                        <div className="text-center">
-                          <p className="font-black text-slate-900 text-lg tracking-tight">{translations.sales_history.no_transactions}</p>
-                          <p className="text-sm font-medium text-slate-500">{translations.sales_history.adjust_filters}</p>
-                        </div>
+                        <p className="font-black text-slate-900 text-lg tracking-tight uppercase">{translations.sales_history.no_transactions}</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{translations.sales_history.adjust_filters}</p>
                       </div>
                     </td>
                   </tr>
                 ) : (
-                  sales.map((item) => (
-                    <tr key={item.id} className="group hover:bg-slate-50/80 transition-all duration-200">
-                      <td className="px-8 py-6">
-                        <span className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-[11px] font-black border border-blue-100 group-hover:bg-blue-600 group-hover:text-white transition-all font-mono">
-                          {item.invoice_number || `INV-${item.id.toString().padStart(6, '0')}`}
-                        </span>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-400 text-[10px] font-black border border-slate-200 transition-colors group-hover:bg-white">
-                            {(item.customer_name || 'Walk-in').substring(0, 2).toUpperCase()}
-                          </div>
-                          <span className="text-sm font-bold text-slate-700">{item.customer_name || translations.sales_history.walk_in}</span>
-                        </div>
-                      </td>
-
-                      {showDueOnly ? (
-                        <>
-                          <td className="px-8 py-6">
-                            <span className="text-xs font-bold text-slate-500">{item.customer_phone || 'N/A'}</span>
-                          </td>
-                          <td className="px-8 py-6">
-                            <div className="flex justify-center">
-                              <span className={cn(
-                                "px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-tight flex items-center gap-1.5",
-                                statusStyle[item.status] || 'bg-slate-50 text-slate-400 border-slate-100'
-                              )}>
-                                <AlertCircle size={10} />
-                                {item.status === 'Completed' ? translations.sales_history.completed : (item.status === 'Returned' ? translations.sales_history.returned : item.status)}
+                  sales.map((item) => {
+                    const isExpanded = expandedRow === item.id;
+                    return (
+                      <React.Fragment key={item.id}>
+                        <tr 
+                          onClick={() => toggleRow(item.id)}
+                          className={cn(
+                            "group transition-all duration-150 cursor-pointer",
+                            isExpanded ? "bg-indigo-50/40" : "hover:bg-slate-50/80"
+                          )}
+                        >
+                          <td className="px-8 py-5">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-sm font-black text-indigo-600 tracking-tight font-mono">
+                                {item.invoice_number || `INV-${item.id.toString().padStart(6, '0')}`}
+                              </span>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <Calendar size={10} className="text-slate-300" />
+                                {format(new Date(item.sale_date || item.date || Date.now()), 'MMM dd, yyyy')}
                               </span>
                             </div>
                           </td>
-                          <td className="px-8 py-6">
-                            <span className="text-sm font-black text-orange-600">৳{parseFloat(item.due_amount || item.grand_total).toFixed(2)}</span>
-                          </td>
-                        </>
-                      ) : (
-                        <>
-                          <td className="px-8 py-6">
-                            <div className="flex flex-col gap-1.5">
-                              {Array.isArray(item.items) ? (
-                                <>
-                                  {item.items.slice(0, 3).map((ritem, idx) => (
-                                    <div key={idx} className="flex items-center gap-2">
-                                      <div className="flex flex-col">
-                                        <span className="text-xs font-bold text-slate-700">{ritem.medicine_name}</span>
-                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Batch: {ritem.batch_number}</span>
-                                      </div>
-                                      <span className="text-[10px] font-black px-1.5 py-0.5 bg-blue-50 text-blue-500 rounded border border-blue-100 italic shrink-0">x{formatSoldQty(ritem)}</span>
-                                    </div>
-                                  ))}
-                                  {item.items.length > 3 && (
-                                    <span className="text-[10px] font-bold text-slate-400 italic mt-1">+ {item.items.length - 3} more items...</span>
-                                  )}
-                                </>
-                              ) : (
-                                <span className="text-sm font-bold text-slate-700">{item.items_count || 0} {translations.pos.order}</span>
-                              )}
+                          <td className="px-8 py-5">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 text-[10px] font-black shadow-sm group-hover:border-indigo-200 group-hover:text-indigo-500 transition-colors">
+                                {(item.customer_name || 'WI').substring(0, 2).toUpperCase()}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-bold text-slate-700 leading-tight">{item.customer_name || translations.sales_history.walk_in}</span>
+                                <span className="text-[10px] font-medium text-slate-400">{item.customer_phone || 'No phone'}</span>
+                              </div>
                             </div>
                           </td>
-                          <td className="px-8 py-6">
-                            <div className="flex flex-col gap-1 justify-center items-center">
-                              {Array.isArray(item.items) ? (
-                                item.items.slice(0, 3).map((ritem, idx) => (
-                                  <span key={idx} className="text-[10px] font-black px-2 py-0.5 bg-slate-100 text-slate-500 rounded uppercase tracking-tighter whitespace-nowrap">
-                                    {ritem.sale_unit === 'Tablet' ? translations.pos.unit_tablet : (ritem.sale_unit === 'Strip' ? translations.pos.unit_strip : translations.pos.unit_box)}
-                                  </span>
-                                ))
-                              ) : (
-                                <span className="text-[10px] font-black px-2 py-0.5 bg-slate-100 text-slate-500 rounded uppercase tracking-tighter">
-                                  {translations.pos.unit_tablet}
-                                </span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-8 py-6">
+                          <td className="px-8 py-5 text-center">
                             <span className={cn(
-                              "px-2.5 py-1 rounded-lg text-[10px] font-black border uppercase tracking-widest",
+                              "px-3 py-1.5 rounded-lg text-[10px] font-black border uppercase tracking-widest shadow-sm",
                               paymentStyle[item.payment_method] || 'bg-slate-50 text-slate-400 border-slate-100'
                             )}>
                               {item.payment_method}
                             </span>
                           </td>
-                          <td className="px-8 py-6">
-                            <span className="text-sm font-black text-slate-900">৳{parseFloat(item.grand_total).toFixed(2)}</span>
-                          </td>
-                          <td className="px-8 py-6">
-                            <div className="flex justify-center">
-                              <span className={cn(
-                                "px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-tight",
-                                statusStyle[item.status] || 'bg-slate-50 text-slate-400 border-slate-100'
-                              )}>
-                                {item.status === 'Completed' ? translations.sales_history.completed : (item.status === 'Returned' ? translations.sales_history.returned : item.status)}
-                              </span>
+                          <td className="px-8 py-5 text-right">
+                            <div className="flex flex-col items-end">
+                              <span className="text-sm font-black text-slate-900 tracking-tight">৳{parseFloat(item.grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              {item.due_amount > 0 && (
+                                <span className="text-[9px] font-black text-orange-500 uppercase tracking-tighter">Due: ৳{parseFloat(item.due_amount).toLocaleString()}</span>
+                              )}
                             </div>
                           </td>
-                          <td className="px-8 py-6">
-                            <span className="text-xs font-bold text-slate-500">{format(new Date(item.sale_date || item.date || Date.now()), 'MMM dd, yyyy')}</span>
+                          <td className="px-8 py-5 text-center">
+                            <span className={cn(
+                              "px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-widest shadow-sm",
+                              statusStyle[item.status] || 'bg-slate-50 text-slate-400 border-slate-100'
+                            )}>
+                              {item.status === 'Completed' ? translations.sales_history.completed : (item.status === 'Returned' ? translations.sales_history.returned : item.status)}
+                            </span>
                           </td>
-                        </>
-                      )}
-                      
-                      <td className="px-8 py-6 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {showDueOnly && (
-                            <button 
-                              onClick={() => handleUpdatePayment(item.id, item.grand_total)}
-                              className="flex items-center gap-2 px-4 py-2 bg-emerald-500 text-white rounded-xl text-xs font-black shadow-lg shadow-emerald-200 hover:bg-emerald-600 transition-all mr-2"
+                          <td className="px-8 py-5 text-right pr-12" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                              {item.status === 'Due' && (
+                                <button 
+                                  onClick={() => handleUpdatePayment(item.id, item.grand_total)}
+                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white rounded-xl text-[10px] font-black shadow-lg shadow-emerald-100 hover:bg-emerald-600 transition-all mr-1.5"
+                                >
+                                  <CheckCircle2 size={12} />
+                                  {translations.sales_history.mark_paid}
+                                </button>
+                              )}
+                              <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all shadow-sm" title="View Details">
+                                <Eye size={16} />
+                              </button>
+                              <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all shadow-sm" title="Print Invoice">
+                                <Printer size={16} />
+                              </button>
+                              <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all shadow-sm">
+                                <MoreHorizontal size={16} />
+                              </button>
+                            </div>
+                          </td>
+                          <td className="w-12 text-center pr-6">
+                            <button
+                              className={cn(
+                                "p-2 rounded-xl transition-all shadow-sm",
+                                isExpanded 
+                                  ? "bg-indigo-600 text-white shadow-indigo-200" 
+                                  : "text-slate-300 hover:text-indigo-600 hover:bg-white opacity-0 group-hover:opacity-100"
+                              )}
                             >
-                              <CheckCircle2 size={14} />
-                              {translations.sales_history.mark_paid}
+                              {isExpanded ? <EyeOff size={14} /> : <Eye size={14} />}
                             </button>
+                          </td>
+                        </tr>
+
+                        {/* Expandable Items Sub-Row */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <tr>
+                              <td colSpan="7" className="p-0 border-b border-indigo-100 bg-indigo-50/30">
+                                <motion.div 
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="px-12 py-8">
+                                    <div className="flex items-center justify-between mb-4">
+                                      <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                        <ShoppingBag size={12} />
+                                        {translations.sales_history.sold_items || 'Sold Items'} ({item.items?.length || 0})
+                                      </h4>
+                                    </div>
+                                    <div className="bg-white rounded-3xl border border-indigo-100 shadow-xl shadow-indigo-900/5 overflow-hidden">
+                                      <table className="w-full text-left">
+                                        <thead className="bg-slate-50 border-b border-slate-100">
+                                          <tr>
+                                            <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{translations.medicine.medicine_name || 'Medicine'}</th>
+                                            <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.medicine.dosage_form || 'Unit'}</th>
+                                            <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.qty || 'Qty'}</th>
+                                            <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.medicine.price || 'Unit Price'}</th>
+                                            <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.expense.amount || 'Subtotal'}</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-50">
+                                          {item.items?.map((ritem, idx) => (
+                                            <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                              <td className="px-6 py-4">
+                                                <div className="flex flex-col">
+                                                  <span className="text-sm font-bold text-slate-700">{ritem.medicine_name}</span>
+                                                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter mt-0.5">Batch: {ritem.batch_number}</span>
+                                                </div>
+                                              </td>
+                                              <td className="px-6 py-4 text-center">
+                                                <span className="px-2.5 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black uppercase tracking-tighter border border-slate-200">
+                                                  {ritem.sale_unit === 'Tablet' ? translations.pos.unit_tablet : (ritem.sale_unit === 'Strip' ? translations.pos.unit_strip : translations.pos.unit_box)}
+                                                </span>
+                                              </td>
+                                              <td className="px-6 py-4 text-center">
+                                                <span className="text-sm font-black text-indigo-600">{formatSoldQty(ritem)}</span>
+                                              </td>
+                                              <td className="px-6 py-4 text-right font-medium text-slate-500 text-sm">৳{parseFloat(ritem.unit_price).toFixed(2)}</td>
+                                              <td className="px-6 py-4 text-right font-black text-slate-900 text-sm">৳{parseFloat(ritem.subtotal).toFixed(2)}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                        <tfoot className="bg-slate-50/80 border-t border-slate-200">
+                                          <tr>
+                                            <td colSpan="4" className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">
+                                              {translations.sales_history.total_amount || 'Grand Total'}
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                              <span className="text-base font-black text-indigo-600 tracking-tight">৳{parseFloat(item.grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                            </td>
+                                          </tr>
+                                        </tfoot>
+                                      </table>
+                                    </div>
+                                  </div>
+                                </motion.div>
+                              </td>
+                            </tr>
                           )}
-                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                          <button 
-                            className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
-                            title="View Details"
-                          >
-                            <Eye size={16} />
-                          </button>
-                          <button 
-                            className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                            title="Print Invoice"
-                          >
-                            <Printer size={16} />
-                          </button>
-                          <button 
-                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all"
-                            title="More Actions"
-                          >
-                            <MoreHorizontal size={16} />
-                          </button>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                        </AnimatePresence>
+                      </React.Fragment>
+                    );
+                  })
                 )}
               </tbody>
             </table>
           </div>
 
           {/* Pagination Footer */}
-          {!isLoading && meta.last_page > 1 && (
-            <div className="shrink-0 p-6 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between">
-              <p className="text-[11px] font-black text-slate-400 uppercase tracking-[2px]">
-                {translations.sales_history.showing_meta
-                  .replace('{from}', meta.from)
-                  .replace('{to}', meta.to)
-                  .replace('{total}', meta.total)}
-              </p>
-              <div className="flex items-center gap-2">
+          <div className="shrink-0 flex items-center justify-between px-8 py-5 border-t border-slate-100 bg-slate-50/30">
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{translations.sales_history.per_page.replace('{n}', '') || 'Rows per page'}:</span>
+              <select
+                value={perPage}
+                onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
+                className="bg-white border border-slate-200 text-xs font-black text-slate-600 rounded-xl px-3 py-1.5 outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 cursor-pointer shadow-sm transition-all"
+              >
+                {[10, 20, 50, 100].map(v => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {!isLoading && meta.total > 0 && (
+                <div className="px-4 py-2 bg-white rounded-xl border border-slate-200 shadow-sm">
+                  <span className="text-xs font-black text-slate-500 uppercase tracking-tighter">
+                    {translations.sales_history.showing_meta
+                      .replace('{from}', meta.from)
+                      .replace('{to}', meta.to)
+                      .replace('{total}', meta.total)}
+                  </span>
+                </div>
+              )}
+              
+              <div className="flex items-center gap-1.5">
                 <button 
                   disabled={page === 1}
                   onClick={() => setPage(page - 1)}
-                  className="p-2 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-slate-900 disabled:opacity-30 disabled:hover:text-slate-400 transition-all shadow-sm"
+                  className="p-2.5 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-indigo-600 disabled:opacity-30 transition-all shadow-sm active:scale-95"
                 >
-                  <ChevronLeft size={20} />
+                  <ChevronLeft size={18} />
                 </button>
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: meta.last_page }).map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setPage(i + 1)}
-                      className={`w-9 h-9 rounded-xl text-xs font-black transition-all ${
-                        page === i + 1 
-                        ? 'bg-slate-900 text-white shadow-lg shadow-slate-900/20' 
-                        : 'bg-white border border-slate-200 text-slate-400 hover:bg-slate-50'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
+                <div className="flex items-center gap-1.5 px-1">
+                  {/* Simplified pagination for many pages */}
+                  {meta.last_page <= 5 ? (
+                    Array.from({ length: meta.last_page }).map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setPage(i + 1)}
+                        className={cn(
+                          "w-9 h-9 rounded-xl text-xs font-black transition-all",
+                          page === i + 1 
+                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100" 
+                            : "bg-white border border-slate-200 text-slate-400 hover:bg-slate-50"
+                        )}
+                      >
+                        {i + 1}
+                      </button>
+                    ))
+                  ) : (
+                    <span className="text-xs font-bold text-slate-400 px-2 uppercase tracking-widest">
+                      {translations.expense.page_meta?.replace('{current}', page).replace('{total}', meta.last_page) || `Page ${page} of ${meta.last_page}`}
+                    </span>
+                  )}
                 </div>
                 <button 
                   disabled={page === meta.last_page}
                   onClick={() => setPage(page + 1)}
-                  className="p-2 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-slate-900 disabled:opacity-30 disabled:hover:text-slate-400 transition-all shadow-sm"
+                  className="p-2.5 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-indigo-600 disabled:opacity-30 transition-all shadow-sm active:scale-95"
                 >
-                  <ChevronRight size={20} />
+                  <ChevronRight size={18} />
                 </button>
               </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </DashboardLayout>
