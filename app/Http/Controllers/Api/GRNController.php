@@ -59,25 +59,23 @@ class GRNController extends Controller
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.medicine_id' => 'required|exists:medicines,id',
+            'items.*.dosage_form_snapshot' => 'required|string',
             'items.*.batch_number' => 'required|string|max:255',
             'items.*.expiry_date' => 'required|date',
             'items.*.qty_boxes_received' => 'required|integer|min:1',
-            'items.*.subtotal' => 'required|numeric|min:0',
+            'items.*.qty_units_received' => 'nullable|integer',
+            'items.*.package_size' => 'nullable|string',
             'items.*.cost_per_box' => 'nullable|numeric',
             'items.*.cost_per_stripe' => 'nullable|numeric',
-            'items.*.cost_per_tablet' => 'nullable|numeric',
-            'items.*.strength' => 'nullable|string',
-            'items.*.volume' => 'nullable|string',
-            'items.*.price' => 'nullable|numeric',
+            'items.*.cost_per_unit' => 'required|numeric',
+            'items.*.subtotal' => 'required|numeric|min:0',
         ]);
 
         try {
             $grn = DB::transaction(function () use ($data) {
-                // FIX: Pre-load ALL medicines in ONE query before the loop
                 $medicineIds = collect($data['items'])->pluck('medicine_id');
                 $medicines = Medicine::whereIn('id', $medicineIds)->get()->keyBy('id');
 
-                // Auto-generate Purchase Order if one wasn't linked
                 if (empty($data['purchase_order_id'])) {
                     $po = PurchaseOrder::create([
                         'supplier_id' => $data['supplier_id'],
@@ -91,13 +89,11 @@ class GRNController extends Controller
 
                     $poItemsData = [];
                     foreach ($data['items'] as $item) {
-                        $medicine = $medicines->get($item['medicine_id']);
-                        $isGroupA = $medicine && in_array($medicine->dosage_form, ['Tablet', 'Capsule', 'Suppository', 'Patch']);
                         $poItemsData[] = [
                             'purchase_order_id' => $po->id,
                             'medicine_id' => $item['medicine_id'],
                             'qty_boxes' => $item['qty_boxes_received'],
-                            'unit_cost' => $isGroupA ? ($item['cost_per_box'] ?? 0) : ($item['price'] ?? 0),
+                            'unit_cost' => $item['cost_per_box'] ?? $item['cost_per_unit'],
                             'subtotal' => $item['subtotal'],
                             'created_at' => now(),
                             'updated_at' => now(),
@@ -107,7 +103,6 @@ class GRNController extends Controller
                     $data['purchase_order_id'] = $po->id;
                 }
 
-                // FIX: Atomic invoice number generation with lockForUpdate
                 $invoiceNumber = $data['invoice_number'];
                 if (empty($invoiceNumber)) {
                     $lastGRN = DB::table('grns')->lockForUpdate()->latest('id')->first();
@@ -137,59 +132,67 @@ class GRNController extends Controller
                 $stockBatchesData = [];
 
                 foreach ($data['items'] as $item) {
-                    // FIX: In-memory lookup — ZERO extra DB queries
                     $medicine = $medicines->get($item['medicine_id']);
-                    $isGroupA = $medicine && in_array($medicine->dosage_form, ['Tablet', 'Capsule', 'Suppository', 'Patch']);
-
+                    
                     $grnItemsData[] = [
                         'grn_id' => $grn->id,
                         'medicine_id' => $item['medicine_id'],
+                        'dosage_form_snapshot' => $item['dosage_form_snapshot'],
                         'batch_number' => $item['batch_number'],
                         'expiry_date' => $item['expiry_date'],
                         'qty_boxes_received' => $item['qty_boxes_received'],
+                        'qty_units_received' => $item['qty_units_received'] ?? null,
+                        'package_size' => $item['package_size'] ?? null,
+                        'cost_per_box' => $item['cost_per_box'] ?? null,
+                        'cost_per_stripe' => $item['cost_per_stripe'] ?? null,
+                        'cost_per_unit' => $item['cost_per_unit'],
                         'subtotal' => $item['subtotal'],
-                        'cost_per_box' => $isGroupA ? ($item['cost_per_box'] ?? null) : null,
-                        'cost_per_stripe' => $isGroupA ? ($item['cost_per_stripe'] ?? null) : null,
-                        'cost_per_tablet' => $isGroupA ? ($item['cost_per_tablet'] ?? null) : null,
-                        'strength' => $item['strength'] ?? ($medicine?->strength),
-                        'volume' => !$isGroupA ? ($item['volume'] ?? ($medicine?->volume)) : null,
-                        'price' => !$isGroupA ? ($item['price'] ?? null) : null,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ];
 
-                    $totalUnits = $isGroupA
-                        ? $item['qty_boxes_received'] * (($medicine?->tablet_per_stripe ?? 1) * ($medicine?->stripe_per_box ?? 1))
-                        : $item['qty_boxes_received'];
+                    // Calculate total units and secondary quantities based on dosage form
+                    $isGroupA = in_array($item['dosage_form_snapshot'], ['Tablet', 'Capsule', 'Suppository', 'Sachet']);
+                    
+                    $totalTablets = 0;
+                    $totalUnits = 0; // Group B units (bottles/tubes)
+                    
+                    if ($isGroupA) {
+                        $totalTablets = $item['qty_boxes_received'] * (($medicine?->tablets_per_strip ?? 1) * ($medicine?->strips_per_box ?? 1));
+                    } else {
+                        $totalUnits = $item['qty_boxes_received'] * ($item['qty_units_received'] ?? 1);
+                        $totalTablets = $totalUnits; // For non-tablets, total_tablets acts as smallest unit count
+                    }
 
                     $stockBatchesData[] = [
                         'medicine_id' => $item['medicine_id'],
                         'supplier_id' => $data['supplier_id'],
                         'grn_id' => $grn->id,
+                        'dosage_form_snapshot' => $item['dosage_form_snapshot'],
                         'batch_number' => $item['batch_number'],
                         'expiry_date' => $item['expiry_date'],
-                        'qty_tablets' => $totalUnits,
-                        'qty_tablets_remaining' => $totalUnits,
+                        'qty_tablets' => $totalTablets,
+                        'qty_tablets_remaining' => $totalTablets,
+                        'qty_boxes' => $item['qty_boxes_received'],
+                        'qty_boxes_remaining' => $item['qty_boxes_received'],
+                        'qty_units' => $isGroupA ? null : $totalUnits,
+                        'qty_units_remaining' => $isGroupA ? null : $totalUnits,
+                        'cost_per_unit' => $item['cost_per_unit'],
+                        'cost_per_stripe' => $item['cost_per_stripe'] ?? null,
+                        'cost_per_box' => $item['cost_per_box'] ?? null,
                         'received_date' => $data['received_date'],
-                        'cost_per_tablet' => $isGroupA ? ($item['cost_per_tablet'] ?? null) : null,
-                        'cost_per_stripe' => $isGroupA ? ($item['cost_per_stripe'] ?? null) : null,
-                        'cost_per_box' => $isGroupA ? ($item['cost_per_box'] ?? null) : null,
-                        'volume' => !$isGroupA ? ($item['volume'] ?? ($medicine?->volume)) : null,
-                        'price' => !$isGroupA ? ($item['price'] ?? null) : null,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ];
 
-                    // Increment stock and update price on the in-memory model
-                    $medicine?->increment('stock', $totalUnits);
-                    if ($isGroupA) {
-                        $medicine?->update(['price_per_tablet' => $item['cost_per_tablet'] ?? $medicine->price_per_tablet]);
-                    } else {
-                        $medicine?->update(['price' => $item['price'] ?? $medicine->price]);
-                    }
+                    $medicine?->increment('stock', $totalTablets);
+                    // Standardize price update on medicine
+                    $medicine?->update([
+                        'price_per_unit' => $item['cost_per_unit'],
+                        'cost_price' => $item['cost_per_unit']
+                    ]);
                 }
 
-                // FIX: Bulk insert GRN items and StockBatches — 2 queries instead of N*2
                 GRNItem::insert($grnItemsData);
                 StockBatch::insert($stockBatchesData);
 
@@ -199,7 +202,6 @@ class GRNController extends Controller
                         ->update(['status' => 'Received']);
                 }
 
-                // FIX: Targeted cache invalidation — never flush everything
                 Cache::forget('medicines.active_list');
                 Cache::tags(['inventory'])->flush();
                 Cache::tags(['reports'])->flush();
@@ -236,21 +238,20 @@ class GRNController extends Controller
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.medicine_id' => 'required|exists:medicines,id',
+            'items.*.dosage_form_snapshot' => 'required|string',
             'items.*.batch_number' => 'required|string|max:255',
             'items.*.expiry_date' => 'required|date',
             'items.*.qty_boxes_received' => 'required|integer|min:1',
-            'items.*.subtotal' => 'required|numeric|min:0',
+            'items.*.qty_units_received' => 'nullable|integer',
+            'items.*.package_size' => 'nullable|string',
             'items.*.cost_per_box' => 'nullable|numeric',
             'items.*.cost_per_stripe' => 'nullable|numeric',
-            'items.*.cost_per_tablet' => 'nullable|numeric',
-            'items.*.strength' => 'nullable|string',
-            'items.*.volume' => 'nullable|string',
-            'items.*.price' => 'nullable|numeric',
+            'items.*.cost_per_unit' => 'required|numeric',
+            'items.*.subtotal' => 'required|numeric|min:0',
         ]);
 
         try {
             $grn = DB::transaction(function () use ($grn, $data) {
-                // Reverse old stock safely (does NOT touch sale_items)
                 $this->reverseGrnStock($grn);
                 $grn->items()->delete();
 
@@ -266,7 +267,6 @@ class GRNController extends Controller
                     'notes' => $data['notes'] ?? null,
                 ]);
 
-                // FIX: Pre-load all medicines in ONE query
                 $medicineIds = collect($data['items'])->pluck('medicine_id');
                 $medicines = Medicine::whereIn('id', $medicineIds)->get()->keyBy('id');
 
@@ -275,60 +275,67 @@ class GRNController extends Controller
 
                 foreach ($data['items'] as $item) {
                     $medicine = $medicines->get($item['medicine_id']);
-                    $isGroupA = $medicine && in_array($medicine->dosage_form, ['Tablet', 'Capsule', 'Suppository', 'Patch']);
-
+                    
                     $grnItemsData[] = [
                         'grn_id' => $grn->id,
                         'medicine_id' => $item['medicine_id'],
+                        'dosage_form_snapshot' => $item['dosage_form_snapshot'],
                         'batch_number' => $item['batch_number'],
                         'expiry_date' => $item['expiry_date'],
                         'qty_boxes_received' => $item['qty_boxes_received'],
+                        'qty_units_received' => $item['qty_units_received'] ?? null,
+                        'package_size' => $item['package_size'] ?? null,
+                        'cost_per_box' => $item['cost_per_box'] ?? null,
+                        'cost_per_stripe' => $item['cost_per_stripe'] ?? null,
+                        'cost_per_unit' => $item['cost_per_unit'],
                         'subtotal' => $item['subtotal'],
-                        'cost_per_box' => $isGroupA ? ($item['cost_per_box'] ?? null) : null,
-                        'cost_per_stripe' => $isGroupA ? ($item['cost_per_stripe'] ?? null) : null,
-                        'cost_per_tablet' => $isGroupA ? ($item['cost_per_tablet'] ?? null) : null,
-                        'strength' => $item['strength'] ?? ($medicine?->strength),
-                        'volume' => !$isGroupA ? ($item['volume'] ?? ($medicine?->volume)) : null,
-                        'price' => !$isGroupA ? ($item['price'] ?? null) : null,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ];
 
-                    $totalUnits = $isGroupA
-                        ? $item['qty_boxes_received'] * (($medicine?->tablet_per_stripe ?? 1) * ($medicine?->stripe_per_box ?? 1))
-                        : $item['qty_boxes_received'];
+                    $isGroupA = in_array($item['dosage_form_snapshot'], ['Tablet', 'Capsule', 'Suppository', 'Sachet']);
+                    
+                    $totalTablets = 0;
+                    $totalUnits = 0;
+                    
+                    if ($isGroupA) {
+                        $totalTablets = $item['qty_boxes_received'] * (($medicine?->tablets_per_strip ?? 1) * ($medicine?->strips_per_box ?? 1));
+                    } else {
+                        $totalUnits = $item['qty_boxes_received'] * ($item['qty_units_received'] ?? 1);
+                        $totalTablets = $totalUnits;
+                    }
 
                     $stockBatchesData[] = [
                         'medicine_id' => $item['medicine_id'],
                         'supplier_id' => $data['supplier_id'],
                         'grn_id' => $grn->id,
+                        'dosage_form_snapshot' => $item['dosage_form_snapshot'],
                         'batch_number' => $item['batch_number'],
                         'expiry_date' => $item['expiry_date'],
-                        'qty_tablets' => $totalUnits,
-                        'qty_tablets_remaining' => $totalUnits,
+                        'qty_tablets' => $totalTablets,
+                        'qty_tablets_remaining' => $totalTablets,
+                        'qty_boxes' => $item['qty_boxes_received'],
+                        'qty_boxes_remaining' => $item['qty_boxes_received'],
+                        'qty_units' => $isGroupA ? null : $totalUnits,
+                        'qty_units_remaining' => $isGroupA ? null : $totalUnits,
+                        'cost_per_unit' => $item['cost_per_unit'],
+                        'cost_per_stripe' => $item['cost_per_stripe'] ?? null,
+                        'cost_per_box' => $item['cost_per_box'] ?? null,
                         'received_date' => $data['received_date'],
-                        'cost_per_tablet' => $isGroupA ? ($item['cost_per_tablet'] ?? null) : null,
-                        'cost_per_stripe' => $isGroupA ? ($item['cost_per_stripe'] ?? null) : null,
-                        'cost_per_box' => $isGroupA ? ($item['cost_per_box'] ?? null) : null,
-                        'volume' => !$isGroupA ? ($item['volume'] ?? ($medicine?->volume)) : null,
-                        'price' => !$isGroupA ? ($item['price'] ?? null) : null,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ];
 
-                    $medicine?->increment('stock', $totalUnits);
-                    if ($isGroupA) {
-                        $medicine?->update(['price_per_tablet' => $item['cost_per_tablet'] ?? $medicine->price_per_tablet]);
-                    } else {
-                        $medicine?->update(['price' => $item['price'] ?? $medicine->price]);
-                    }
+                    $medicine?->increment('stock', $totalTablets);
+                    $medicine?->update([
+                        'price_per_unit' => $item['cost_per_unit'],
+                        'cost_price' => $item['cost_per_unit']
+                    ]);
                 }
 
-                // FIX: Bulk inserts — not per-row creates
                 GRNItem::insert($grnItemsData);
                 StockBatch::insert($stockBatchesData);
 
-                // FIX: Targeted cache invalidation
                 Cache::forget('medicines.active_list');
                 Cache::tags(['inventory'])->flush();
                 Cache::tags(['reports'])->flush();

@@ -13,8 +13,8 @@ export const medicineApi = createApi({
   endpoints: (builder) => ({
     // Medicines
     getMedicines: builder.query({
-      query: ({ page = 1, perPage = 10, search = '' }) => 
-        `/medicines?page=${page}&per_page=${perPage}&search=${search}`,
+      query: ({ page = 1, perPage = 10, search = '', status = '' }) => 
+        `/medicines?page=${page}&per_page=${perPage}&search=${search}&status=${status}`,
       providesTags: ['Medicine'],
     }),
     getActiveMedicines: builder.query({
@@ -44,6 +44,14 @@ export const medicineApi = createApi({
       }),
       invalidatesTags: ['Medicine'],
     }),
+    importMedicines: builder.mutation({
+      query: (formData) => ({
+        url: '/medicines/import',
+        method: 'POST',
+        body: formData,
+      }),
+      invalidatesTags: ['Medicine'],
+    }),
   }),
 });
 
@@ -53,4 +61,5 @@ export const {
   useAddMedicineMutation,
   useUpdateMedicineMutation,
   useDeleteMedicineMutation,
+  useImportMedicinesMutation,
 } = medicineApi;

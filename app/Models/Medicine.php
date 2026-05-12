@@ -32,35 +32,38 @@ class Medicine extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'name',
+        'medicine_name',
         'generic_name',
-        'category_name',
-        'manufacturer_name',
+        'category',
+        'manufacturer',
         'dosage_form',
         'strength',
-        'tablet_per_stripe',
-        'stripe_per_box',
-        'price_per_tablet',
+        'unit_type',
+        'sale_unit_label',
+        'tablets_per_strip',
+        'strips_per_box',
+        'package_size',
+        'price_per_unit',
         'price_per_stripe',
         'price_per_box',
-        'volume',
-        'price',
-        'cost_price', // FIX: was missing, causing silent update failures in PO flow
+        'mrp',
+        'cost_price',
         'reorder_level',
-        'status',
         'stock',
+        'is_active',
     ];
 
     protected $casts = [
-        'tablet_per_stripe' => 'integer',
-        'stripe_per_box' => 'integer',
-        'price_per_tablet' => 'decimal:4',
+        'tablets_per_strip' => 'integer',
+        'strips_per_box' => 'integer',
+        'price_per_unit' => 'decimal:2',
         'price_per_stripe' => 'decimal:2',
         'price_per_box' => 'decimal:2',
-        'price' => 'decimal:2',
+        'mrp' => 'decimal:2',
         'cost_price' => 'decimal:4',
         'reorder_level' => 'integer',
         'stock' => 'integer',
+        'is_active' => 'boolean',
     ];
 
     protected static function booted(): void

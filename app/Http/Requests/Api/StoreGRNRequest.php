@@ -25,18 +25,16 @@ class StoreGRNRequest extends FormRequest
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.medicine_id' => 'required|exists:medicines,id',
+            'items.*.dosage_form_snapshot' => 'required|string',
             'items.*.batch_number' => 'required|string|max:255',
-            'items.*.expiry_date' => 'required|date|after:today',
+            'items.*.expiry_date' => 'required|date',
             'items.*.qty_boxes_received' => 'required|integer|min:1',
-            'items.*.subtotal' => 'required|numeric|min:0',
-            
-            // Conditional Pricing Fields
+            'items.*.qty_units_received' => 'nullable|integer|min:0',
+            'items.*.package_size' => 'nullable|string|max:100',
             'items.*.cost_per_box' => 'nullable|numeric|min:0',
             'items.*.cost_per_stripe' => 'nullable|numeric|min:0',
-            'items.*.cost_per_tablet' => 'nullable|numeric|min:0',
-            'items.*.price' => 'nullable|numeric|min:0',
-            'items.*.strength' => 'nullable|string|max:100',
-            'items.*.volume' => 'nullable|string|max:100',
+            'items.*.cost_per_unit' => 'required|numeric|min:0',
+            'items.*.subtotal' => 'required|numeric|min:0',
         ];
     }
 }

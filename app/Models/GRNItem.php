@@ -31,16 +31,16 @@ class GRNItem extends Model
     protected $fillable = [
         'grn_id',
         'medicine_id',
+        'dosage_form_snapshot',
         'batch_number',
         'expiry_date',
         'qty_boxes_received',
-        'subtotal',
+        'qty_units_received',
+        'package_size',
         'cost_per_box',
         'cost_per_stripe',
-        'cost_per_tablet',
-        'strength',
-        'volume',
-        'price',
+        'cost_per_unit',
+        'subtotal',
     ];
 
     protected $casts = [
@@ -48,8 +48,7 @@ class GRNItem extends Model
         'subtotal' => 'decimal:2',
         'cost_per_box' => 'decimal:4',
         'cost_per_stripe' => 'decimal:4',
-        'cost_per_tablet' => 'decimal:4',
-        'price' => 'decimal:2',
+        'cost_per_unit' => 'decimal:4',
     ];
 
     public function grn()

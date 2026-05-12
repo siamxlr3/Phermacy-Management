@@ -166,13 +166,13 @@ const GRNTable = ({ onAdd, onEdit }) => {
                   <td className="px-5 py-5 max-w-xs">
                     <div className="flex flex-wrap gap-2">
                       {grn.items?.length > 0 ? grn.items.map((item, idx) => {
-                        const isGroupA = GROUP_A.includes(item.medicine_dosage_form);
+                        const isStripBased = GROUP_A.includes(item.dosage_form_snapshot || item.medicine_dosage_form);
                         return (
                           <div key={idx} className="inline-flex flex-col bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 min-w-0 gap-1">
                             {/* Medicine name + dosage form */}
                             <div className="flex items-center gap-1.5">
                               <span className="text-[10px] font-black text-slate-700 leading-tight truncate max-w-[130px]">{item.medicine_name}</span>
-                              <span className="text-[8px] font-bold text-slate-400 uppercase">{item.medicine_dosage_form}</span>
+                              <span className="text-[8px] font-bold text-slate-400 uppercase">{item.dosage_form_snapshot || item.medicine_dosage_form}</span>
                             </div>
 
                             {/* Batch + Expiry */}
@@ -188,35 +188,27 @@ const GRNTable = ({ onAdd, onEdit }) => {
 
                             {/* Qty */}
                             <div className="text-[9px] font-bold text-slate-500">
-                              {translations.grn.qty_n_unit.replace('{n}', item.qty_boxes_received).replace('{unit}', isGroupA ? translations.grn.per_box.replace('/', '') : translations.grn.per_unit.replace('/', ''))}
+                              {item.qty_boxes_received} Boxes { !isStripBased && item.qty_units_received > 1 && `(${item.qty_units_received} units/box)` }
                             </div>
 
                             {/* Cost Structure */}
-                            {isGroupA ? (
-                              <div className="flex flex-wrap gap-x-2 gap-y-0.5 border-t border-slate-100 pt-1 mt-0.5">
-                                {item.cost_per_box && (
-                                  <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.cost_per_box).toFixed(2)}<span className="text-slate-400 font-medium">{translations.grn.per_box}</span></span>
-                                )}
-                                {item.cost_per_stripe && (
-                                  <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.cost_per_stripe).toFixed(2)}<span className="text-slate-400 font-medium">{translations.grn.per_stripe}</span></span>
-                                )}
-                                {item.cost_per_tablet && (
-                                  <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.cost_per_tablet).toFixed(2)}<span className="text-slate-400 font-medium">{translations.grn.per_tab}</span></span>
-                                )}
-                                {item.strength && (
-                                  <span className="text-[8px] font-bold text-indigo-400">{item.strength}</span>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="flex flex-wrap gap-x-2 gap-y-0.5 border-t border-slate-100 pt-1 mt-0.5">
-                                {item.price && (
-                                  <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.price).toFixed(2)}<span className="text-slate-400 font-medium">{translations.grn.per_unit}</span></span>
-                                )}
-                                {item.volume && (
-                                  <span className="text-[8px] font-bold text-blue-500">{item.volume}</span>
-                                )}
-                              </div>
-                            )}
+                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 border-t border-slate-100 pt-1 mt-0.5">
+                              {isStripBased ? (
+                                <>
+                                  {item.cost_per_box && (
+                                    <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.cost_per_box).toFixed(2)}<span className="text-slate-400 font-medium">{translations.grn.per_box}</span></span>
+                                  )}
+                                  <span className="text-[8px] font-bold text-indigo-600">৳{parseFloat(item.cost_per_unit).toFixed(2)}<span className="text-slate-400 font-medium">/unit</span></span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.cost_per_unit).toFixed(2)}<span className="text-slate-400 font-medium">/unit</span></span>
+                                  {item.package_size && (
+                                    <span className="text-[8px] font-bold text-blue-500">{item.package_size}</span>
+                                  )}
+                                </>
+                              )}
+                            </div>
                           </div>
                         );
                       }) : (

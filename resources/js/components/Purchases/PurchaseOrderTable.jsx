@@ -198,23 +198,28 @@ const PurchaseOrderTable = () => {
                     <td className="px-5 py-5 max-w-xs">
                       <div className="flex flex-wrap gap-1.5">
                         {order.items?.length > 0 ? order.items.map((item, idx) => {
-                          const isGroupA = GROUP_A.includes(item.medicine_dosage_form);
+                          const isStripBased = GROUP_A.includes(item.dosage_form_snapshot);
                           return (
                             <div key={idx} className="inline-flex flex-col bg-slate-50 border border-slate-100 rounded-xl px-2.5 py-1.5 min-w-0">
                               <div className="flex items-center gap-1.5">
-                                {isGroupA
+                                {isStripBased
                                   ? <Boxes size={9} className="text-slate-400 shrink-0" />
                                   : <Droplets size={9} className="text-slate-400 shrink-0" />
                                 }
                                 <span className="text-[10px] font-black text-slate-700 truncate max-w-[120px]">{item.medicine_name}</span>
                               </div>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="text-[9px] font-bold text-slate-500">
-                                  {item.qty_boxes} {isGroupA ? translations.purchase_order.box : translations.purchase_order.unit}
-                                </span>
-                                <span className="text-[8px] text-slate-300">•</span>
-                                <span className="text-[9px] font-bold text-emerald-600">
-                                  ৳{parseFloat(item.unit_cost).toFixed(2)}/{isGroupA ? translations.purchase_order.box : translations.purchase_order.unit}
+                              <div className="flex flex-col gap-0.5 mt-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-[9px] font-bold text-slate-500">
+                                    {item.qty_boxes} <span className="text-[8px] uppercase">Boxes</span>
+                                  </span>
+                                  <span className="text-[8px] text-slate-300">•</span>
+                                  <span className="text-[9px] font-bold text-emerald-600">
+                                    ৳{parseFloat(item.cost_per_box).toFixed(2)} / box
+                                  </span>
+                                </div>
+                                <span className="text-[8px] font-bold text-indigo-400 uppercase tracking-tighter">
+                                  ৳{parseFloat(item.cost_per_unit).toFixed(2)} / unit
                                 </span>
                               </div>
                             </div>

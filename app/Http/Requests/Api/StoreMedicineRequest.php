@@ -20,26 +20,23 @@ class StoreMedicineRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:255',
+            'medicine_name' => 'required|string|max:255',
             'generic_name' => 'nullable|string|max:255',
-            'category_name' => 'required|string|max:255',
-            'manufacturer_name' => 'required|string|max:255',
-            'dosage_form' => 'required|string',
+            'category' => 'required|string|max:255',
+            'manufacturer' => 'required|string|max:255',
+            'dosage_form' => 'required|in:Tablet,Capsule,Syrup,Drops,Cream,Ointment,Gel,Lotion,Suspension,Injection,Inhaler,Powder,Suppository,Patch,Sachet',
             'strength' => 'nullable|string|max:100',
-            
-            // Group A Validation
-            'tablet_per_stripe' => 'required_if:dosage_form,Tablet,Capsule,Suppository,Patch|nullable|integer|min:1',
-            'stripe_per_box' => 'required_if:dosage_form,Tablet,Capsule,Suppository,Patch|nullable|integer|min:1',
-            'price_per_tablet' => 'required_if:dosage_form,Tablet,Capsule,Suppository,Patch|nullable|numeric|min:0',
-            'price_per_stripe' => 'required_if:dosage_form,Tablet,Capsule,Suppository,Patch|nullable|numeric|min:0',
-            'price_per_box' => 'required_if:dosage_form,Tablet,Capsule,Suppository,Patch|nullable|numeric|min:0',
-            
-            // Group B Validation
-            'volume' => 'required_if:dosage_form,Syrup,Suspension,Injection,Cream,Ointment,Gel,Drops,Inhaler,Powder,Lotion|nullable|string|max:100',
-            'price' => 'required_if:dosage_form,Syrup,Suspension,Injection,Cream,Ointment,Gel,Drops,Inhaler,Powder,Lotion|nullable|numeric|min:0',
-            
+            'unit_type' => 'required|string|max:100',
+            'sale_unit_label' => 'required|string|max:100',
+            'tablets_per_strip' => 'nullable|integer|min:1',
+            'strips_per_box' => 'nullable|integer|min:1',
+            'package_size' => 'nullable|string|max:100',
+            'price_per_unit' => 'required|numeric|min:0',
+            'price_per_stripe' => 'nullable|numeric|min:0',
+            'price_per_box' => 'nullable|numeric|min:0',
+            'mrp' => 'required|numeric|min:0',
             'reorder_level' => 'required|integer|min:0',
-            'status' => 'required|in:Active,Inactive',
+            'is_active' => 'required|boolean',
         ];
     }
 

@@ -142,7 +142,7 @@ const BatchListTable = ({ onAdd }) => {
               </tr>
             ) : (
               batches.map((batch) => {
-                const isGroupA = GROUP_A.includes(batch.medicine_dosage_form);
+                const isStripBased = GROUP_A.includes(batch.dosage_form_snapshot);
                 return (
                   <tr key={batch.id} className="group hover:bg-slate-50/50 transition-all duration-150">
                     <td className="px-6 py-5">
@@ -156,10 +156,10 @@ const BatchListTable = ({ onAdd }) => {
                     </td>
                     <td className="px-6 py-5 text-center">
                       <div className="flex flex-col items-center">
-                        <div className={`p-1.5 rounded-lg ${isGroupA ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
-                           {isGroupA ? <Boxes size={14} /> : <Droplets size={14} />}
+                        <div className={`p-1.5 rounded-lg ${isStripBased ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                           {isStripBased ? <Boxes size={14} /> : <Droplets size={14} />}
                         </div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">{batch.medicine_dosage_form}</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase mt-1">{batch.dosage_form_snapshot}</span>
                       </div>
                     </td>
                     <td className="px-6 py-5 text-center">
@@ -170,29 +170,32 @@ const BatchListTable = ({ onAdd }) => {
                     </td>
                     <td className="px-6 py-5 text-right">
                       <div className="flex flex-col items-end">
-                        <span className="text-sm font-black text-slate-900">
-                          {formatQty(batch.qty_tablets_remaining, batch.tablet_per_stripe, batch.stripe_per_box, isGroupA, translations)}
-                        </span>
+                        <div className="flex items-center gap-2">
+                           <span className="text-sm font-black text-slate-900">
+                             {batch.qty_boxes_remaining} <span className="text-[10px] text-slate-400 uppercase">Boxes</span>
+                           </span>
+                           {!isStripBased && batch.qty_units_remaining !== null && (
+                             <span className="text-sm font-black text-indigo-600">
+                               {batch.qty_units_remaining} <span className="text-[10px] text-slate-400 uppercase">Units</span>
+                             </span>
+                           )}
+                        </div>
                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-                          {translations.stock.of_n_total.replace('{n}', formatQty(batch.qty_tablets, batch.tablet_per_stripe, batch.stripe_per_box, isGroupA, translations))}
+                          Of {batch.qty_boxes} Boxes Total
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-5 text-right">
                       <div className="flex flex-col items-end gap-0.5">
-                        {isGroupA ? (
+                        <span className="text-xs font-black text-emerald-600">৳{parseFloat(batch.cost_per_unit).toFixed(2)}<span className="text-[10px] text-slate-400 uppercase ml-1">/ unit</span></span>
+                        {isStripBased ? (
                           <>
-                            <span className="text-xs font-black text-emerald-600">৳{batch.cost_per_tablet}{translations.stock.per_tab}</span>
-                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">৳{batch.cost_per_stripe}{translations.stock.per_strip} • ৳{batch.cost_per_box}{translations.stock.per_box}</span>
-                            {batch.strength && (
-                              <span className="text-[8px] font-bold text-indigo-400 mt-0.5">{batch.strength}</span>
-                            )}
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">৳{parseFloat(batch.cost_per_stripe || 0).toFixed(2)} / strip • ৳{parseFloat(batch.cost_per_box || 0).toFixed(2)} / box</span>
                           </>
                         ) : (
                           <>
-                            <span className="text-xs font-black text-emerald-600">৳{batch.price} {translations.stock.per_unit}</span>
-                            {batch.volume && (
-                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{batch.volume}</span>
+                            {batch.cost_per_box && (
+                              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">৳{parseFloat(batch.cost_per_box).toFixed(2)} / box</span>
                             )}
                           </>
                         )}

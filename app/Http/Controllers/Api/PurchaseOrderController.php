@@ -63,7 +63,7 @@ class PurchaseOrderController extends Controller
             $po = DB::transaction(function () use ($data) {
                 // Calculate total in-memory using collect()
                 $totalAmount = collect($data['items'])->sum(
-                    fn($item) => $item['qty_boxes'] * $item['unit_cost']
+                    fn($item) => $item['qty_boxes'] * $item['cost_per_box']
                 );
 
                 $po = PurchaseOrder::create([
@@ -84,17 +84,23 @@ class PurchaseOrderController extends Controller
                     $itemsData[] = [
                         'purchase_order_id' => $po->id,
                         'medicine_id' => $item['medicine_id'],
+                        'dosage_form_snapshot' => $item['dosage_form_snapshot'],
                         'qty_boxes' => $item['qty_boxes'],
-                        'unit_cost' => $item['unit_cost'],
-                        'subtotal' => $item['qty_boxes'] * $item['unit_cost'],
+                        'cost_per_box' => $item['cost_per_box'],
+                        'cost_per_stripe' => $item['cost_per_stripe'] ?? null,
+                        'cost_per_unit' => $item['cost_per_unit'],
+                        'subtotal' => $item['qty_boxes'] * $item['cost_per_box'],
                         'created_at' => now(),
                         'updated_at' => now(),
                     ];
 
                     // In-memory lookup — zero additional DB queries
                     $medicine = $medicines->get($item['medicine_id']);
-                    if ($medicine && $medicine->cost_price != $item['unit_cost']) {
-                        $medicine->update(['cost_price' => $item['unit_cost']]);
+                    if ($medicine) {
+                        $medicine->update([
+                            'cost_price' => $item['cost_per_box'],
+                            'price_per_unit' => $item['cost_per_unit']
+                        ]);
                     }
                 }
 
@@ -119,14 +125,14 @@ class PurchaseOrderController extends Controller
         return new PurchaseOrderResource($po->load(['supplier', 'items.medicine']));
     }
 
-    public function update(StorePurchaseOrderRequest $request, PurchaseOrder $po): JsonResponse
+    public function update(UpdatePurchaseOrderRequest $request, PurchaseOrder $po): JsonResponse
     {
         try {
             $data = $request->validated();
 
             $po = DB::transaction(function () use ($po, $data) {
                 $totalAmount = collect($data['items'])->sum(
-                    fn($item) => $item['qty_boxes'] * $item['unit_cost']
+                    fn($item) => $item['qty_boxes'] * $item['cost_per_box']
                 );
 
                 $po->update([
@@ -147,19 +153,24 @@ class PurchaseOrderController extends Controller
                     $itemsData[] = [
                         'purchase_order_id' => $po->id,
                         'medicine_id' => $item['medicine_id'],
+                        'dosage_form_snapshot' => $item['dosage_form_snapshot'],
                         'qty_boxes' => $item['qty_boxes'],
-                        'unit_cost' => $item['unit_cost'],
-                        'subtotal' => $item['qty_boxes'] * $item['unit_cost'],
+                        'cost_per_box' => $item['cost_per_box'],
+                        'cost_per_stripe' => $item['cost_per_stripe'] ?? null,
+                        'cost_per_unit' => $item['cost_per_unit'],
+                        'subtotal' => $item['qty_boxes'] * $item['cost_per_box'],
                         'created_at' => now(),
                         'updated_at' => now(),
                     ];
 
                     $medicine = $medicines->get($item['medicine_id']);
-                    if ($medicine && $medicine->cost_price != $item['unit_cost']) {
-                        $medicine->update(['cost_price' => $item['unit_cost']]);
+                    if ($medicine) {
+                        $medicine->update([
+                            'cost_price' => $item['cost_per_box'],
+                            'price_per_unit' => $item['cost_per_unit']
+                        ]);
                     }
                 }
-
                 PurchaseOrderItem::insert($itemsData);
 
                 return $po;

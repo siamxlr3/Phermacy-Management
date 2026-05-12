@@ -15,8 +15,11 @@ return new class extends Migration
             $table->id();
             $table->foreignId('purchase_order_id')->constrained('purchase_orders')->onDelete('cascade');
             $table->foreignId('medicine_id')->constrained('medicines')->onDelete('restrict');
+            $table->string('dosage_form_snapshot');
             $table->integer('qty_boxes');
-            $table->decimal('unit_cost', 15, 2);
+            $table->decimal('cost_per_box', 15, 4);
+            $table->decimal('cost_per_stripe', 15, 4)->nullable();
+            $table->decimal('cost_per_unit', 15, 4);
             $table->decimal('subtotal', 15, 2);
             $table->timestamps();
         });

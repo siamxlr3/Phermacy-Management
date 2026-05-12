@@ -23,14 +23,19 @@ class PurchaseOrderItem extends Model
     protected $fillable = [
         'purchase_order_id',
         'medicine_id',
+        'dosage_form_snapshot',
         'qty_boxes',
-        'unit_cost',
+        'cost_per_box',
+        'cost_per_stripe',
+        'cost_per_unit',
         'subtotal',
     ];
 
     protected $casts = [
         'qty_boxes' => 'integer',
-        'unit_cost' => 'decimal:2',
+        'cost_per_box' => 'decimal:4',
+        'cost_per_stripe' => 'decimal:4',
+        'cost_per_unit' => 'decimal:4',
         'subtotal' => 'decimal:2',
     ];
 

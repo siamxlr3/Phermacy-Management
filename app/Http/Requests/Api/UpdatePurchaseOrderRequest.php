@@ -22,8 +22,11 @@ class UpdatePurchaseOrderRequest extends FormRequest
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.medicine_id' => 'required|exists:medicines,id',
+            'items.*.dosage_form_snapshot' => 'required|string',
             'items.*.qty_boxes' => 'required|integer|min:1',
-            'items.*.unit_cost' => 'required|numeric|min:0',
+            'items.*.cost_per_box' => 'required|numeric|min:0',
+            'items.*.cost_per_unit' => 'required|numeric|min:0',
+            'items.*.cost_per_stripe' => 'nullable|numeric|min:0',
         ];
     }
 }

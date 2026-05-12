@@ -51,6 +51,7 @@ Route::apiResource('suppliers', SupplierController::class);
 Route::patch('purchase-orders/{purchase_order}/status', [PurchaseOrderController::class, 'updateStatus']);
 Route::apiResource('purchase-orders', PurchaseOrderController::class);
 
+Route::post('medicines/import', [MedicineController::class, 'import']);
 Route::get('medicines/active', [MedicineController::class, 'active']);
 Route::apiResource('medicines', MedicineController::class);
 

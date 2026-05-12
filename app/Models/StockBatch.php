@@ -31,25 +31,27 @@ class StockBatch extends Model
         'medicine_id',
         'supplier_id',
         'grn_id',
+        'dosage_form_snapshot',
         'batch_number',
         'expiry_date',
         'qty_tablets',
         'qty_tablets_remaining',
-        'cost_per_tablet',
+        'qty_boxes',
+        'qty_boxes_remaining',
+        'qty_units',
+        'qty_units_remaining',
+        'cost_per_unit',
         'cost_per_stripe',
         'cost_per_box',
-        'volume',
-        'price',
         'received_date',
     ];
 
     protected $casts = [
         'expiry_date' => 'date',
         'received_date' => 'date',
-        'cost_per_tablet' => 'decimal:4',
+        'cost_per_unit' => 'decimal:4',
         'cost_per_stripe' => 'decimal:4',
         'cost_per_box' => 'decimal:4',
-        'price' => 'decimal:2',
     ];
 
     public function medicine()

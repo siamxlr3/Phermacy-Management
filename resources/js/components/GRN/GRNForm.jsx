@@ -7,7 +7,7 @@ import { X, Receipt, Search, User, Package, Calculator, Loader2, CheckCircle2, E
 import toast from 'react-hot-toast';
 import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
-const GROUP_A = ['Tablet', 'Capsule', 'Suppository', 'Patch'];
+const GROUP_A = ['Tablet', 'Capsule', 'Suppository', 'Sachet'];
 
 const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
   const { translations } = useLanguage();
@@ -43,7 +43,6 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
       setSupplierId(String(grn.supplier_id));
       setInvoiceNumber(grn.invoice_number || '');
       setReceivedBy(grn.received_by || '');
-      // Handle both GRN received_date and PO order_date
       setReceivedDate(grn.received_date || grn.order_date || new Date().toISOString().split('T')[0]);
       setPaymentStatus(grn.payment_status || 'Due');
       setNotes(grn.notes || '');
@@ -51,20 +50,18 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
         (grn.items || []).map(item => ({
           medicine_id: item.medicine_id,
           medicine_name: item.medicine_name,
-          dosage_form: item.medicine_dosage_form,
+          dosage_form_snapshot: item.dosage_form_snapshot || item.medicine_dosage_form,
           batch_number: item.batch_number || '',
           expiry_date: item.expiry_date || '',
-          // Handle both GRN qty_boxes_received and PO qty_boxes
           qty_boxes_received: item.qty_boxes_received || item.qty_boxes || 1,
+          qty_units_received: item.qty_units_received || 1,
+          package_size: item.package_size || '',
           subtotal: item.subtotal,
-          cost_per_box: item.cost_per_box || item.unit_cost || '',
+          cost_per_box: item.cost_per_box || '',
           cost_per_stripe: item.cost_per_stripe || '',
-          cost_per_tablet: item.cost_per_tablet || '',
-          strength: item.strength || '',
-          volume: item.volume || '',
-          price: item.price || item.unit_cost || '',
-          tablet_per_stripe: item.medicine?.tablet_per_stripe || 10,
-          stripe_per_box: item.medicine?.stripe_per_box || 10,
+          cost_per_unit: item.cost_per_unit || item.unit_cost || '',
+          tablets_per_strip: item.medicine?.tablets_per_strip || 10,
+          strips_per_box: item.medicine?.strips_per_box || 10,
         }))
       );
     }
@@ -76,19 +73,18 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
       {
         medicine_id: '',
         medicine_name: '',
-        dosage_form: '',
+        dosage_form_snapshot: '',
         batch_number: '',
         expiry_date: '',
         qty_boxes_received: 1,
+        qty_units_received: 1,
+        package_size: '',
         subtotal: 0,
         cost_per_box: '',
         cost_per_stripe: '',
-        cost_per_tablet: '',
-        strength: '',
-        volume: '',
-        price: '',
-        tablet_per_stripe: 10,
-        stripe_per_box: 10,
+        cost_per_unit: '',
+        tablets_per_strip: 10,
+        strips_per_box: 10,
       }
     ]);
   };
@@ -106,26 +102,35 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
       if (selectedMed) {
         item.medicine_id = selectedMed.id;
         item.medicine_name = selectedMed.name;
-        item.dosage_form = selectedMed.dosage_form;
-        item.strength = selectedMed.strength || '';
-        item.volume = selectedMed.volume || '';
-        item.price = selectedMed.price || 0;
+        item.dosage_form_snapshot = selectedMed.dosage_form;
+        item.package_size = selectedMed.package_size || '';
+        item.cost_per_unit = selectedMed.cost_price || 0;
         item.cost_per_box = selectedMed.price_per_box || 0;
         item.cost_per_stripe = selectedMed.price_per_stripe || 0;
-        item.cost_per_tablet = selectedMed.price_per_tablet || 0;
-        item.tablet_per_stripe = selectedMed.tablet_per_stripe || 10;
-        item.stripe_per_box = selectedMed.stripe_per_box || 10;
+        item.tablets_per_strip = selectedMed.tablets_per_strip || 10;
+        item.strips_per_box = selectedMed.strips_per_box || 10;
+        item.qty_units_received = selectedMed.qty_units_received || 1;
       }
     } else {
       item[field] = value;
     }
 
-    // Auto-calculate subtotal
-    const isGroupA = GROUP_A.includes(item.dosage_form);
-    if (isGroupA) {
+    // Auto-calculate logic
+    const isStripBased = GROUP_A.includes(item.dosage_form_snapshot);
+    
+    if (field === 'cost_per_box' && isStripBased) {
+      const totalUnitsInBox = (parseFloat(item.tablets_per_strip) || 1) * (parseFloat(item.strips_per_box) || 1);
+      item.cost_per_unit = (parseFloat(value) / totalUnitsInBox).toFixed(4);
+    } else if (field === 'cost_per_unit' && !isStripBased) {
+       // Manual unit cost entry for liquids
+    }
+
+    if (isStripBased) {
       item.subtotal = (parseFloat(item.qty_boxes_received) || 0) * (parseFloat(item.cost_per_box) || 0);
     } else {
-      item.subtotal = (parseFloat(item.qty_boxes_received) || 0) * (parseFloat(item.price) || 0);
+      const unitsPerBox = parseFloat(item.qty_units_received) || 1;
+      const totalUnits = (parseFloat(item.qty_boxes_received) || 0) * unitsPerBox;
+      item.subtotal = totalUnits * (parseFloat(item.cost_per_unit) || 0);
     }
 
     newItems[index] = item;
@@ -152,7 +157,8 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
       return;
     }
     if (items.some(i => {
-      const cost = GROUP_A.includes(i.dosage_form) ? i.cost_per_box : i.price;
+      const isStripBased = GROUP_A.includes(i.dosage_form_snapshot);
+      const cost = isStripBased ? i.cost_per_box : i.cost_per_unit;
       return !cost || cost < 0;
     })) {
       toast.error(translations.grn.valid_cost);
@@ -165,12 +171,13 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
     if (isPO) {
       payload = {
         supplier_id: supplierId,
-        order_date: receivedDate, // Using the same date field
+        order_date: receivedDate,
         notes,
         items: items.map(i => ({
           medicine_id: i.medicine_id,
+          dosage_form_snapshot: i.dosage_form_snapshot,
           qty_boxes: i.qty_boxes_received,
-          unit_cost: GROUP_A.includes(i.dosage_form) ? i.cost_per_box : i.price,
+          unit_cost: GROUP_A.includes(i.dosage_form_snapshot) ? i.cost_per_box : i.cost_per_unit,
         }))
       };
     } else {
@@ -320,13 +327,13 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
 
           <div className="space-y-4">
             {items.map((item, index) => {
-              const isGroupA = GROUP_A.includes(item.dosage_form);
-              const totalStockUnits = isGroupA 
-                ? (parseInt(item.qty_boxes_received) || 0) * (item.stripe_per_box || 10) * (item.tablet_per_stripe || 10)
-                : (parseInt(item.qty_boxes_received) || 0);
-              const costPerUnit = isGroupA && item.cost_per_box
-                ? (parseFloat(item.cost_per_box) / ((item.stripe_per_box || 10) * (item.tablet_per_stripe || 10))).toFixed(2)
-                : (parseFloat(item.price || 0)).toFixed(2);
+              const isStripBased = GROUP_A.includes(item.dosage_form_snapshot);
+              
+              const totalStockUnits = isStripBased 
+                ? (parseInt(item.qty_boxes_received) || 0) * (item.strips_per_box || 10) * (item.tablets_per_strip || 10)
+                : (parseInt(item.qty_boxes_received) || 0) * (parseInt(item.qty_units_received) || 1);
+                
+              const displayCostPerUnit = parseFloat(item.cost_per_unit || 0).toFixed(4);
 
               return (
                 <div key={index} className="bg-[#f4f7f4] p-5 rounded-2xl border border-slate-200/60 shadow-sm space-y-5 relative group/item">
@@ -336,7 +343,8 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
                     className="absolute -top-2 -right-2 w-7 h-7 bg-white text-rose-500 border border-slate-200 rounded-full flex items-center justify-center shadow-md hover:bg-rose-50 transition-all opacity-0 group-hover/item:opacity-100 z-10"
                   >
                     <Trash2 size={14} />
-                  </button>                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  </button>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-500 uppercase">
                         {translations.grn.select_medicine}
@@ -387,7 +395,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
 
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-500 uppercase">
-                        {isGroupA ? translations.grn.qty_boxes : translations.grn.qty_units}
+                        {translations.grn.qty_boxes}
                       </label>
                       <input
                         type="number"
@@ -399,15 +407,31 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
                       />
                     </div>
 
+                    {!isStripBased && (
+                       <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-slate-500 uppercase">
+                           Units per Box
+                        </label>
+                        <input
+                          type="number"
+                          required
+                          min="1"
+                          value={item.qty_units_received}
+                          onChange={(e) => handleItemChange(index, 'qty_units_received', e.target.value)}
+                          className="w-full px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl font-black text-slate-800 outline-none focus:border-indigo-400"
+                        />
+                      </div>
+                    )}
+
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-black text-slate-500 uppercase">
-                        {isGroupA ? translations.grn.cost_box : translations.grn.unit_cost}
+                        {isStripBased ? translations.grn.cost_box : "Cost per Unit"}
                       </label>
                       <input
                         type="number"
-                        step="0.01"
-                        value={isGroupA ? item.cost_per_box : item.price}
-                        onChange={(e) => handleItemChange(index, isGroupA ? 'cost_per_box' : 'price', e.target.value)}
+                        step="0.0001"
+                        value={isStripBased ? item.cost_per_box : item.cost_per_unit}
+                        onChange={(e) => handleItemChange(index, isStripBased ? 'cost_per_box' : 'cost_per_unit', e.target.value)}
                         className="w-full px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl font-black text-slate-800 outline-none focus:border-indigo-400 text-right font-mono"
                       />
                     </div>
@@ -417,11 +441,11 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
                         {translations.grn.subtotal}
                       </label>
                       <div className="w-full px-4 py-2.5 text-sm bg-slate-200/50 border border-slate-200 rounded-xl font-black text-slate-600 text-right font-mono">
-                        ৳ {parseFloat(item.subtotal || 0).toFixed(2)}
+                        ৳ {parseFloat(item.subtotal || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
                       </div>
                     </div>
 
-                    {isGroupA && (
+                    {isStripBased && (
                       <>
                         <div className="space-y-1.5">
                           <label className="text-[10px] font-black text-slate-400 uppercase">{translations.grn.cost_stripe}</label>
@@ -430,37 +454,30 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
                         </div>
                         <div className="space-y-1.5">
                           <label className="text-[10px] font-black text-slate-400 uppercase">{translations.grn.cost_tablet}</label>
-                          <input type="number" step="0.01" value={item.cost_per_tablet} onChange={(e) => handleItemChange(index, 'cost_per_tablet', e.target.value)}
-                            className="w-full px-4 py-2.5 text-sm bg-white/50 border border-slate-200 rounded-xl font-bold text-slate-500 outline-none text-right font-mono" />
+                          <div className="w-full px-4 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-500 text-right font-mono">
+                            {item.cost_per_unit}
+                          </div>
                         </div>
                       </>
                     )}
 
-                    {isGroupA && (
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase">{translations.grn.strength}</label>
-                        <input type="text" value={item.strength} onChange={(e) => handleItemChange(index, 'strength', e.target.value)}
-                          className="w-full px-4 py-2.5 text-sm bg-white/50 border border-slate-200 rounded-xl font-bold text-slate-500 outline-none" />
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-400 uppercase">
+                         Package Size
+                      </label>
+                      <div className="w-full px-4 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-500">
+                        {item.package_size || 'N/A'}
                       </div>
-                    )}
-
-                    {!isGroupA && (
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-400 uppercase">{translations.grn.volume}</label>
-                        <input type="text" value={item.volume} onChange={(e) => handleItemChange(index, 'volume', e.target.value)}
-                          className="w-full px-4 py-2.5 text-sm bg-white/50 border border-slate-200 rounded-xl font-bold text-slate-500 outline-none" />
-                      </div>
-                    )}
+                    </div>
                   </div>
-
 
                   {item.medicine_id && (
                     <div className="bg-white px-4 py-2 rounded-lg border border-slate-100 shadow-inner">
                       <p className="text-[11px] font-medium text-slate-600">
-                        {isGroupA ? (
-                          <>{translations.grn.stock_add_group_a.replace('{qty}', item.qty_boxes_received).replace('{stripes}', item.stripe_per_box).replace('{tablets}', item.tablet_per_stripe).replace('{total}', totalStockUnits)} | <span className="text-slate-400 font-bold uppercase tracking-tighter text-[9px]">{translations.grn.cost_tablet_label}</span> <span className="font-black text-indigo-600">৳ {costPerUnit}</span></>
+                        {isStripBased ? (
+                          <>{translations.grn.stock_add_group_a.replace('{qty}', item.qty_boxes_received).replace('{stripes}', item.strips_per_box).replace('{tablets}', item.tablets_per_strip).replace('{total}', totalStockUnits)} | <span className="text-slate-400 font-bold uppercase tracking-tighter text-[9px]">{translations.grn.cost_tablet_label}</span> <span className="font-black text-indigo-600">৳ {displayCostPerUnit}</span></>
                         ) : (
-                          <>{translations.grn.stock_add_unit.replace('{total}', totalStockUnits)} | <span className="text-slate-400 font-bold uppercase tracking-tighter text-[9px]">{translations.grn.unit_cost_label}</span> <span className="font-black text-indigo-600">৳ {costPerUnit}</span></>
+                          <>Adding {totalStockUnits} total units ({item.qty_boxes_received} boxes × {item.qty_units_received} units) | <span className="text-slate-400 font-bold uppercase tracking-tighter text-[9px]">Cost per Unit</span> <span className="font-black text-indigo-600">৳ {displayCostPerUnit}</span></>
                         )}
                       </p>
                     </div>
