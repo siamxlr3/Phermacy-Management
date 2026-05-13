@@ -1,13 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAddGRNMutation, useUpdateGRNMutation } from '../../store/api/grnApi';
 import { useAddPurchaseOrderMutation, useUpdatePurchaseOrderMutation } from '../../store/api/purchaseApi';
 import { useGetActiveSuppliersQuery } from '../../store/api/supplierApi';
 import { useGetActiveMedicinesQuery } from '../../store/api/medicineApi';
-import { X, Receipt, Search, User, Package, Calculator, Loader2, CheckCircle2, Edit2, Info, CreditCard, Factory, Calendar, Boxes, Droplets, Plus, Trash2, ShoppingBag } from 'lucide-react';
+import { X, Search, Plus, Trash2, Save, ShoppingBag, Receipt, Boxes, Droplets, Info, Loader2, FlaskConical, Pill, Syringe, Biohazard, Baby, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const GROUP_A = ['Tablet', 'Capsule', 'Suppository', 'Sachet'];
+const LIQUID_FORMS = ['Syrup', 'Suspension', 'Drops', 'Oral Solution'];
+const TOPICAL_FORMS = ['Cream', 'Ointment', 'Gel', 'Lotion', 'Patch'];
+const INJECTION_FORMS = ['Injection', 'Vial', 'Ampoule', 'Infusion'];
 
 const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
   const { translations } = useLanguage();
@@ -22,6 +25,11 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
   const [paymentStatus, setPaymentStatus] = useState('Due');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState([]);
+
+  // Search State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const searchRef = useRef(null);
 
   // API Hooks
   const { data: suppliersData } = useGetActiveSuppliersQuery();
@@ -49,7 +57,8 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
       setItems(
         (grn.items || []).map(item => ({
           medicine_id: item.medicine_id,
-          medicine_name: item.medicine_name,
+          name: item.medicine_name,
+          generic: item.medicine?.generic_name || '',
           dosage_form_snapshot: item.dosage_form_snapshot || item.medicine_dosage_form,
           batch_number: item.batch_number || '',
           expiry_date: item.expiry_date || '',
@@ -62,31 +71,58 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
           cost_per_unit: item.cost_per_unit || item.unit_cost || '',
           tablets_per_strip: item.medicine?.tablets_per_strip || 10,
           strips_per_box: item.medicine?.strips_per_box || 10,
+          mrp: item.medicine?.price_per_unit || 0,
+          stock: item.medicine?.stock || 0
         }))
       );
     }
   }, [grn]);
 
-  const handleAddItem = () => {
+  // Click outside search to close
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setIsSearchOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleSelectMedicine = (med) => {
+    // Check if already added
+    if (items.some(i => i.medicine_id === med.id)) {
+      toast.error(translations.grn?.already_added || 'Medicine already added');
+      setIsSearchOpen(false);
+      return;
+    }
+
+    const isManualEntry = ['Tablet', 'Capsule'].includes(med.dosage_form);
+
     setItems([
       ...items,
       {
-        medicine_id: '',
-        medicine_name: '',
-        dosage_form_snapshot: '',
+        medicine_id: med.id,
+        name: med.medicine_name,
+        generic: med.generic_name,
+        dosage_form_snapshot: med.dosage_form,
         batch_number: '',
         expiry_date: '',
         qty_boxes_received: 1,
-        qty_units_received: 1,
-        package_size: '',
-        subtotal: 0,
-        cost_per_box: '',
-        cost_per_stripe: '',
-        cost_per_unit: '',
-        tablets_per_strip: 10,
-        strips_per_box: 10,
+        qty_units_received: med.qty_units_received || 1,
+        package_size: med.package_size || '',
+        subtotal: isManualEntry ? 0 : (med.price_per_box || 0),
+        cost_per_box: isManualEntry ? 0 : (med.price_per_box || 0),
+        cost_per_stripe: isManualEntry ? 0 : (med.price_per_stripe || 0),
+        cost_per_unit: isManualEntry ? 0 : (med.price_per_unit || 0),
+        tablets_per_strip: med.tablets_per_strip || 10,
+        strips_per_box: med.strips_per_box || 10,
+        mrp: med.price_per_unit || 0,
+        stock: med.stock || 0
       }
     ]);
+    setIsSearchOpen(false);
+    setSearchTerm('');
   };
 
   const handleRemoveItem = (index) => {
@@ -96,41 +132,28 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
   const handleItemChange = (index, field, value) => {
     const newItems = [...items];
     const item = { ...newItems[index] };
-
-    if (field === 'medicine_id') {
-      const selectedMed = medicines.find(m => m.id === parseInt(value));
-      if (selectedMed) {
-        item.medicine_id = selectedMed.id;
-        item.medicine_name = selectedMed.name;
-        item.dosage_form_snapshot = selectedMed.dosage_form;
-        item.package_size = selectedMed.package_size || '';
-        item.cost_per_unit = selectedMed.cost_price || 0;
-        item.cost_per_box = selectedMed.price_per_box || 0;
-        item.cost_per_stripe = selectedMed.price_per_stripe || 0;
-        item.tablets_per_strip = selectedMed.tablets_per_strip || 10;
-        item.strips_per_box = selectedMed.strips_per_box || 10;
-        item.qty_units_received = selectedMed.qty_units_received || 1;
-      }
-    } else {
-      item[field] = value;
-    }
+    item[field] = value;
 
     // Auto-calculate logic
     const isStripBased = GROUP_A.includes(item.dosage_form_snapshot);
     
-    if (field === 'cost_per_box' && isStripBased) {
-      const totalUnitsInBox = (parseFloat(item.tablets_per_strip) || 1) * (parseFloat(item.strips_per_box) || 1);
-      item.cost_per_unit = (parseFloat(value) / totalUnitsInBox).toFixed(4);
-    } else if (field === 'cost_per_unit' && !isStripBased) {
-       // Manual unit cost entry for liquids
-    }
-
+    // For Tablet/Capsule, allow fully independent manual entry
     if (isStripBased) {
-      item.subtotal = (parseFloat(item.qty_boxes_received) || 0) * (parseFloat(item.cost_per_box) || 0);
+      if (field === 'cost_per_box' || field === 'qty_boxes_received') {
+        item.subtotal = (parseFloat(item.qty_boxes_received) || 0) * (parseFloat(item.cost_per_box) || 0);
+      }
+      // cost_per_stripe and cost_per_unit are now independent - no auto-overwriting
     } else {
-      const unitsPerBox = parseFloat(item.qty_units_received) || 1;
-      const totalUnits = (parseFloat(item.qty_boxes_received) || 0) * unitsPerBox;
-      item.subtotal = totalUnits * (parseFloat(item.cost_per_unit) || 0);
+      // For liquids, keep the box/unit relationship as it's simpler
+      if (field === 'cost_per_box') {
+        item.cost_per_unit = (parseFloat(value) / (parseFloat(item.qty_units_received) || 1)).toFixed(4);
+        item.subtotal = (parseFloat(item.qty_boxes_received) || 0) * (parseFloat(value) || 0);
+      } else if (field === 'cost_per_unit') {
+        item.cost_per_box = (parseFloat(value) * (parseFloat(item.qty_units_received) || 1)).toFixed(2);
+        item.subtotal = (parseFloat(item.qty_boxes_received) || 0) * (parseFloat(item.cost_per_box) || 0);
+      } else if (field === 'qty_boxes_received') {
+        item.subtotal = (parseFloat(value) || 0) * (parseFloat(item.cost_per_box) || 0);
+      }
     }
 
     newItems[index] = item;
@@ -138,30 +161,14 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
   };
 
   const calculateGrandTotal = () => items.reduce((sum, item) => sum + (parseFloat(item.subtotal) || 0), 0);
-  const totalBoxes = items.reduce((sum, item) => sum + (parseInt(item.qty_boxes_received) || 0), 0);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!supplierId) { toast.error(translations.grn.supplier_required); return; }
     if (items.length === 0) { toast.error(translations.grn.add_one_item); return; }
-    if (items.some(i => !i.medicine_id)) {
-      toast.error(translations.grn.select_med_all);
-      return;
-    }
+    
     if (!isPO && items.some(i => !i.batch_number || !i.expiry_date)) {
       toast.error(translations.grn.complete_batch_exp);
-      return;
-    }
-    if (items.some(i => !i.qty_boxes_received || i.qty_boxes_received <= 0)) {
-      toast.error(translations.grn.valid_qty);
-      return;
-    }
-    if (items.some(i => {
-      const isStripBased = GROUP_A.includes(i.dosage_form_snapshot);
-      const cost = isStripBased ? i.cost_per_box : i.cost_per_unit;
-      return !cost || cost < 0;
-    })) {
-      toast.error(translations.grn.valid_cost);
       return;
     }
 
@@ -177,7 +184,9 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
           medicine_id: i.medicine_id,
           dosage_form_snapshot: i.dosage_form_snapshot,
           qty_boxes: i.qty_boxes_received,
-          unit_cost: GROUP_A.includes(i.dosage_form_snapshot) ? i.cost_per_box : i.cost_per_unit,
+          cost_per_box: i.cost_per_box,
+          cost_per_unit: i.cost_per_unit,
+          cost_per_stripe: i.cost_per_stripe || null,
         }))
       };
     } else {
@@ -219,334 +228,359 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
     }
   };
 
+  const filteredMedicines = searchTerm.trim() === '' 
+    ? [] 
+    : medicines.filter(m => 
+        (m.medicine_name || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+        (m.generic_name || '').toLowerCase().includes(searchTerm.toLowerCase())
+      ).slice(0, 8);
+
+  const getDosageIcon = (form) => {
+    if (GROUP_A.includes(form)) return <Pill size={16} className="text-indigo-500" />;
+    if (LIQUID_FORMS.includes(form)) return <FlaskConical size={16} className="text-blue-500" />;
+    if (TOPICAL_FORMS.includes(form)) return <Droplets size={16} className="text-amber-500" />;
+    if (INJECTION_FORMS.includes(form)) return <Syringe size={16} className="text-rose-500" />;
+    return <Biohazard size={16} className="text-slate-500" />;
+  };
+
+  const getDosageBadgeClass = (form) => {
+    if (GROUP_A.includes(form)) return "bg-indigo-50 text-indigo-700";
+    if (LIQUID_FORMS.includes(form)) return "bg-blue-50 text-blue-700";
+    if (TOPICAL_FORMS.includes(form)) return "bg-amber-50 text-amber-700";
+    if (INJECTION_FORMS.includes(form)) return "bg-rose-50 text-rose-700";
+    return "bg-slate-50 text-slate-700";
+  };
+
   return (
-    <div className="bg-[#f8fafc] rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[96vh] w-full max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="shrink-0 px-8 py-5 border-b border-slate-100 flex items-center justify-between bg-white">
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isPO ? 'bg-indigo-50 text-indigo-500' : 'bg-emerald-50 text-emerald-500'}`}>
-            {isPO ? <ShoppingBag size={20} /> : <Receipt size={20} />}
-          </div>
-          <div>
-            <h3 className="text-lg font-black text-slate-800 tracking-tight">
-              {isEditing 
-                ? translations.grn.edit_type.replace('{type}', isPO ? 'Purchase Order' : 'GRN') 
-                : translations.grn.new_type.replace('{type}', isPO ? 'Purchase Order' : 'GRN')} — <span className="text-slate-400 font-bold">{isPO ? translations.grn.procurement_planning : translations.grn.manage_inventory}</span>
-            </h3>
-          </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-[2px]">
+      <style>{`
+        .grn-modal { background: white; border-radius: 20px; overflow: hidden; width: 100%; max-width: 720px; box-shadow: 0 20px 50px rgba(0,0,0,0.15); display: flex; flex-direction: column; max-height: 94vh; }
+        .grn-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 0.5px solid #f1f5f9; }
+        .grn-header h3 { font-size: 15px; font-weight: 700; color: #1e293b; display: flex; align-items: center; gap: 10px; }
+        .grn-body { padding: 24px; overflow-y: auto; flex: 1; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        .form-row.three { grid-template-columns: 1fr 1fr 1fr; }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        .form-group label { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; }
+        .form-group input, .form-group select { padding: 12px 16px; border: 1.5px solid #e2e8f0; border-radius: 14px; font-size: 14px; color: #1e293b; font-weight: 600; width: 100%; transition: all 0.2s; background: white; }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,0.08); background: white; }
+        .readonly { background: #f1f5f9 !important; color: #94a3b8 !important; border-color: #e2e8f0 !important; cursor: not-allowed; }
+        .auto-tag { font-size: 9px; color: #0369a1; background: #e0f2fe; padding: 2px 6px; border-radius: 6px; font-weight: 700; margin-left: 6px; text-transform: uppercase; }
+        .section-label { font-size: 11px; font-weight: 800; color: #475569; margin: 24px 0 12px; padding-bottom: 8px; border-bottom: 1.5px solid #f1f5f9; text-transform: uppercase; display: flex; align-items: center; justify-content: space-between; }
+        .med-card { background: #f8fafc; border: 1.5px solid #f1f5f9; border-radius: 16px; padding: 16px; margin-bottom: 16px; position: relative; transition: all 0.2s; }
+        .med-card:hover { border-color: #e2e8f0; box-shadow: 0 4px 12px rgba(0,0,0,0.02); }
+        .med-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+        .med-badge { font-size: 10px; padding: 3px 10px; border-radius: 20px; font-weight: 700; }
+        .remove-btn { width: 32px; height: 32px; border-radius: 10px; border: 1.5px solid #f1f5f9; background: white; color: #94a3b8; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .remove-btn:hover { background: #fef2f2; color: #ef4444; border-color: #fee2e2; }
+        .search-wrap { position: relative; }
+        .search-input { width: 100%; padding: 12px 16px 12px 42px; border: 1.5px solid #f1f5f9; border-radius: 14px; font-size: 14px; color: #1e293b; font-weight: 600; transition: all 0.2s; }
+        .search-input:focus { outline: none; border-color: #10b981; box-shadow: 0 0 0 4px rgba(16,185,129,0.05); }
+        .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+        .dropdown { position: absolute; top: calc(100% + 8px); left: 0; right: 0; background: white; border: 1.5px solid #f1f5f9; border-radius: 14px; z-index: 100; max-height: 280px; overflow-y: auto; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .dd-item { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #f8fafc; transition: all 0.1s; }
+        .dd-item:hover { background: #f8fafc; }
+        .dd-left h5 { font-size: 13px; font-weight: 700; color: #1e293b; margin-bottom: 2px; }
+        .dd-left p { font-size: 11px; color: #64748b; font-weight: 500; }
+        .dd-right { text-align: right; }
+        .dd-right .price { font-size: 12px; font-weight: 700; color: #059669; }
+        .dd-right .stock { font-size: 10px; color: #94a3b8; font-weight: 600; }
+        .info-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+        .info-pill { font-size: 10px; padding: 4px 10px; border-radius: 8px; background: white; color: #64748b; border: 1px solid #f1f5f9; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+        .calc-box { background: white; border: 1.5px solid #f1f5f9; border-radius: 12px; padding: 10px 16px; margin-top: 12px; font-size: 12px; color: #64748b; display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+        .calc-box strong { color: #1e293b; font-size: 13px; font-weight: 800; }
+        .grn-footer { padding: 24px; border-top: 1.5px solid #f1f5f9; background: white; }
+        .totals-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .totals-row span { font-size: 12px; font-weight: 700; color: #64748b; }
+        .totals-row strong { font-size: 18px; font-weight: 900; color: #059669; }
+        .btn-cancel { padding: 12px 24px; border-radius: 12px; font-size: 13px; font-weight: 800; color: #64748b; border: 1.5px solid #f1f5f9; background: transparent; cursor: pointer; transition: all 0.2s; }
+        .btn-cancel:hover { background: #f8fafc; color: #1e293b; }
+        .btn-save { flex: 1; padding: 12px 24px; border-radius: 12px; font-size: 13px; font-weight: 800; color: white; background: #1e293b; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; }
+        .btn-save:hover { background: #0f172a; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(30,41,59,0.2); }
+        .btn-save:active { transform: translateY(0); }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+      `}</style>
+
+      <div className="grn-modal animate-in fade-in zoom-in duration-200">
+        <div className="grn-header">
+          <h3>
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+              <Receipt size={18} className="text-emerald-600" />
+            </div>
+            {isEditing 
+              ? translations.grn?.edit_type?.replace('{type}', isPO ? 'Purchase Order' : 'GRN') || `Edit ${mode}`
+              : translations.grn?.new_type?.replace('{type}', isPO ? 'Purchase Order' : 'GRN') || `New ${mode}`}
+          </h3>
+          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors">
+            <X size={18} />
+          </button>
         </div>
-        <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-all group">
-          <X size={20} className="text-slate-400 group-hover:text-slate-600" />
-        </button>
-      </div>
 
-      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-black text-slate-500 uppercase">
-              {isPO ? translations.grn.order_date : translations.grn.received_date}
-            </label>
-            <input
-              type="date"
-              required
-              value={receivedDate}
-              onChange={(e) => setReceivedDate(e.target.value)}
-              className="w-full px-4 py-3 text-sm bg-[#fcfdf2] border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none transition-all font-bold text-slate-700"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-black text-slate-500 uppercase">
-              {translations.grn.supplier}
-            </label>
-            <select
-              required
-              value={supplierId}
-              onChange={(e) => setSupplierId(e.target.value)}
-              className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none transition-all appearance-none font-bold text-slate-700"
-            >
-              <option value="">{translations.grn.select_supplier}</option>
-              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
+        <div className="grn-body custom-scrollbar">
+          {/* Header fields */}
+          <div className="form-row">
+            <div className="form-group">
+              <label>{isPO ? translations.grn?.order_date : translations.grn?.received_date || 'Received date'}</label>
+              <input type="date" value={receivedDate} onChange={(e) => setReceivedDate(e.target.value)} />
+            </div>
+            <div className="form-group">
+              <label>{translations.grn?.supplier || 'Supplier'}</label>
+              <select value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
+                <option value="">Select Supplier</option>
+                {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
           </div>
 
           {!isPO && (
             <>
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-black text-slate-500 uppercase flex items-center justify-between">
-                  {translations.grn.invoice_number}
-                  <span className="text-[9px] text-indigo-400 font-bold uppercase tracking-tighter">{translations.grn.auto_generated}</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder={translations.grn.will_generate}
-                  value={invoiceNumber}
-                  readOnly={!isEditing}
-                  onChange={(e) => setInvoiceNumber(e.target.value)}
-                  className={`w-full px-4 py-3 text-sm border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none transition-all font-bold ${!isEditing ? 'bg-slate-50 text-slate-400' : 'bg-white text-slate-700'}`}
-                />
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Invoice number <span className="auto-tag">auto</span></label>
+                  <input 
+                    type="text" 
+                    className={!isEditing ? "readonly" : ""} 
+                    value={invoiceNumber} 
+                    readOnly={!isEditing}
+                    placeholder="Auto-generated"
+                    onChange={(e) => setInvoiceNumber(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>{translations.grn?.payment_status || 'Payment status'}</label>
+                  <select value={paymentStatus} onChange={(e) => setPaymentStatus(e.target.value)}>
+                    <option value="Due">Due (Unpaid)</option>
+                    <option value="Paid">Fully Paid</option>
+                    <option value="Partially Paid">Partially Paid</option>
+                  </select>
+                </div>
               </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-black text-slate-500 uppercase">
-                  {translations.grn.payment_status}
-                </label>
-                <select
-                  value={paymentStatus}
-                  onChange={(e) => setPaymentStatus(e.target.value)}
-                  className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-emerald-500/5 focus:border-emerald-400 outline-none transition-all font-bold text-slate-700"
-                >
-                  <option value="Due">{translations.grn.due_unpaid}</option>
-                  <option value="Paid">{translations.grn.fully_paid}</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-black text-slate-500 uppercase">
-                  {translations.grn.received_by}
-                </label>
-                <input
-                  type="text"
-                  placeholder={translations.grn.employee_name}
-                  value={receivedBy}
-                  onChange={(e) => setReceivedBy(e.target.value)}
-                  className="w-full px-4 py-3 text-sm bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none transition-all font-bold text-slate-700"
-                />
+              <div className="form-row">
+                <div className="form-group">
+                  <label>{translations.grn?.received_by || 'Received by'}</label>
+                  <input 
+                    type="text" 
+                    value={receivedBy} 
+                    placeholder="Staff/Employee name"
+                    onChange={(e) => setReceivedBy(e.target.value)} 
+                  />
+                </div>
+                <div className="form-group"></div>
               </div>
             </>
           )}
-        </div>
 
-        {/* Item List */}
-        <div className="space-y-6 pt-4">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-2">
-            <label className="text-[11px] font-black text-slate-500 uppercase">
-              {translations.grn.add_medicines}
-            </label>
+          <div className="section-label">
+            <span>{translations.grn?.add_medicines || 'Added medicines'}</span>
+            <span style={{ color: '#94a3b8' }}>{items.length} items added</span>
           </div>
 
-          <div className="space-y-4">
-            {items.map((item, index) => {
-              const isStripBased = GROUP_A.includes(item.dosage_form_snapshot);
-              
-              const totalStockUnits = isStripBased 
-                ? (parseInt(item.qty_boxes_received) || 0) * (item.strips_per_box || 10) * (item.tablets_per_strip || 10)
-                : (parseInt(item.qty_boxes_received) || 0) * (parseInt(item.qty_units_received) || 1);
-                
-              const displayCostPerUnit = parseFloat(item.cost_per_unit || 0).toFixed(4);
+          {/* Added Medicine Cards */}
+          {items.map((item, index) => {
+            const isStripBased = GROUP_A.includes(item.dosage_form_snapshot);
+            const isLiquid = LIQUID_FORMS.includes(item.dosage_form_snapshot);
+            const isTopical = TOPICAL_FORMS.includes(item.dosage_form_snapshot);
+            const isInjection = INJECTION_FORMS.includes(item.dosage_form_snapshot);
 
-              return (
-                <div key={index} className="bg-[#f4f7f4] p-5 rounded-2xl border border-slate-200/60 shadow-sm space-y-5 relative group/item">
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveItem(index)}
-                    className="absolute -top-2 -right-2 w-7 h-7 bg-white text-rose-500 border border-slate-200 rounded-full flex items-center justify-center shadow-md hover:bg-rose-50 transition-all opacity-0 group-hover/item:opacity-100 z-10"
-                  >
+            return (
+              <div key={index} className="med-card animate-in slide-in-from-top-4 duration-200">
+                <div className="med-card-header">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-white border border-slate-100 flex items-center justify-center shadow-sm">
+                      {getDosageIcon(item.dosage_form_snapshot)}
+                    </div>
+                    <div>
+                      <div className="text-[14px] font-bold text-slate-800 leading-tight">{item.name}</div>
+                      <div className="text-[11px] font-semibold text-slate-400">{item.generic} · {item.package_size}</div>
+                    </div>
+                    <span className={`med-badge ${getDosageBadgeClass(item.dosage_form_snapshot)}`}>
+                      {item.dosage_form_snapshot}
+                    </span>
+                  </div>
+                  <button className="remove-btn" onClick={() => handleRemoveItem(index)}>
                     <Trash2 size={14} />
                   </button>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-500 uppercase">
-                        {translations.grn.select_medicine}
-                      </label>
-                      <select
-                        required
-                        value={item.medicine_id}
-                        onChange={(e) => handleItemChange(index, 'medicine_id', e.target.value)}
-                        className="w-full px-4 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 rounded-xl outline-none"
-                      >
-                        <option value="">{translations.grn.select_medicine}</option>
-                        {medicines.map(m => (
-                          <option key={m.id} value={m.id}>{m.name} ({m.dosage_form})</option>
-                        ))}
-                      </select>
-                    </div>
+                </div>
 
-                    {!isPO && (
-                      <>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-500 uppercase">
-                            {translations.grn.batch_no}
-                          </label>
-                          <input
-                            type="text"
-                            required={!isPO}
-                            placeholder="BATCH-001"
-                            value={item.batch_number}
-                            onChange={(e) => handleItemChange(index, 'batch_number', e.target.value)}
-                            className="w-full px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:border-indigo-400"
-                          />
-                        </div>
+                <div className="info-row">
+                  {isStripBased ? (
+                    <>
+                      <span className="info-pill"><Boxes size={12} /> {item.tablets_per_strip} tabs/strip</span>
+                      <span className="info-pill"><Package size={12} /> {item.strips_per_box} strips/box</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="info-pill">{item.package_size} / unit</span>
+                      <span className="info-pill">{item.qty_units_received} units/box</span>
+                    </>
+                  )}
+                  <span className="info-pill">৳{parseFloat(item.mrp).toFixed(2)}/unit (MRP)</span>
+                  <span className="info-pill bg-emerald-50 text-emerald-700 border-emerald-100">Stock: {item.stock} units</span>
+                </div>
 
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-500 uppercase">
-                            {translations.grn.expiry_date}
-                          </label>
-                          <input
-                            type="date"
-                            required={!isPO}
-                            value={item.expiry_date}
-                            onChange={(e) => handleItemChange(index, 'expiry_date', e.target.value)}
-                            className="w-full px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:border-indigo-400"
-                          />
-                        </div>
-                      </>
-                    )}
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-500 uppercase">
-                        {translations.grn.qty_boxes}
-                      </label>
-                      <input
-                        type="number"
-                        required
-                        min="1"
-                        value={item.qty_boxes_received}
-                        onChange={(e) => handleItemChange(index, 'qty_boxes_received', e.target.value)}
-                        className="w-full px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl font-black text-slate-800 outline-none focus:border-indigo-400"
-                      />
-                    </div>
-
-                    {!isStripBased && (
-                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-black text-slate-500 uppercase">
-                           Units per Box
-                        </label>
-                        <input
-                          type="number"
-                          required
-                          min="1"
-                          value={item.qty_units_received}
-                          onChange={(e) => handleItemChange(index, 'qty_units_received', e.target.value)}
-                          className="w-full px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl font-black text-slate-800 outline-none focus:border-indigo-400"
+                <div className="form-row three">
+                  {!isPO && (
+                    <>
+                      <div className="form-group">
+                        <label>Batch #</label>
+                        <input 
+                          type="text" 
+                          placeholder="BATCH-001" 
+                          value={item.batch_number}
+                          onChange={(e) => handleItemChange(index, 'batch_number', e.target.value)}
                         />
                       </div>
-                    )}
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-500 uppercase">
-                        {isStripBased ? translations.grn.cost_box : "Cost per Unit"}
-                      </label>
-                      <input
-                        type="number"
-                        step="0.0001"
-                        value={isStripBased ? item.cost_per_box : item.cost_per_unit}
-                        onChange={(e) => handleItemChange(index, isStripBased ? 'cost_per_box' : 'cost_per_unit', e.target.value)}
-                        className="w-full px-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl font-black text-slate-800 outline-none focus:border-indigo-400 text-right font-mono"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-500 uppercase">
-                        {translations.grn.subtotal}
-                      </label>
-                      <div className="w-full px-4 py-2.5 text-sm bg-slate-200/50 border border-slate-200 rounded-xl font-black text-slate-600 text-right font-mono">
-                        ৳ {parseFloat(item.subtotal || 0).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+                      <div className="form-group">
+                        <label>Expiry date</label>
+                        <input 
+                          type="date" 
+                          value={item.expiry_date}
+                          onChange={(e) => handleItemChange(index, 'expiry_date', e.target.value)}
+                        />
                       </div>
-                    </div>
-
-                    {isStripBased && (
-                      <>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-400 uppercase">{translations.grn.cost_stripe}</label>
-                          <input type="number" step="0.01" value={item.cost_per_stripe} onChange={(e) => handleItemChange(index, 'cost_per_stripe', e.target.value)}
-                            className="w-full px-4 py-2.5 text-sm bg-white/50 border border-slate-200 rounded-xl font-bold text-slate-500 outline-none text-right font-mono" />
-                        </div>
-                        <div className="space-y-1.5">
-                          <label className="text-[10px] font-black text-slate-400 uppercase">{translations.grn.cost_tablet}</label>
-                          <div className="w-full px-4 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-500 text-right font-mono">
-                            {item.cost_per_unit}
-                          </div>
-                        </div>
-                      </>
-                    )}
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-black text-slate-400 uppercase">
-                         Package Size
-                      </label>
-                      <div className="w-full px-4 py-2.5 text-sm bg-slate-100 border border-slate-200 rounded-xl font-bold text-slate-500">
-                        {item.package_size || 'N/A'}
-                      </div>
-                    </div>
+                    </>
+                  )}
+                  <div className="form-group">
+                    <label>Qty (boxes)</label>
+                    <input 
+                      type="number" 
+                      min="1"
+                      value={item.qty_boxes_received}
+                      onChange={(e) => handleItemChange(index, 'qty_boxes_received', e.target.value)}
+                    />
                   </div>
+                  {isPO && <div className="form-group"></div>}
+                  {isPO && <div className="form-group"></div>}
+                </div>
 
-                  {item.medicine_id && (
-                    <div className="bg-white px-4 py-2 rounded-lg border border-slate-100 shadow-inner">
-                      <p className="text-[11px] font-medium text-slate-600">
-                        {isStripBased ? (
-                          <>{translations.grn.stock_add_group_a.replace('{qty}', item.qty_boxes_received).replace('{stripes}', item.strips_per_box).replace('{tablets}', item.tablets_per_strip).replace('{total}', totalStockUnits)} | <span className="text-slate-400 font-bold uppercase tracking-tighter text-[9px]">{translations.grn.cost_tablet_label}</span> <span className="font-black text-indigo-600">৳ {displayCostPerUnit}</span></>
-                        ) : (
-                          <>Adding {totalStockUnits} total units ({item.qty_boxes_received} boxes × {item.qty_units_received} units) | <span className="text-slate-400 font-bold uppercase tracking-tighter text-[9px]">Cost per Unit</span> <span className="font-black text-indigo-600">৳ {displayCostPerUnit}</span></>
-                        )}
-                      </p>
+                <div className={isStripBased ? "form-row three" : "form-row"}>
+                  <div className="form-group">
+                    <label>{isStripBased ? 'Cost/box' : 'Cost/box'} <span className="auto-tag">enter</span></label>
+                    <input 
+                      type="number" 
+                      step="0.01"
+                      value={item.cost_per_box}
+                      onChange={(e) => handleItemChange(index, 'cost_per_box', e.target.value)}
+                    />
+                  </div>
+                  {isStripBased ? (
+                    <>
+                      <div className="form-group">
+                        <label>Cost/strip <span className="auto-tag">enter</span></label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          value={item.cost_per_stripe} 
+                          onChange={(e) => handleItemChange(index, 'cost_per_stripe', e.target.value)} 
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Cost/tab <span className="auto-tag">enter</span></label>
+                        <input 
+                          type="number" 
+                          step="0.0001"
+                          value={item.cost_per_unit} 
+                          onChange={(e) => handleItemChange(index, 'cost_per_unit', e.target.value)} 
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="form-group">
+                      <label>Cost/unit <span className="auto-tag">auto</span></label>
+                      <input 
+                        type="number" 
+                        className="readonly" 
+                        value={(parseFloat(item.cost_per_box) / (parseFloat(item.qty_units_received) || 1)).toFixed(2)} 
+                        readOnly 
+                      />
                     </div>
                   )}
                 </div>
-              );
-            })}
+
+                <div className="calc-box">
+                  {isStripBased ? (
+                    <span>{item.qty_boxes_received} boxes × {item.strips_per_box} strips × {item.tablets_per_strip} tabs = <strong>{(item.qty_boxes_received * item.strips_per_box * item.tablets_per_strip).toLocaleString()} tablets</strong></span>
+                  ) : (
+                    <span>{item.qty_boxes_received} boxes × {item.qty_units_received} units = <strong>{(item.qty_boxes_received * item.qty_units_received).toLocaleString()} units</strong></span>
+                  )}
+                  <strong>Subtotal: ৳{parseFloat(item.subtotal || 0).toLocaleString(undefined, {minimumFractionDigits: 2})}</strong>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Medicine Search */}
+          <div ref={searchRef} className="search-wrap mt-4">
+            <div className="relative">
+              <Search size={18} className="search-icon" />
+              <input 
+                className="search-input" 
+                type="text" 
+                placeholder="Search medicine by name or generic..." 
+                value={searchTerm}
+                onFocus={() => setIsSearchOpen(true)}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            
+            {isSearchOpen && (
+              <div className="dropdown custom-scrollbar">
+                {filteredMedicines.length > 0 ? (
+                  filteredMedicines.map(med => (
+                    <div key={med.id} className="dd-item" onClick={() => handleSelectMedicine(med)}>
+                      <div className="dd-left">
+                        <h5>{med.medicine_name}</h5>
+                        <p>{med.generic_name} · {med.dosage_form} · {med.package_size}</p>
+                      </div>
+                      <div className="dd-right">
+                        <div className="price">৳{parseFloat(med.price_per_unit).toFixed(2)}/unit</div>
+                        <div className="stock">{med.stock} in stock</div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="p-8 text-center text-slate-400 font-bold text-sm">
+                    {searchTerm.length > 0 ? 'No medicines found' : 'Start typing to search...'}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          <button
-            type="button"
-            onClick={handleAddItem}
-            className="flex items-center gap-2 px-6 py-2.5 bg-white hover:bg-slate-50 text-slate-600 text-xs font-black uppercase tracking-widest rounded-xl transition-all border border-slate-200 shadow-sm active:scale-95"
-          >
-            <Plus size={16} /> {translations.grn.add_more}
-          </button>
+          <div className="form-group mt-8">
+            <label>{translations.grn?.notes_optional || 'Additional notes'}</label>
+            <textarea 
+              className="w-full p-4 border-1.5 border-slate-100 rounded-2xl text-sm font-semibold text-slate-600 focus:outline-none focus:border-emerald-500 transition-all resize-none"
+              rows={2}
+              placeholder="Describe any breakage or discrepancies..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            ></textarea>
+          </div>
         </div>
 
-        {/* Notes */}
-        <div className="space-y-1.5 pt-4">
-          <label className="text-[11px] font-black text-slate-500 uppercase">{translations.grn.notes_optional}</label>
-          <textarea
-            rows={2}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder={translations.grn.notes_placeholder}
-            className="w-full px-5 py-4 text-sm bg-white border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none transition-all resize-none font-medium"
-          />
-        </div>
-      </form>
-
-      {/* Footer */}
-      <div className="shrink-0 p-8 bg-white border-t border-slate-100 space-y-4">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-500 border-b border-slate-50 pb-2">
-            <span>{translations.grn.total_items}</span>
-            <span>{translations.grn.products_count.replace('{n}', items.length)}</span>
+        <div className="grn-footer">
+          <div className="totals-row">
+            <span>Total items: <strong className="text-slate-900 ml-2">{items.length} products</strong></span>
+            <span>Total bill: <strong>৳{calculateGrandTotal().toLocaleString(undefined, {minimumFractionDigits: 2})}</strong></span>
           </div>
-          <div className="flex items-center justify-between text-xs font-bold text-slate-500 border-b border-slate-50 pb-2">
-            <span>{translations.grn.total_quantity}</span>
-            <span>{translations.grn.box_units_count.replace('{n}', totalBoxes)}</span>
+          <div className="flex gap-4">
+            <button className="btn-cancel" onClick={onClose}>{translations.grn?.cancel || 'Cancel'}</button>
+            <button 
+              className="btn-save" 
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+              {isEditing 
+                ? translations.grn?.update_type?.replace('{type}', isPO ? 'Order' : 'GRN') || 'Update'
+                : isPO 
+                  ? 'Save Purchase Order' 
+                  : 'Save GRN & Update Stock'}
+            </button>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-black text-slate-800">{translations.grn.total_bill}</span>
-            <span className="text-xl font-black text-emerald-600">৳ {calculateGrandTotal().toLocaleString()}</span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3 pt-2">
-          <button 
-            type="button" 
-            onClick={onClose} 
-            className="flex-1 px-6 py-3 text-sm font-black text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-all uppercase tracking-widest"
-          >
-            {translations.grn.cancel}
-          </button>
-          <button
-            type="submit"
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            className={`flex-[2] inline-flex items-center justify-center gap-3 px-10 py-3.5 ${isPO ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-[#1e293b] hover:bg-slate-800'} text-white text-sm font-black rounded-xl shadow-xl transition-all active:scale-95 disabled:opacity-50 uppercase tracking-widest`}
-          >
-            {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-            {isEditing 
-              ? translations.grn.update_type.replace('{type}', isPO ? 'Order' : 'GRN') 
-              : isPO 
-                ? translations.grn.save_type.replace('{type}', 'Order') 
-                : translations.grn.save_grn_stock}
-          </button>
         </div>
       </div>
     </div>
@@ -554,3 +588,4 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
 };
 
 export default GRNForm;
+

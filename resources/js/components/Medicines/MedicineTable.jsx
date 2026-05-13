@@ -234,6 +234,13 @@ const MedicineTable = () => {
                              </>
                           )}
 
+                          {med.price_per_box > 0 && (
+                             <>
+                                <span className="text-[10px] font-black text-slate-400 uppercase text-left">Box:</span>
+                                <span className="text-xs font-black text-blue-600">৳{parseFloat(med.price_per_box).toFixed(2)}</span>
+                             </>
+                          )}
+
                           <span className="text-[10px] font-black text-slate-400 uppercase text-left">MRP:</span>
                           <span className="text-xs font-black text-rose-600">৳{parseFloat(med.mrp || 0).toFixed(2)}</span>
                        </div>
