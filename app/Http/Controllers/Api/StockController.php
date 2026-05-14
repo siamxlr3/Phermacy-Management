@@ -21,12 +21,12 @@ class StockController extends Controller
 
         if ($search) {
             $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "{$search}%")
+                $q->where('medicine_name', 'like', "{$search}%")
                   ->orWhere('generic_name', 'like', "{$search}%");
             });
         }
 
-        $medicines = $query->orderBy('name')->simplePaginate($perPage);
+        $medicines = $query->orderBy('medicine_name')->simplePaginate($perPage);
         return StockResource::collection($medicines);
     }
 
@@ -43,7 +43,7 @@ class StockController extends Controller
 
         if ($search) {
             $query->where(function($q) use ($search) {
-                $q->where('medicines.name', 'like', "{$search}%")
+                $q->where('medicines.medicine_name', 'like', "{$search}%")
                   ->orWhere('stock_batches.batch_number', 'like', "{$search}%");
             });
         }

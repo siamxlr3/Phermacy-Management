@@ -62,7 +62,11 @@ const NewPOSPage = () => {
   useEffect(() => {
     if (taxesData?.data) {
       const activeTax = taxesData.data.find(t => t.status === 'Active');
-      if (activeTax) dispatch(setTaxConfig({ rate: activeTax.rate, name: activeTax.name }));
+      if (activeTax) {
+        dispatch(setTaxConfig({ rate: activeTax.rate, name: activeTax.name }));
+      } else {
+        dispatch(setTaxConfig({ rate: 0, name: translations.pos?.tax || 'Tax' }));
+      }
     }
   }, [taxesData, dispatch]);
 
@@ -138,8 +142,8 @@ const NewPOSPage = () => {
   const getUnitPrice = (med, unit) => {
     if (unit === 'Box' && med.price_per_box) return parseFloat(med.price_per_box);
     if (unit === 'Strip' && med.price_per_stripe) return parseFloat(med.price_per_stripe);
-    if (unit === 'Tablet' && med.price_per_tablet) return parseFloat(med.price_per_tablet);
-    return parseFloat(med.price || med.price_per_tablet || 0);
+    if (unit === 'Tablet' && med.price_per_unit) return parseFloat(med.price_per_unit);
+    return parseFloat(med.price_per_unit || 0);
   };
 
   const getCartQtyForMed = (medId) => cart.filter(c => c.medicine_id === medId).reduce((a, c) => a + c.quantity, 0);
@@ -261,10 +265,10 @@ const NewPOSPage = () => {
                         </div>
 
                         {/* Name & generic */}
-                        <div className="text-[11.5px] font-medium leading-tight mb-px truncate" style={{ color: T.text }} title={med.name}>{med.name}</div>
+                        <div className="text-[11.5px] font-medium leading-tight mb-px truncate" style={{ color: T.text }} title={med.medicine_name}>{med.medicine_name}</div>
                         <div className="flex flex-col gap-0.5 mb-1.5">
                           <div className="text-[9.5px] font-medium italic leading-tight truncate" style={{ color: T.text3 }} title={med.generic_name}>{med.generic_name || '—'}</div>
-                          <div className="text-[9px] font-bold uppercase tracking-tight truncate" style={{ color: T.tealD }} title={med.manufacturer_name}>{med.manufacturer_name || '—'}</div>
+                          <div className="text-[9px] font-bold uppercase tracking-tight truncate" style={{ color: T.tealD }} title={med.manufacturer}>{med.manufacturer || '—'}</div>
                         </div>
 
                         {/* Badges */}
@@ -278,8 +282,8 @@ const NewPOSPage = () => {
                           <div className="grid grid-cols-3 gap-0.5 mb-1.5 shrink-0" style={{ marginTop: isLow ? '0' : '4px' }}>
                             {[
                               { u: 'Tablet', label: translations.pos.piece, sub: `1 ${translations.pos.unit_tablet}`, cls: 'piece' },
-                              { u: 'Strip', label: translations.pos.strip, sub: `${med.tablet_per_stripe || '—'} ${translations.pos.tabs}`, cls: 'strip' },
-                              { u: 'Box', label: translations.pos.box, sub: `${med.stripe_per_box || '—'} ${translations.pos.unit_strip}s`, cls: 'box' },
+                              { u: 'Strip', label: translations.pos.strip, sub: `${med.tablets_per_strip || '—'} ${translations.pos.tabs}`, cls: 'strip' },
+                              { u: 'Box', label: translations.pos.box, sub: `${med.strips_per_box || '—'} ${translations.pos.unit_strip}s`, cls: 'box' },
                             ].map(({ u, label, sub, cls }) => {
                               const isOn = selUnit === u;
                               const colors = cls === 'piece'

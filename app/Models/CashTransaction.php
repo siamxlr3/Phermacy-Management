@@ -9,26 +9,36 @@ use Exception;
 
 /**
  * @property int $id
- * @property string|null $items
+ * @property string|null $description
  * @property float $amount
- * @property string $type
+ * @property string $transaction_type  In|Out|sale_refund|expense
  * @property float $balance_after
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property string|null $reference_type
+ * @property int|null $reference_id
+ * @property string|null $reference_number
+ * @property string $payment_method
+ * @property string|null $party_name
+ * @property string $party_type
  */
 class CashTransaction extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'items',
+        'description',
         'amount',
-        'type',
+        'transaction_type',
         'balance_after',
+        'reference_type',
+        'reference_id',
+        'reference_number',
+        'payment_method',
+        'party_name',
+        'party_type',
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
+        'amount'        => 'decimal:2',
         'balance_after' => 'decimal:2',
     ];
 
@@ -36,7 +46,6 @@ class CashTransaction extends Model
     {
         parent::boot();
 
-        // Enforce Immutable Append-Only Ledger
         static::updating(function ($transaction) {
             throw new Exception("Cash transactions are strictly append-only and cannot be modified.");
         });
@@ -47,7 +56,7 @@ class CashTransaction extends Model
     }
 
     /**
-     * Static helper to get the latest running balance safely.
+     * Get current running balance safely.
      */
     public static function getCurrentBalance(): float
     {
@@ -56,24 +65,43 @@ class CashTransaction extends Model
     }
 
     /**
-     * Static helper to record a new transaction safely under high concurrency.
+     * Record a new transaction atomically under high concurrency.
      */
-    public static function record(string $type, float $amount, ?string $items = null): self
-    {
-        return DB::transaction(function () use ($type, $amount, $items) {
-            // FIX: Atomic lock on the ledger table to prevent race conditions during high concurrency
+    public static function record(
+        string  $transactionType,
+        float   $amount,
+        ?string $description = null,
+        ?string $referenceType = null,
+        ?int    $referenceId = null,
+        ?string $referenceNumber = null,
+        string  $paymentMethod = 'cash',
+        ?string $partyName = null,
+        string  $partyType = 'other'
+    ): self {
+        return DB::transaction(function () use (
+            $transactionType, $amount, $description,
+            $referenceType, $referenceId, $referenceNumber,
+            $paymentMethod, $partyName, $partyType
+        ) {
             $last = self::lockForUpdate()->latest('id')->first();
             $currentBalance = $last ? (float) $last->balance_after : 0.0;
-            
-            $newBalance = ($type === 'In') 
-                ? $currentBalance + $amount 
-                : $currentBalance - $amount;
+
+            $isOut = in_array($transactionType, ['Out', 'sale_refund', 'expense']);
+            $newBalance = $isOut
+                ? $currentBalance - $amount
+                : $currentBalance + $amount;
 
             return self::create([
-                'type' => $type,
-                'amount' => $amount,
-                'items' => $items,
-                'balance_after' => $newBalance,
+                'transaction_type' => $transactionType,
+                'amount'           => $amount,
+                'description'      => $description,
+                'balance_after'    => $newBalance,
+                'reference_type'   => $referenceType,
+                'reference_id'     => $referenceId,
+                'reference_number' => $referenceNumber,
+                'payment_method'   => $paymentMethod,
+                'party_name'       => $partyName,
+                'party_type'       => $partyType,
             ]);
         });
     }

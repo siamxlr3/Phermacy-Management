@@ -16,7 +16,7 @@ class AlertResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'medicine_name' => $this->medicine->name ?? 'N/A',
+            'medicine_name' => $this->medicine->medicine_name ?? 'N/A',
             'batch_number' => $this->stockBatch->batch_number ?? 'N/A',
             'type' => $this->type,
             'severity' => $this->severity,

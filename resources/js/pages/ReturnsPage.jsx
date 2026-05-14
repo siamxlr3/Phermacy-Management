@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLanguage } from '../language/GlobalTranslate.jsx';
 import DashboardLayout from '../layouts/DashboardLayout';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RotateCcw, History, Settings2, ShoppingBag } from 'lucide-react';
@@ -6,13 +7,15 @@ import ReturnsTable from '../components/Returns/ReturnsTable';
 import ReturnForm from '../components/Returns/ReturnForm';
 import { Toaster } from 'react-hot-toast';
 
-const tabs = [
-    { id: 'history', label: 'Refund History', icon: History },
-    { id: 'new', label: 'New Sale Return', icon: RotateCcw },
-];
-
 const ReturnsPage = () => {
+    const { translations } = useLanguage();
+    const t = translations?.returns;
     const [activeTab, setActiveTab] = useState('history');
+
+    const tabs = [
+        { id: 'history', label: t?.tabs?.history || 'Refund History', icon: History },
+        { id: 'new', label: t?.tabs?.new || 'New Sale Return', icon: RotateCcw },
+    ];
 
     return (
         <DashboardLayout noScroll>
@@ -34,9 +37,9 @@ const ReturnsPage = () => {
                                 <RotateCcw size={24} className="text-white" />
                             </div>
                             <div>
-                                <h1 className="text-2xl font-black text-slate-900 tracking-tight">Returns & Refunds</h1>
+                                <h1 className="text-2xl font-black text-slate-900 tracking-tight">{t?.title || 'Returns & Refunds'}</h1>
                                 <p className="text-sm font-bold text-slate-400 flex items-center gap-2">
-                                    Manage customer returns and inventory re-crediting
+                                    {t?.subtitle || 'Manage customer returns and inventory re-crediting'}
                                 </p>
                             </div>
                         </div>

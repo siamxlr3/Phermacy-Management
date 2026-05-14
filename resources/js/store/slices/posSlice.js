@@ -46,20 +46,20 @@ const posSlice = createSlice({
         const qty_tablets = calculateTotalTablets(1, selectedUnit, medicine);
         state.cart.push({ 
           medicine_id: medicine.id,
-          name: medicine.name,
+          name: medicine.medicine_name,
           manufacturer: medicine.manufacturer,
           dosage_form: medicine.dosage_form,
           unit: selectedUnit,
           quantity: 1,
           qty_tablets: qty_tablets,
-          price_per_tablet: medicine.price_per_tablet,
+          price_per_tablet: medicine.price_per_unit,
           price_per_stripe: medicine.price_per_stripe,
           price_per_box: medicine.price_per_box,
-          general_price: medicine.price, // For non-solid forms
+          general_price: medicine.price_per_unit, // For non-solid forms
           price_per_unit: calculateUnitPrice(selectedUnit, medicine),
           tax_rate: medicine.tax_rate || 0,
-          tablets_per_strip: medicine.tablets_per_strip || medicine.tablet_per_stripe,
-          strips_per_box: medicine.strips_per_box || medicine.stripe_per_box
+          tablets_per_strip: medicine.tablets_per_strip,
+          strips_per_box: medicine.strips_per_box
         });
       }
       posSlice.caseReducers.calculateTotals(state);
@@ -202,8 +202,8 @@ const posSlice = createSlice({
 
 // Helper functions for internal logic
 const calculateTotalTablets = (qty, unit, medicine) => {
-  const tabletsPerStrip = medicine.tablets_per_strip || medicine.tablet_per_stripe || 1;
-  const stripsPerBox = medicine.strips_per_box || medicine.stripe_per_box || 1;
+  const tabletsPerStrip = medicine.tablets_per_strip || 1;
+  const stripsPerBox = medicine.strips_per_box || 1;
   
   if (unit === 'Box') return qty * stripsPerBox * tabletsPerStrip;
   if (unit === 'Strip') return qty * tabletsPerStrip;
@@ -213,19 +213,10 @@ const calculateTotalTablets = (qty, unit, medicine) => {
 const calculateUnitPrice = (unit, medicine) => {
   if (unit === 'Box' && medicine.price_per_box) return parseFloat(medicine.price_per_box);
   if (unit === 'Strip' && medicine.price_per_stripe) return parseFloat(medicine.price_per_stripe);
-  if (unit === 'Tablet' && medicine.price_per_tablet) return parseFloat(medicine.price_per_tablet);
+  if (unit === 'Tablet' && medicine.price_per_unit) return parseFloat(medicine.price_per_unit);
   
-  // Fallback to general price if it exists
-  if (medicine.general_price || medicine.price) return parseFloat(medicine.general_price || medicine.price);
-
-  // Deep fallback to calculation if no specific prices exist
-  const basePrice = parseFloat(medicine.price_per_tablet || 0);
-  const tabletsPerStrip = medicine.tablets_per_strip || medicine.tablet_per_stripe || 1;
-  const stripsPerBox = medicine.strips_per_box || medicine.stripe_per_box || 1;
-
-  if (unit === 'Box') return basePrice * stripsPerBox * tabletsPerStrip;
-  if (unit === 'Strip') return basePrice * tabletsPerStrip;
-  return basePrice;
+  // Fallback to unit price if it exists
+  return parseFloat(medicine.price_per_unit || 0);
 };
 
 export const { 

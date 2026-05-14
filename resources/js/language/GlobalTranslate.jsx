@@ -5,12 +5,14 @@ import { Bangla } from './Bangla';
 const LanguageContext = createContext();
 
 export const LanguageProvider = ({ children }) => {
-  const [language, setLanguage] = useState('ENG');
+  const [language, setLanguage] = useState(localStorage.getItem('app_lang') || 'ENG');
 
   const translations = language === 'ENG' ? English : Bangla;
 
   const toggleLanguage = () => {
-    setLanguage((prev) => (prev === 'ENG' ? 'BAN' : 'ENG'));
+    const next = language === 'ENG' ? 'BAN' : 'ENG';
+    setLanguage(next);
+    localStorage.setItem('app_lang', next);
   };
 
   return (

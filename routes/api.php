@@ -38,6 +38,7 @@ use App\Http\Controllers\Api\RoleController;
 use App\Http\Controllers\Api\ShiftController;
 use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\CashRegisterController;
+use App\Http\Controllers\Api\DashboardController;
 
 Route::get('categories/active', [CategoryController::class, 'active']);
 Route::apiResource('categories', CategoryController::class);
@@ -87,6 +88,9 @@ Route::get('reports/dashboard', [ReportController::class, 'dashboard']);
 Route::get('reports/inventory', [InventoryReportController::class, 'index']);
 Route::post('reports/refresh', [ReportController::class, 'refresh']);
 Route::post('reports/inventory/refresh', [InventoryReportController::class, 'refresh']);
+
+// Dashboard Stats
+Route::get('dashboard/stats', [DashboardController::class, 'index']);
 
 Route::get('taxes/active', [TaxController::class, 'active']);
 Route::apiResource('taxes', TaxController::class);

@@ -90,14 +90,28 @@ export const printPOSReceipt = (sale, translations) => {
             </tr>
           </thead>
           <tbody>
-            ${(sale.items || []).map(item => `
-              <tr>
-                <td>${item.medicine_name || item.name}</td>
-                <td class="text-center">${item.sale_qty || item.quantity || item.qty_tablets || 0} ${item.sale_unit || ''}</td>
-                <td class="text-right">${(parseFloat(item.subtotal || 0) / Math.max(1, parseFloat(item.sale_qty || item.quantity || item.qty_tablets || 1))).toFixed(2)}</td>
-                <td class="text-right">${parseFloat(item.subtotal || 0).toFixed(2)}</td>
-              </tr>
-            `).join('')}
+            ${(sale.items || []).map(item => {
+              const unitLabel = (() => {
+                const u = item.sale_unit;
+                if (u === 'Strip') return translations.pos.strip || 'Strip';
+                if (u === 'Box') return translations.pos.box || 'Box';
+                // If it's Tablet/Piece, use dosage_form if it's not Tablet, else use translated piece
+                if (u === 'Tablet') {
+                  if (item.dosage_form && item.dosage_form !== 'Tablet') return item.dosage_form;
+                  return translations.pos.piece || 'Pc';
+                }
+                return u || translations.pos.piece || 'Pc';
+              })();
+
+              return `
+                <tr>
+                  <td>${item.medicine_name || item.name}</td>
+                  <td class="text-center">${item.sale_qty || item.quantity || item.qty_tablets || 0} ${unitLabel}</td>
+                  <td class="text-right">${(parseFloat(item.subtotal || 0) / Math.max(1, parseFloat(item.sale_qty || item.quantity || item.qty_tablets || 1))).toFixed(2)}</td>
+                  <td class="text-right">${parseFloat(item.subtotal || 0).toFixed(2)}</td>
+                </tr>
+              `;
+            }).join('')}
           </tbody>
         </table>
 

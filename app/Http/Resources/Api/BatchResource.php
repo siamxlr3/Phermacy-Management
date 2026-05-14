@@ -12,7 +12,7 @@ class BatchResource extends JsonResource
         return [
             'id' => $this->id,
             'medicine_id' => $this->medicine_id,
-            'medicine_name' => $this->medicine?->name,
+            'medicine_name' => $this->medicine?->medicine_name,
             'medicine_dosage_form' => $this->dosage_form_snapshot,
             'dosage_form_snapshot' => $this->dosage_form_snapshot,
             'supplier_id' => $this->supplier_id,
@@ -30,6 +30,8 @@ class BatchResource extends JsonResource
             'cost_per_stripe' => $this->cost_per_stripe,
             'cost_per_box' => $this->cost_per_box,
             'received_date' => $this->received_date->format('Y-m-d'),
+            'tablets_per_strip' => $this->medicine?->tablets_per_strip ?? 10,
+            'strips_per_box' => $this->medicine?->strips_per_box ?? 10,
         ];
     }
 }

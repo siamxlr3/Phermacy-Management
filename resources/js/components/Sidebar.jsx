@@ -20,58 +20,7 @@ import {
 import { cn } from '../lib/utils';
 import { useGetAddressesQuery } from '../store/api/settingApi';
 
-const navigationGroups = [
-  {
-    title: 'Main',
-    items: [
-      { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-    ]
-  },
-  {
-    title: 'Sales',
-    items: [
-      { icon: ShoppingCart, label: 'Point of Sale', path: '/pos' },
-      { icon: LayoutDashboard, label: 'All Sales', path: '/sales' },
-      { icon: Calculator, label: 'Cash Register', path: '/cash-register' },
-      { icon: ArrowRightLeft, label: 'Returns & Refunds', path: '/sales/returns' },
-      { icon: BarChart3, label: 'Reports', path: '/sales/reports' },
-    ]
-  },
-  {
-    title: 'Purchasing',
-    items: [
-      { icon: Truck, label: 'Suppliers', path: '/suppliers' },
-      { icon: FileText, label: 'Orders', path: '/orders' },
-      { icon: ArrowLeftRight, label: 'Returns', path: '/returns' },
-    ]
-  },
-  {
-    title: 'Accounting',
-    items: [
-      { icon: Wallet, label: 'Expenses', path: '/expenses' },
-    ]
-  },
-  {
-    title: 'Inventory',
-    items: [
-      { icon: Pill, label: 'Medicine List', path: '/medicines' },
-      { icon: BarChart3, label: 'Stock Levels', path: '/stock' },
-      { icon: FileText, label: 'Reports', path: '/inventory/reports' },
-    ]
-  },
-  {
-    title: 'Management',
-    items: [
-      { icon: Users, label: 'HRM', path: '/hrm' },
-    ]
-  },
-  {
-    title: 'System',
-    items: [
-      { icon: Settings, label: 'System Settings', path: '/settings' },
-    ]
-  }
-];
+import { useLanguage } from '../language/GlobalTranslate.jsx';
 
 /**
  * SidebarItem — single stable layout: icon anchored, label fades via clip + opacity.
@@ -189,6 +138,62 @@ const SidebarSection = ({ group, isSidebarOpen }) => {
  * Main Sidebar Component
  */
 const Sidebar = ({ isOpen, setIsOpen }) => {
+  const { translations } = useLanguage();
+  const s = translations?.sidebar || {};
+  
+  const navigationGroups = [
+    {
+      title: s.main || 'Main',
+      items: [
+        { icon: LayoutDashboard, label: s.dashboard || 'Dashboard', path: '/dashboard' },
+      ]
+    },
+    {
+      title: s.sales || 'Sales',
+      items: [
+        { icon: ShoppingCart, label: s.pos || 'Point of Sale', path: '/pos' },
+        { icon: LayoutDashboard, label: s.all_sales || 'All Sales', path: '/sales' },
+        { icon: Calculator, label: s.cash_register || 'Cash Register', path: '/cash-register' },
+        { icon: ArrowRightLeft, label: s.returns_refunds || 'Returns & Refunds', path: '/sales/returns' },
+        { icon: BarChart3, label: s.reports || 'Reports', path: '/sales/reports' },
+      ]
+    },
+    {
+      title: s.purchasing || 'Purchasing',
+      items: [
+        { icon: Truck, label: s.suppliers || 'Suppliers', path: '/suppliers' },
+        { icon: FileText, label: s.orders || 'Orders', path: '/orders' },
+        { icon: ArrowLeftRight, label: s.returns || 'Returns', path: '/returns' },
+      ]
+    },
+    {
+      title: s.accounting || 'Accounting',
+      items: [
+        { icon: Wallet, label: s.expenses || 'Expenses', path: '/expenses' },
+      ]
+    },
+    {
+      title: s.inventory || 'Inventory',
+      items: [
+        { icon: Pill, label: s.medicine_list || 'Medicine List', path: '/medicines' },
+        { icon: BarChart3, label: s.stock_levels || 'Stock Levels', path: '/stock' },
+        { icon: FileText, label: s.reports || 'Reports', path: '/inventory/reports' },
+      ]
+    },
+    {
+      title: s.management || 'Management',
+      items: [
+        { icon: Users, label: s.hrm || 'HRM', path: '/hrm' },
+      ]
+    },
+    {
+      title: s.system || 'System',
+      items: [
+        { icon: Settings, label: s.system_settings || 'System Settings', path: '/settings' },
+      ]
+    }
+  ];
+
   const { data, isLoading } = useGetAddressesQuery({ page: 1, perPage: 1, search: '' });
   const activeBranchName = data?.data?.[0]?.name || 'Pharmly';
 

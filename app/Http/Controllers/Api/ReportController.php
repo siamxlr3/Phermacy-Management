@@ -28,34 +28,35 @@ class ReportController extends Controller
         $fromDate = $request->get('from_date', Carbon::now()->subDays(30)->toDateString());
         $toDate = $request->get('to_date', Carbon::now()->toDateString());
         
-        $start = Carbon::parse($fromDate)->startOfDay()->toDateTimeString();
-        $end = Carbon::parse($toDate)->endOfDay()->toDateTimeString();
+        $start = Carbon::parse($fromDate)->startOfDay();
+        $end = Carbon::parse($toDate)->endOfDay();
 
         $cacheKey = "reports_" . md5($start . $end);
 
         $data = Cache::tags(['reports'])->remember($cacheKey, 600, function() use ($start, $end) {
-            $summary = Sale::where('status', 'Completed')
+            $summary = Sale::whereIn('status', ['Completed', 'Due', 'Partially Returned'])
                 ->whereBetween('sale_date', [$start, $end])
                 ->selectRaw('
                     COUNT(*) as total_transactions,
-                    SUM(subtotal) as total_revenue,
+                    SUM(grand_total - COALESCE(refunded_amount, 0)) as total_revenue,
                     SUM(tax_total) as total_tax,
                     SUM(discount_total) as total_discount,
-                    SUM(grand_total) as total_receivable,
-                    SUM(due_amount) as total_due
+                    SUM(grand_total - COALESCE(refunded_amount, 0)) as total_receivable,
+                    SUM(due_amount) as total_due,
+                    SUM(CASE WHEN status IN ("Completed","Partially Returned") THEN grand_total - COALESCE(refunded_amount, 0) ELSE 0 END) as total_completed
                 ')
                 ->first();
 
-            $lowStock = Medicine::where('status', 'Active')
+            $lowStock = Medicine::where('is_active', 1)
                 ->whereColumn('stock', '<=', 'reorder_level')
-                ->select('name', 'stock as qty')
+                ->select('medicine_name', 'stock as qty')
                 ->limit(5)
                 ->get();
 
             $expiring = StockBatch::join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id')
                 ->where('stock_batches.qty_tablets_remaining', '>', 0)
-                ->where('stock_batches.expiry_date', '<=', Carbon::now()->addMonths(6))
-                ->select('medicines.name', 'stock_batches.expiry_date as date')
+                ->whereBetween('stock_batches.expiry_date', [Carbon::today(), Carbon::today()->addDays(90)])
+                ->select('medicines.medicine_name', 'stock_batches.expiry_date as date')
                 ->orderBy('stock_batches.expiry_date')
                 ->limit(5)
                 ->get();
@@ -72,16 +73,11 @@ class ReportController extends Controller
                 ->selectRaw('SUM(total_amount - paid_amount) as total')
                 ->value('total');
 
-            $cashInHand = 0;
-            if (Schema::hasTable('cash_registers')) {
-                $cashInHand = CashRegister::where('status', 'Open')
-                    ->orderByDesc('opened_at')
-                    ->value('expected_cash') ?? 0;
-            }
+            // Align with CashRegisterPage
+            $cashInHand = \App\Models\CashTransaction::getCurrentBalance();
 
-            $totalStockValue = StockBatch::where('qty_tablets_remaining', '>', 0)
-                ->selectRaw('SUM(qty_tablets_remaining * cost_per_tablet) as total')
-                ->value('total');
+            // Align with InventoryReportsPage valuation logic
+            $totalStockValue = (float) PurchaseOrder::where('status', '!=', 'Cancelled')->sum('paid_amount');
 
             $totalPurchaseCost = PurchaseOrder::whereBetween('order_date', [$start, $end])
                 ->sum('total_amount');
@@ -93,17 +89,21 @@ class ReportController extends Controller
                 ->selectRaw('SUM(sale_items.subtotal - (sale_items.qty_tablets * IFNULL(medicines.cost_price, 0))) as profit')
                 ->value('profit');
 
+            $returnsCount = \App\Models\SalesReturn::whereBetween('return_date', [$start, $end])->count();
+
             return [
                 'summary' => $summary,
-                'remaining_due' => $summary->total_due ?? 0,
-                'cash_in_hand' => $cashInHand,
+                'total_transactions' => (int) ($summary->total_transactions ?? 0),
+                'remaining_due' => (float) ($summary->total_due ?? 0),
+                'cash_in_hand' => (float) $cashInHand,
+                'returns_count' => $returnsCount,
                 'low_stock_items' => $lowStock,
                 'expiring_items' => $expiring,
                 'supplier_dues' => $supplierDues,
-                'total_supplier_due' => $totalSupplierDue ?? 0,
-                'total_stock_value' => $totalStockValue ?? 0,
-                'total_purchase_cost' => $totalPurchaseCost,
-                'estimated_profit' => $estimatedProfit ?? 0,
+                'total_supplier_due' => (float) ($totalSupplierDue ?? 0),
+                'total_stock_value' => (float) ($totalStockValue ?? 0),
+                'total_purchase_cost' => (float) $totalPurchaseCost,
+                'estimated_profit' => (float) ($estimatedProfit ?? 0),
 
                 'daily_sales' => Sale::where('status', 'Completed')
                     ->whereBetween('sale_date', [$start, $end])
@@ -112,9 +112,16 @@ class ReportController extends Controller
                     ->orderBy('date')
                     ->get(),
 
+                'monthly_revenue' => Sale::where('status', 'Completed')
+                    ->whereYear('sale_date', date('Y'))
+                    ->selectRaw('MONTH(sale_date) as month, SUM(grand_total) as revenue')
+                    ->groupBy('month')
+                    ->orderBy('month')
+                    ->get(),
+
                 'top_medicines' => SaleItem::selectRaw('
                         medicines.id,
-                        medicines.name,
+                        medicines.medicine_name,
                         SUM(sale_items.qty_tablets) as total_qty,
                         SUM(sale_items.subtotal) as total_revenue
                     ')
@@ -122,13 +129,13 @@ class ReportController extends Controller
                     ->join('medicines', 'sale_items.medicine_id', '=', 'medicines.id')
                     ->where('sales.status', 'Completed')
                     ->whereBetween('sales.sale_date', [$start, $end])
-                    ->groupBy('medicines.id', 'medicines.name')
+                    ->groupBy('medicines.id', 'medicines.medicine_name')
                     ->orderByDesc('total_qty')
                     ->limit(10)
                     ->get(),
 
                 'categories' => SaleItem::selectRaw('
-                        IFNULL(medicines.category_name, "Uncategorized") as category_name,
+                        IFNULL(medicines.category, "Uncategorized") as category_name,
                         SUM(sale_items.subtotal) as total_revenue,
                         COUNT(sale_items.id) as total_items
                     ')

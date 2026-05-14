@@ -6,8 +6,8 @@ import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const GROUP_A = ['Tablet', 'Capsule', 'Suppository', 'Patch'];
 
-const formatQty = (total, tabletPerStripe, stripePerBox, isGroupA, translations) => {
-  if (!isGroupA) return translations.stock.units.replace('{n}', total);
+const formatQty = (total, tabletPerStripe, stripePerBox, isStripBased, translations) => {
+  if (!isStripBased) return translations.stock.units.replace('{n}', total);
   
   const tpS = parseInt(tabletPerStripe) || 10;
   const spB = parseInt(stripePerBox) || 10;
@@ -15,13 +15,20 @@ const formatQty = (total, tabletPerStripe, stripePerBox, isGroupA, translations)
 
   const boxes = Math.floor(total / tpB);
   const remainingAfterBoxes = total % tpB;
-  const stripes = Math.floor(remainingAfterBoxes / tpS);
+  const strips = Math.floor(remainingAfterBoxes / tpS);
   const tablets = remainingAfterBoxes % tpS;
 
-  return translations.stock.box_stripe_tablet
-    .replace('{boxes}', boxes)
-    .replace('{stripes}', stripes)
-    .replace('{tablets}', tablets);
+  // If it's a perfect box amount, just show boxes to keep it clean
+  if (total > 0 && total % tpB === 0) {
+    return `${boxes} Boxes`;
+  }
+
+  let result = [];
+  if (boxes > 0) result.push(`${boxes} Boxes`);
+  if (strips > 0) result.push(`${strips} Strips`);
+  if (tablets > 0 || result.length === 0) result.push(`${tablets} Tabs`);
+
+  return result.join(' ');
 };
 
 const StatusBadge = ({ expiryDate, translations }) => {
@@ -172,16 +179,23 @@ const BatchListTable = ({ onAdd }) => {
                       <div className="flex flex-col items-end">
                         <div className="flex items-center gap-2">
                            <span className="text-sm font-black text-slate-900">
-                             {batch.qty_boxes_remaining} <span className="text-[10px] text-slate-400 uppercase">Boxes</span>
+                             {formatQty(
+                               batch.qty_tablets_remaining, 
+                               batch.tablets_per_strip, 
+                               batch.strips_per_box, 
+                               isStripBased, 
+                               translations
+                             )}
                            </span>
-                           {!isStripBased && batch.qty_units_remaining !== null && (
-                             <span className="text-sm font-black text-indigo-600">
-                               {batch.qty_units_remaining} <span className="text-[10px] text-slate-400 uppercase">Units</span>
-                             </span>
-                           )}
                         </div>
                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
-                          Of {batch.qty_boxes} Boxes Total
+                          Of {formatQty(
+                            batch.qty_tablets, 
+                            batch.tablets_per_strip, 
+                            batch.strips_per_box, 
+                            isStripBased, 
+                            translations
+                          )} Total
                         </span>
                       </div>
                     </td>

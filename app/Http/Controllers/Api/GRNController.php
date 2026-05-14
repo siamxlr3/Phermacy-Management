@@ -92,8 +92,11 @@ class GRNController extends Controller
                         $poItemsData[] = [
                             'purchase_order_id' => $po->id,
                             'medicine_id' => $item['medicine_id'],
+                            'dosage_form_snapshot' => $item['dosage_form_snapshot'],
                             'qty_boxes' => $item['qty_boxes_received'],
-                            'unit_cost' => $item['cost_per_box'] ?? $item['cost_per_unit'],
+                            'cost_per_box' => $item['cost_per_box'] ?? $item['cost_per_unit'],
+                            'cost_per_unit' => $item['cost_per_unit'],
+                            'cost_per_stripe' => $item['cost_per_stripe'] ?? null,
                             'subtotal' => $item['subtotal'],
                             'created_at' => now(),
                             'updated_at' => now(),
@@ -186,11 +189,6 @@ class GRNController extends Controller
                     ];
 
                     $medicine?->increment('stock', $totalTablets);
-                    // Standardize price update on medicine
-                    $medicine?->update([
-                        'price_per_unit' => $item['cost_per_unit'],
-                        'cost_price' => $item['cost_per_unit']
-                    ]);
                 }
 
                 GRNItem::insert($grnItemsData);
@@ -327,10 +325,6 @@ class GRNController extends Controller
                     ];
 
                     $medicine?->increment('stock', $totalTablets);
-                    $medicine?->update([
-                        'price_per_unit' => $item['cost_per_unit'],
-                        'cost_price' => $item['cost_per_unit']
-                    ]);
                 }
 
                 GRNItem::insert($grnItemsData);

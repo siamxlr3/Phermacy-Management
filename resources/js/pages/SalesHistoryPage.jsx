@@ -180,26 +180,67 @@ const SalesHistoryPage = () => {
                 </div>
               </motion.div>
             ) : (
-              <motion.div 
-                key="all-stats"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="flex-1 p-6 bg-slate-900 rounded-[2rem] shadow-xl shadow-slate-200 border border-slate-800 relative overflow-hidden group max-w-sm"
-              >
-                <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                  <BadgeDollarSign size={120} />
-                </div>
-                <div className="relative z-10">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">{translations.sales_history.total_volume}</p>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-slate-500">৳</span>
-                    <h2 className="text-4xl font-black text-white tracking-tighter">
-                      {parseFloat(salesData?.summary?.total_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </h2>
+              <>
+                <motion.div 
+                  key="completed-stats"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex-1 p-6 bg-emerald-600 rounded-[2rem] shadow-xl shadow-emerald-100 border border-emerald-500/20 relative overflow-hidden group max-w-sm"
+                >
+                  <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                    <CheckCircle2 size={120} />
                   </div>
-                </div>
-              </motion.div>
+                  <div className="relative z-10">
+                    <p className="text-[10px] font-black text-emerald-100 uppercase tracking-[0.2em] mb-2">{translations.sales_history.completed}</p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-emerald-200">৳</span>
+                      <h2 className="text-4xl font-black text-white tracking-tighter">
+                        {parseFloat(salesData?.summary?.total_completed || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </h2>
+                    </div>
+                  </div>
+                </motion.div>
+
+                <motion.div 
+                  key="returned-stats"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex-1 p-6 bg-rose-500 rounded-[2rem] shadow-xl shadow-rose-100 border border-rose-400/20 relative overflow-hidden group max-w-sm"
+                >
+                  <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                    <RotateCcw size={120} />
+                  </div>
+                  <div className="relative z-10">
+                    <p className="text-[10px] font-black text-rose-100 uppercase tracking-[0.2em] mb-2">{translations.sales_history.returned}</p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-rose-200">৳</span>
+                      <h2 className="text-4xl font-black text-white tracking-tighter">
+                        {parseFloat(salesData?.summary?.total_returned || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </h2>
+                    </div>
+                  </div>
+                </motion.div>
+
+                <motion.div 
+                  key="due-stats-all"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex-1 p-6 bg-orange-500 rounded-[2rem] shadow-xl shadow-orange-100 border border-orange-400/20 relative overflow-hidden group max-w-sm"
+                >
+                  <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                    <AlertCircle size={120} />
+                  </div>
+                  <div className="relative z-10">
+                    <p className="text-[10px] font-black text-orange-100 uppercase tracking-[0.2em] mb-2">{translations.sales_history.total_due}</p>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-black text-orange-200">৳</span>
+                      <h2 className="text-4xl font-black text-white tracking-tighter">
+                        {parseFloat(salesData?.summary?.total_due || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </h2>
+                    </div>
+                  </div>
+                </motion.div>
+              </>
             )}
           </AnimatePresence>
         </div>
@@ -354,7 +395,14 @@ const SalesHistoryPage = () => {
                           </td>
                           <td className="px-8 py-5 text-right">
                             <div className="flex flex-col items-end">
-                              <span className="text-sm font-black text-slate-900 tracking-tight">৳{parseFloat(item.grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                              <span className="text-sm font-black text-slate-900 tracking-tight">
+                                ৳{parseFloat(item.net_total ?? item.grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </span>
+                              {item.refunded_amount > 0 && (
+                                <span className="text-[9px] font-black text-rose-500 uppercase tracking-tighter">
+                                  Refunded: ৳{parseFloat(item.refunded_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </span>
+                              )}
                               {item.due_amount > 0 && (
                                 <span className="text-[9px] font-black text-orange-500 uppercase tracking-tighter">Due: ৳{parseFloat(item.due_amount).toLocaleString()}</span>
                               )}
@@ -429,7 +477,6 @@ const SalesHistoryPage = () => {
                                             <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{translations.medicine.medicine_name || 'Medicine'}</th>
                                             <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.medicine.dosage_form || 'Unit'}</th>
                                             <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.qty || 'Qty'}</th>
-                                            <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.medicine.price || 'Unit Price'}</th>
                                             <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.expense.amount || 'Subtotal'}</th>
                                           </tr>
                                         </thead>
@@ -444,20 +491,19 @@ const SalesHistoryPage = () => {
                                               </td>
                                               <td className="px-6 py-4 text-center">
                                                 <span className="px-2.5 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black uppercase tracking-tighter border border-slate-200">
-                                                  {ritem.sale_unit === 'Tablet' ? translations.pos.unit_tablet : (ritem.sale_unit === 'Strip' ? translations.pos.unit_strip : translations.pos.unit_box)}
+                                                  {ritem.sale_unit === 'Tablet' ? 'Unit' : (ritem.sale_unit === 'Strip' ? 'Strip' : 'Box')}
                                                 </span>
                                               </td>
                                               <td className="px-6 py-4 text-center">
                                                 <span className="text-sm font-black text-indigo-600">{formatSoldQty(ritem)}</span>
                                               </td>
-                                              <td className="px-6 py-4 text-right font-medium text-slate-500 text-sm">৳{parseFloat(ritem.unit_price).toFixed(2)}</td>
                                               <td className="px-6 py-4 text-right font-black text-slate-900 text-sm">৳{parseFloat(ritem.subtotal).toFixed(2)}</td>
                                             </tr>
                                           ))}
                                         </tbody>
                                         <tfoot className="bg-slate-50/80 border-t border-slate-200">
                                           <tr>
-                                            <td colSpan="4" className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">
+                                            <td colSpan="3" className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">
                                               {translations.sales_history.total_amount || 'Grand Total'}
                                             </td>
                                             <td className="px-6 py-4 text-right">

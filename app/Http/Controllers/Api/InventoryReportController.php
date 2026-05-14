@@ -34,12 +34,12 @@ class InventoryReportController extends Controller
             $valuation = StockBatch::where('qty_tablets_remaining', '>', 0)
                 ->join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id')
                 ->selectRaw('
-                    IFNULL(medicines.category_name, "Uncategorized") as category_name,
+                    IFNULL(medicines.category, "Uncategorized") as category_name,
                     SUM(
                         CASE 
                             WHEN medicines.dosage_form IN ("Tablet", "Capsule", "Suppository", "Patch") 
-                            THEN (stock_batches.qty_tablets_remaining / (IFNULL(medicines.tablet_per_stripe, 1) * IFNULL(medicines.stripe_per_box, 1))) * IFNULL(stock_batches.cost_per_box, 0)
-                            ELSE stock_batches.qty_tablets_remaining * IFNULL(stock_batches.price, 0)
+                            THEN (stock_batches.qty_tablets_remaining / (IFNULL(medicines.tablets_per_strip, 1) * IFNULL(medicines.strips_per_box, 1))) * IFNULL(stock_batches.cost_per_box, 0)
+                            ELSE stock_batches.qty_tablets_remaining * IFNULL(stock_batches.cost_per_unit, 0)
                         END
                     ) as total_value,
                     COUNT(DISTINCT medicines.id) as unique_medicines,
@@ -112,18 +112,18 @@ class InventoryReportController extends Controller
                 // FIX 6: DB subquery replaces PHP-side pluck/unique memory pattern
                 'slow_moving' => Medicine::where('stock', '>', 0)
                     ->whereNotIn('id', $soldRecentlySubquery)
-                    ->select('id', 'name', 'stock', 'reorder_level')
+                    ->select('id', 'medicine_name as name', 'stock', 'reorder_level')
                     ->orderByDesc('stock')
                     ->limit(50)
                     ->get(),
 
                 'summaries' => [
-                    'total_stock_value' => $valuation->sum('total_value'),
+                    'total_stock_value' => (float) PurchaseOrder::where('status', '!=', 'Cancelled')->sum('paid_amount'),
                     'total_pending_payments' => (float) $poDues,
                     // FIX 7: All counts now come from the single aggregation query above
                     'expiry_count' => (int) ($stockCounts->expiry_count ?? 0),
                     'expired_count' => (int) ($stockCounts->expired_count ?? 0),
-                    'low_stock_count' => Medicine::where('status', 'Active')
+                    'low_stock_count' => Medicine::where('is_active', 1)
                         ->whereColumn('stock', '<=', 'reorder_level')
                         ->count(),
                     'category_count' => $valuation->count(),

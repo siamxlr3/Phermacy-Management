@@ -40,8 +40,26 @@ class SaleController extends Controller
             $query->where('status', $status);
         }
 
-        // Cache dynamic sums to prevent DB locking at 1M+ rows
-        $totalAmount = Cache::remember('sales_total_amount', 300, fn() => Sale::sum('grand_total'));
+        // Cache dynamic sums — net of refunds
+        $totalAmount = Cache::remember('sales_total_amount', 300, fn() =>
+            Sale::whereIn('status', ['Completed', 'Due', 'Partially Returned'])
+                ->selectRaw('SUM(grand_total - COALESCE(refunded_amount, 0))')
+                ->value('SUM(grand_total - COALESCE(refunded_amount, 0))')
+        );
+        // Completed card: Completed + Partially Returned sales at their net value (grand_total - refunded_amount)
+        // A partially-returned sale was still originally paid; we show what remains after the partial refund.
+        $totalCompleted = Cache::remember('sales_total_completed', 300, fn() =>
+            Sale::whereIn('status', ['Completed', 'Partially Returned'])
+                ->selectRaw('SUM(grand_total - COALESCE(refunded_amount, 0))')
+                ->value('SUM(grand_total - COALESCE(refunded_amount, 0))')
+        );
+        // Returned card: fully-returned sales (full grand_total) + partial refund amounts from partially-returned sales
+        $totalReturned = Cache::remember('sales_total_returned', 300, fn() =>
+            (float) Sale::where('status', 'Returned')->sum('grand_total')
+            + (float) Sale::where('status', 'Partially Returned')
+                ->selectRaw('SUM(COALESCE(refunded_amount, 0))')
+                ->value('SUM(COALESCE(refunded_amount, 0))')
+        );
         $totalDue = Cache::remember('sales_total_due', 300, fn() => Sale::sum('due_amount'));
         $totalDueCustomers = Cache::remember('sales_total_due_customers', 300, fn() => Sale::where('due_amount', '>', 0)->distinct('customer_phone')->count('customer_phone'));
 
@@ -50,6 +68,8 @@ class SaleController extends Controller
         return SaleResource::collection($paginator)->additional([
             'summary' => [
                 'total_amount' => $totalAmount,
+                'total_completed' => $totalCompleted,
+                'total_returned' => $totalReturned,
                 'total_due' => $totalDue,
                 'total_due_customers' => $totalDueCustomers
             ]
@@ -160,6 +180,8 @@ class SaleController extends Controller
 
                 // Targeted invalidation. NEVER use Cache::flush() in production!
                 Cache::forget('sales_total_amount');
+                Cache::forget('sales_total_completed');
+                Cache::forget('sales_total_returned');
                 Cache::forget('sales_total_due');
                 Cache::forget('sales_total_due_customers');
                 
@@ -213,6 +235,8 @@ class SaleController extends Controller
             }
             
             Cache::forget('sales_total_amount');
+            Cache::forget('sales_total_completed');
+            Cache::forget('sales_total_returned');
             Cache::forget('sales_total_due');
             Cache::forget('sales_total_due_customers');
             

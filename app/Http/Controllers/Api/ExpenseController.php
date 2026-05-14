@@ -119,7 +119,7 @@ class ExpenseController extends Controller
                 if ($expense->status === 'Paid') {
                     $itemNames = collect($data['items'])->pluck('items_name')->join(', ');
                     CashTransaction::record(
-                        'Out',
+                        'expense',
                         $expense->grand_total,
                         "{$itemNames} ({$expense->transaction_id})"
                     );
@@ -197,7 +197,7 @@ class ExpenseController extends Controller
                 if ($expense->status === 'Paid') {
                     $itemNames = collect($data['items'])->pluck('items_name')->join(', ');
                     CashTransaction::record(
-                        'Out',
+                        'expense',
                         $expense->grand_total,
                         "Updated Expense ({$expense->transaction_id})"
                     );

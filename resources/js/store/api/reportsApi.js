@@ -12,12 +12,10 @@ export const reportsApi = createApi({
   tagTypes: ['Report'],
   endpoints: (builder) => ({
     getReportDashboard: builder.query({
-      query: (filters) => {
-        const params = new URLSearchParams();
-        if (filters?.from_date) params.append('from_date', filters.from_date);
-        if (filters?.to_date) params.append('to_date', filters.to_date);
-        return `/reports/dashboard?${params.toString()}`;
-      },
+      query: (params) => ({
+        url: '/reports/dashboard',
+        params,
+      }),
       providesTags: ['Report'],
     }),
     refreshReports: builder.mutation({

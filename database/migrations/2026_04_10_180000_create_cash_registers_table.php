@@ -17,10 +17,16 @@ return new class extends Migration
 
         Schema::create('cash_transactions', function (Blueprint $table) {
             $table->id();
-            $table->string('items')->nullable(); // Renamed from description
+            $table->string('description')->nullable();
             $table->decimal('amount', 15, 2);
-            $table->enum('type', ['In', 'Out'])->default('In'); // Internal type to help with logic
+            $table->enum('transaction_type', ['In', 'Out', 'sale_refund', 'expense'])->default('In');
             $table->decimal('balance_after', 15, 2)->default(0);
+            $table->string('reference_type')->nullable();
+            $table->unsignedBigInteger('reference_id')->nullable();
+            $table->string('reference_number')->nullable();
+            $table->enum('payment_method', ['cash', 'card', 'online', 'due'])->default('cash');
+            $table->string('party_name')->nullable();
+            $table->enum('party_type', ['customer', 'supplier', 'other'])->default('other');
             $table->timestamps();
         });
     }

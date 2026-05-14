@@ -12,7 +12,7 @@ class GRNItemResource extends JsonResource
         return [
             'id' => $this->id,
             'medicine_id' => $this->medicine_id,
-            'medicine_name' => $this->medicine?->name,
+            'medicine_name' => $this->medicine?->medicine_name,
             'medicine_dosage_form' => $this->medicine?->dosage_form,
             'dosage_form_snapshot' => $this->dosage_form_snapshot,
             'batch_number' => $this->batch_number,

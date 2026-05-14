@@ -20,8 +20,14 @@ class SalesReturnResource extends JsonResource
             'sale_invoice' => $this->sale->invoice_number,
             'return_invoice_number' => $this->return_invoice_number,
             'return_date' => $this->return_date->toDateTimeString(),
+            'subtotal_returned' => $this->subtotal_returned,
+            'tax_returned' => $this->tax_returned,
             'total_returned' => $this->total_returned,
             'reason' => $this->reason,
+            'refund_method' => $this->refund_method,
+            'original_payment_method' => $this->original_payment_method,
+            'return_type' => $this->return_type,
+            'cash_transaction_id' => $this->cash_transaction_id,
             'items' => SalesReturnItemResource::collection($this->whenLoaded('items')),
         ];
     }

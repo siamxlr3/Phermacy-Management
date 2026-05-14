@@ -13,9 +13,10 @@ import toast from 'react-hot-toast';
 import MedicineForm from './MedicineForm';
 import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
-const getStockStyle = (stock, reorderLevel = 10) => {
+const getStockStyle = (stock, reorderLevel) => {
+  const threshold = reorderLevel ?? 10;
   if (stock <= 0) return 'bg-red-50 text-red-600 border-red-100';
-  if (stock <= reorderLevel) return 'bg-amber-50 text-amber-600 border-amber-100';
+  if (stock <= threshold) return 'bg-amber-50 text-amber-600 border-amber-100';
   return 'bg-emerald-50 text-emerald-600 border-emerald-100';
 };
 
@@ -49,9 +50,9 @@ const MedicineTable = () => {
     if (confirm("Are you sure you want to delete this medicine?")) {
       try {
         await deleteMedicine(id).unwrap();
-        toast.success("Medicine deleted successfully");
+        toast.success(translations.medicine?.delete_success || "Medicine deleted successfully");
       } catch (err) {
-        toast.error("Failed to delete medicine");
+        toast.error(translations.medicine?.delete_failed || "Failed to delete medicine");
       }
     }
   };
@@ -67,10 +68,10 @@ const MedicineTable = () => {
 
     try {
       await importMedicines(formData).unwrap();
-      toast.success('Medicines imported successfully!');
+      toast.success(translations.medicine?.update_success || 'Medicines imported successfully!');
       e.target.value = ''; 
     } catch (err) {
-      toast.error(err?.data?.message || 'Failed to import medicines.');
+      toast.error(err?.data?.message || translations.medicine?.error_generic || 'Failed to import medicines.');
     }
   };
 
@@ -87,9 +88,9 @@ const MedicineTable = () => {
         {/* Header Area */}
         <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-b border-slate-100 gap-4">
           <div>
-            <h2 className="text-base font-semibold text-slate-900">Medicine Catalog</h2>
+            <h2 className="text-base font-semibold text-slate-900">{translations.medicine?.inventory_title || 'Medicine Catalog'}</h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              {isLoadingState ? 'Updating...' : `${meta.total || medicines.length} medicines registered`}
+              {isLoadingState ? 'Updating...' : (translations.medicine?.medicines_in_catalog?.replace('{n}', meta.total || medicines.length) || `${meta.total || medicines.length} medicines registered`)}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2.5">
@@ -98,16 +99,16 @@ const MedicineTable = () => {
               onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
               className="px-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 focus:outline-none transition-all text-slate-600 outline-none"
             >
-              <option value="">All Status</option>
-              <option value="1">Active</option>
-              <option value="0">Inactive</option>
+              <option value="">{translations.supplier?.all_status || 'All Status'}</option>
+              <option value="1">{translations.medicine?.active || 'Active'}</option>
+              <option value="0">{translations.medicine?.inactive || 'Inactive'}</option>
             </select>
 
             <div className="relative">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search products..."
+                placeholder={translations.medicine?.search_placeholder || "Search inventory..."}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-400 w-48 placeholder:text-slate-400 transition-all outline-none"
@@ -121,14 +122,14 @@ const MedicineTable = () => {
                 className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-semibold rounded-lg transition-all disabled:opacity-60"
             >
                 {isImporting ? <Loader2 size={15} className="animate-spin" /> : <FileUp size={15} />}
-                {isImporting ? '...' : 'Import'}
+                {isImporting ? '...' : (translations.reports?.sync_data || 'Import')}
             </button>
 
             <button
               onClick={handleAdd}
               className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg transition-all shadow-sm"
             >
-              <Plus size={15} /> Add Medicine
+              <Plus size={15} /> {translations.medicine?.add_medicine || 'Add Medicine'}
             </button>
           </div>
         </div>
@@ -138,16 +139,16 @@ const MedicineTable = () => {
           <table className="w-full text-left border-collapse min-w-[1200px]">
             <thead className="sticky top-0 bg-white z-20 shadow-[0_1px_0_0_rgba(226,232,240,1)]">
               <tr className="bg-slate-50/50">
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[20%]">Medicine Information</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[10%]">Classification</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[15%]">Category & Manufacturer</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[10%]">Unit Config</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[15%]">Packaging</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[10%] text-right">Pricing (৳)</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-amber-500 w-[10%] text-right bg-amber-50/20">Cost Price (৳)</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[8%] text-center">Stock</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[10%] text-center">Status</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[100px] text-right sticky right-0 bg-slate-50/50">Actions</th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[20%]">{translations.medicine?.medicine_info || 'Medicine Information'}</th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[10%]">{translations.medicine?.dosage_strength || 'Classification'}</th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[15%]">{translations.medicine?.category_manuf || 'Category & Manufacturer'}</th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[10%]">{translations.medicine?.dosage_form || 'Unit Config'}</th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[15%]">{translations.medicine?.packaging_volume || 'Packaging'}</th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[10%] text-right">{translations.medicine?.pricing || 'Pricing'} (৳)</th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-amber-500 w-[10%] text-right bg-amber-50/20">{translations.expense?.price || 'Cost Price'} (৳)</th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[8%] text-center">{translations.stock?.current_stock || 'Stock'}</th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[10%] text-center">{translations.medicine?.status || 'Status'}</th>
+                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[100px] text-right sticky right-0 bg-slate-50/50">{translations.medicine?.actions || 'Actions'}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -160,7 +161,7 @@ const MedicineTable = () => {
               ) : medicines.length === 0 ? (
                 <tr>
                   <td colSpan="10" className="px-6 py-20 text-center">
-                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No medicines found</p>
+                    <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">{translations.medicine?.no_medicines || 'No medicines found'}</p>
                   </td>
                 </tr>
               ) : (
@@ -260,20 +261,25 @@ const MedicineTable = () => {
                           <span className={`px-3 py-1 rounded-full text-xs font-black border ${getStockStyle(med.stock || 0, med.reorder_level)}`}>
                              {med.stock || 0}
                           </span>
-                          <span className="text-[9px] font-bold text-slate-400 uppercase">Min: {med.reorder_level}</span>
+                          <span className="text-[9px] font-bold text-slate-400 uppercase">
+                             {translations.medicine?.reorder_level || 'Min Level'}: {med.reorder_level}
+                          </span>
                        </div>
                     </td>
 
                     {/* Status */}
-                    <td className="px-6 py-4 text-center">
-                       <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold border uppercase tracking-widest ${
-                         med.is_active 
-                           ? 'bg-emerald-50 text-emerald-600 border-emerald-200' 
-                           : 'bg-slate-50 text-slate-400 border-slate-200'
-                       }`}>
-                         <Activity size={10} className={med.is_active ? 'animate-pulse' : ''} />
-                         {med.is_active ? 'Active' : 'Inactive'}
-                       </span>
+                    <td className="px-6 py-4">
+                       <div className="flex flex-col items-center gap-1">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black border transition-all ${
+                            med.is_active 
+                              ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+                              : 'bg-slate-50 text-slate-400 border-slate-100'
+                          }`}>
+                            {med.is_active 
+                              ? (translations.medicine?.active || 'Active') 
+                              : (translations.medicine?.inactive || 'Inactive')}
+                          </span>
+                       </div>
                     </td>
 
                     {/* Actions */}

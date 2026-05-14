@@ -18,7 +18,7 @@ class PurchaseOrderItemResource extends JsonResource
             'id' => $this->id,
             'purchase_order_id' => $this->purchase_order_id,
             'medicine_id' => $this->medicine_id,
-            'medicine_name' => $this->whenLoaded('medicine', fn() => $this->medicine->name),
+            'medicine_name' => $this->whenLoaded('medicine', fn() => $this->medicine->medicine_name),
             'dosage_form_snapshot' => $this->dosage_form_snapshot,
             'qty_boxes' => $this->qty_boxes,
             'cost_per_box' => $this->cost_per_box,

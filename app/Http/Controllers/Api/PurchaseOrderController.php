@@ -38,20 +38,20 @@ class PurchaseOrderController extends Controller
 
         if ($status) {
             $query->where(function($q) use ($status) {
-                $q->where('status', $status)
-                  ->orWhere('payment_status', $status);
+                $q->where('purchase_orders.status', $status)
+                  ->orWhere('purchase_orders.payment_status', $status);
             });
         }
 
         if ($fromDate && $toDate) {
-            $query->whereBetween('order_date', [$fromDate, $toDate]);
+            $query->whereBetween('purchase_orders.order_date', [$fromDate, $toDate]);
         }
 
         if ($hasNoGrn) {
             $query->whereDoesntHave('grns');
         }
 
-        $orders = $query->orderBy('order_date', 'desc')->simplePaginate($perPage);
+        $orders = $query->orderBy('purchase_orders.order_date', 'desc')->simplePaginate($perPage);
         return PurchaseOrderResource::collection($orders);
     }
 
@@ -96,12 +96,6 @@ class PurchaseOrderController extends Controller
 
                     // In-memory lookup — zero additional DB queries
                     $medicine = $medicines->get($item['medicine_id']);
-                    if ($medicine) {
-                        $medicine->update([
-                            'cost_price' => $item['cost_per_box'],
-                            'price_per_unit' => $item['cost_per_unit']
-                        ]);
-                    }
                 }
 
                 // FIX: Bulk insert ALL items in exactly ONE query
@@ -164,12 +158,6 @@ class PurchaseOrderController extends Controller
                     ];
 
                     $medicine = $medicines->get($item['medicine_id']);
-                    if ($medicine) {
-                        $medicine->update([
-                            'cost_price' => $item['cost_per_box'],
-                            'price_per_unit' => $item['cost_per_unit']
-                        ]);
-                    }
                 }
                 PurchaseOrderItem::insert($itemsData);
 

@@ -45,7 +45,7 @@ const TopMedicinesTable = ({ medicines }) => {
                                         <div className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-100 flex items-center justify-center">
                                             <Package size={14} className="text-slate-400" />
                                         </div>
-                                        <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900 transition-colors">{med.name}</span>
+                                        <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900 transition-colors">{med.medicine_name || med.name}</span>
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 text-right text-xs font-black text-slate-600">

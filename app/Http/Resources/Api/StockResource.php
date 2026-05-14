@@ -16,17 +16,17 @@ class StockResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'name' => $this->name,
+            'name' => $this->medicine_name,
             'generic_name' => $this->generic_name,
             'dosage_form' => $this->dosage_form,
             'strength' => $this->strength,
-            'category_name' => $this->category_name,
-            'manufacturer_name' => $this->manufacturer_name,
+            'category_name' => $this->category,
+            'manufacturer_name' => $this->manufacturer,
             'total_stock' => $this->total_stock ?? 0,
             'reorder_level' => $this->reorder_level,
-            'tablet_per_stripe' => $this->tablet_per_stripe ?? 10,
-            'stripe_per_box' => $this->stripe_per_box ?? 10,
-            'status' => $this->status,
+            'tablet_per_stripe' => $this->tablets_per_strip ?? 10,
+            'stripe_per_box' => $this->strips_per_box ?? 10,
+            'status' => $this->is_active ? 'Active' : 'Inactive',
         ];
     }
 }

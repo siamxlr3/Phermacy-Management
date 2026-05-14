@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
+import { useLanguage } from '../../language/GlobalTranslate.jsx';
 import { useGetReturnsQuery } from '../../store/api/returnsApi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Filter, Calendar, ChevronLeft, ChevronRight, Eye, MoreHorizontal, Download } from 'lucide-react';
+import { Search, Filter, Calendar, ChevronLeft, ChevronRight, Eye, MoreHorizontal, Download, CreditCard } from 'lucide-react';
 import { format } from 'date-fns';
 
 const ReturnsTable = () => {
+    const { translations } = useLanguage();
+    const t = translations?.returns?.table;
     const [page, setPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
     const [perPage, setPerPage] = useState(10);
     const [dateRange, setDateRange] = useState({
-        from: format(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
+        from: format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
         to: format(new Date(), 'yyyy-MM-dd')
     });
 
@@ -34,7 +37,7 @@ const ReturnsTable = () => {
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
                             <input
                                 type="text"
-                                placeholder="Search by return invoice number..."
+                                placeholder={t?.search_placeholder || "Search by return invoice number..."}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full pl-11 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium focus:ring-4 focus:ring-blue-500/10 focus:border-blue-400 outline-none transition-all placeholder:text-slate-400 text-slate-600"
@@ -42,7 +45,7 @@ const ReturnsTable = () => {
                         </div>
                         <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100 text-xs font-bold text-slate-500">
-                                <Calendar size={14} /> From
+                                <Calendar size={14} /> {t?.from || 'From'}
                                 <input 
                                     type="date" 
                                     value={dateRange.from} 
@@ -51,7 +54,7 @@ const ReturnsTable = () => {
                                 />
                             </div>
                             <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100 text-xs font-bold text-slate-500">
-                                <Calendar size={14} /> To
+                                <Calendar size={14} /> {t?.to || 'To'}
                                 <input 
                                     type="date" 
                                     value={dateRange.to} 
@@ -67,9 +70,9 @@ const ReturnsTable = () => {
                             onChange={(e) => setPerPage(Number(e.target.value))}
                             className="bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-600 outline-none focus:ring-4 focus:ring-slate-500/5 transition-all"
                         >
-                            <option value={10}>10 per page</option>
-                            <option value={20}>20 per page</option>
-                            <option value={50}>50 per page</option>
+                            <option value={10}>{t?.per_page?.replace('{n}', '10') || '10 per page'}</option>
+                            <option value={20}>{t?.per_page?.replace('{n}', '20') || '20 per page'}</option>
+                            <option value={50}>{t?.per_page?.replace('{n}', '50') || '50 per page'}</option>
                         </select>
                     </div>
                 </div>
@@ -80,13 +83,13 @@ const ReturnsTable = () => {
                 <table className="w-full text-left border-collapse min-w-[1000px]">
                     <thead className="sticky top-0 bg-white z-10 border-b border-slate-100 shadow-sm shadow-slate-200/5">
                         <tr>
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Return Date</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Return Invoice</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Original Sale</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Returned Items</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Total Refund</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">Reason</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-right">Actions</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t?.headers?.date || 'Return Date'}</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t?.headers?.info || 'Return Info'}</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t?.headers?.original_sale || 'Original Sale'}</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t?.headers?.items || 'Returned Items'}</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t?.headers?.refund || 'Refund Details'}</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t?.headers?.reason || 'Reason'}</th>
+                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-right">{t?.headers?.actions || 'Actions'}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -102,14 +105,14 @@ const ReturnsTable = () => {
                             ))
                         ) : returns.length === 0 ? (
                             <tr>
-                                <td colSpan={6} className="px-8 py-32">
+                                <td colSpan={7} className="px-8 py-32">
                                     <div className="flex flex-col items-center justify-center gap-4 grayscale opacity-40">
                                         <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center">
                                             <Search size={32} />
                                         </div>
                                         <div className="text-center">
-                                            <p className="font-black text-slate-900 text-lg tracking-tight">No returns found</p>
-                                            <p className="text-sm font-medium text-slate-500">Try adjusting your filters or search term</p>
+                                            <p className="font-black text-slate-900 text-lg tracking-tight">{t?.no_records || 'No returns found'}</p>
+                                            <p className="text-sm font-medium text-slate-500">{t?.adjust_filters || 'Try adjusting your filters or search term'}</p>
                                         </div>
                                     </div>
                                 </td>
@@ -121,30 +124,67 @@ const ReturnsTable = () => {
                                         <span className="text-sm font-bold text-slate-700">{format(new Date(item.return_date), 'MMM dd, yyyy')}</span>
                                     </td>
                                     <td className="px-8 py-6">
-                                        <span className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-black border border-blue-100 group-hover:bg-blue-600 group-hover:text-white transition-all">
-                                            {item.return_invoice_number}
-                                        </span>
+                                        <div className="flex flex-col gap-1.5">
+                                            <span className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-black border border-blue-100 group-hover:bg-blue-600 group-hover:text-white transition-all w-fit">
+                                                {item.return_invoice_number}
+                                            </span>
+                                            <span className={`text-[9px] font-black uppercase tracking-widest w-fit px-2 py-0.5 rounded ${item.return_type === 'full' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
+                                                {item.return_type === 'full' ? (t?.full_return || 'Full Return') : (t?.partial_return || 'Partial Return')}
+                                            </span>
+                                        </div>
                                     </td>
                                     <td className="px-8 py-6">
                                         <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2 py-1 rounded-md">
                                             {item.sale_invoice}
                                         </span>
                                     </td>
-                                    <td className="px-8 py-6">
-                                        <div className="flex flex-col gap-1">
-                                            {item.items?.map((ritem, idx) => (
-                                                <div key={idx} className="flex items-center gap-2">
-                                                    <div className="flex flex-col">
-                                                        <span className="text-xs font-bold text-slate-700">{ritem.medicine_name}</span>
-                                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">Batch: {ritem.batch_number}</span>
+                                    <td className="px-6 py-5">
+                                        <div className="flex flex-col gap-2.5">
+                                            {item.items?.map((ritem, idx) => {
+                                                const unitLabel = ritem.sale_unit === 'Tablet'
+                                                    ? (ritem.dosage_form || 'Pc')
+                                                    : (ritem.sale_unit || 'Pc');
+
+                                                const conditionColor = {
+                                                    resellable: 'bg-emerald-50 text-emerald-600 border-emerald-100',
+                                                    damaged:    'bg-amber-50 text-amber-600 border-amber-100',
+                                                    expired:    'bg-rose-50 text-rose-500 border-rose-100',
+                                                }[ritem.return_condition] || 'bg-slate-50 text-slate-500 border-slate-100';
+
+                                                return (
+                                                    <div key={idx} className={`flex flex-col gap-1 ${idx > 0 ? 'pt-2.5 border-t border-slate-100' : ''}`}>
+                                                        {/* Medicine name */}
+                                                        <span className="text-xs font-black text-slate-800 leading-tight">
+                                                            {ritem.medicine_name}
+                                                        </span>
+                                                        {/* Qty + Unit type + Price row */}
+                                                        <div className="flex items-center flex-wrap gap-1.5">
+                                                            <span className="flex items-center gap-1 px-2 py-0.5 bg-rose-50 text-rose-600 border border-rose-100 rounded-full text-[9px] font-black uppercase tracking-wide">
+                                                                ×{ritem.qty_returned} {unitLabel}
+                                                            </span>
+                                                            <span className="px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-full text-[9px] font-black uppercase tracking-wide">
+                                                                {unitLabel}
+                                                            </span>
+                                                            <span className="text-[9px] font-bold text-slate-400">
+                                                                @৳{parseFloat(ritem.unit_price).toFixed(2)}
+                                                            </span>
+                                                        </div>
+                                                        {/* Condition badge */}
+                                                        <span className={`text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded border w-fit ${conditionColor}`}>
+                                                            {ritem.return_condition}
+                                                        </span>
                                                     </div>
-                                                    <span className="text-[10px] font-black px-1.5 py-0.5 bg-rose-50 text-rose-500 rounded border border-rose-100 italic shrink-0">x{ritem.qty_returned}</span>
-                                                </div>
-                                            ))}
+                                                );
+                                            })}
                                         </div>
                                     </td>
                                     <td className="px-8 py-6">
-                                        <span className="text-sm font-black text-slate-900">${parseFloat(item.total_returned).toFixed(2)}</span>
+                                        <div className="flex flex-col gap-1">
+                                            <span className="text-sm font-black text-slate-900">${parseFloat(item.total_returned).toFixed(2)}</span>
+                                            <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                                                <CreditCard size={10} /> {item.refund_method}
+                                            </span>
+                                        </div>
                                     </td>
                                     <td className="px-8 py-6">
                                         <p className="text-xs font-bold text-slate-500 line-clamp-1 max-w-[200px]">{item.reason}</p>
@@ -170,7 +210,10 @@ const ReturnsTable = () => {
             {!isLoading && meta.last_page > 1 && (
                 <div className="shrink-0 p-6 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between">
                     <p className="text-[11px] font-black text-slate-400 uppercase tracking-[2px]">
-                        Showing {meta.from}-{meta.to} of {meta.total} returns
+                        {(t?.showing_records || 'Showing {from}-{to} of {total} returns')
+                            .replace('{from}', meta.from)
+                            .replace('{to}', meta.to)
+                            .replace('{total}', meta.total)}
                     </p>
                     <div className="flex items-center gap-2">
                         <button 

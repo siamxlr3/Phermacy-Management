@@ -9,8 +9,10 @@ use App\Models\SaleItem;
 use App\Models\Medicine;
 use App\Models\StockBatch;
 use Illuminate\Http\Request;
-use App\Http\Resources\Api\ReturnResource;
+use App\Http\Resources\Api\SalesReturnResource;
 use App\Http\Resources\Api\SaleResource;
+use App\Http\Requests\Api\StoreReturnRequest;
+use App\Models\CashTransaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Exception;
@@ -24,7 +26,7 @@ class ReturnController extends Controller
         $fromDate = $request->get('from_date');
         $toDate = $request->get('to_date');
 
-        $query = SalesReturn::with(['sale', 'items.medicine']);
+        $query = SalesReturn::with(['sale', 'items.medicine', 'items.batch']);
 
         if ($search) {
             $query->where('return_invoice_number', 'like', "%{$search}%")
@@ -34,35 +36,28 @@ class ReturnController extends Controller
         }
 
         if ($fromDate && $toDate) {
-            $query->whereBetween('return_date', [$fromDate, $toDate]);
+            $query->whereBetween('return_date', [
+                \Carbon\Carbon::parse($fromDate)->startOfDay(),
+                \Carbon\Carbon::parse($toDate)->endOfDay()
+            ]);
         }
 
         $returns = $query->orderBy('return_date', 'desc')->paginate($perPage);
-        return ReturnResource::collection($returns);
+        return SalesReturnResource::collection($returns);
     }
 
-    public function findSale(Request $request)
+    public function lookup(string $invoiceNumber)
     {
-        $invoice = $request->get('invoice');
-        $sale = Sale::with(['items.medicine', 'customer'])
-            ->where('invoice_number', $invoice)
+        $sale = Sale::with(['items.medicine'])
+            ->where('invoice_number', $invoiceNumber)
             ->firstOrFail();
 
         return new SaleResource($sale);
     }
 
-    public function store(Request $request)
+    public function store(StoreReturnRequest $request)
     {
-        $data = $request->validate([
-            'sale_id' => 'required|exists:sales,id',
-            'reason' => 'required|string',
-            'subtotal_returned' => 'required|numeric',
-            'tax_returned' => 'nullable|numeric',
-            'total_returned' => 'required|numeric',
-            'items' => 'required|array',
-            'items.*.sale_item_id' => 'required|exists:sale_items,id',
-            'items.*.qty_returned' => 'required|integer|min:1',
-        ]);
+        $data = $request->validated();
 
         try {
             $salesReturn = DB::transaction(function () use ($data) {
@@ -80,7 +75,25 @@ class ReturnController extends Controller
                     'tax_returned' => $data['tax_returned'] ?? 0,
                     'total_returned' => $data['total_returned'],
                     'reason' => $data['reason'],
+                    'refund_method' => $data['refund_method'],
+                    'original_payment_method' => $data['original_payment_method'],
+                    'return_type' => $data['return_type'],
                 ]);
+
+                if ($data['refund_method'] === 'cash') {
+                    $transaction = CashTransaction::record(
+                        'sale_refund',
+                        $data['total_returned'],
+                        "Refund for Return Invoice {$invoiceNumber}",
+                        'sale_return',
+                        $salesReturn->id,
+                        $invoiceNumber,
+                        'cash',
+                        $sale->customer_name ?? 'Walk-in Customer',
+                        'customer'
+                    );
+                    $salesReturn->update(['cash_transaction_id' => $transaction->id]);
+                }
 
                 foreach ($data['items'] as $itemData) {
                     $saleItem = SaleItem::findOrFail($itemData['sale_item_id']);
@@ -91,13 +104,14 @@ class ReturnController extends Controller
                     }
 
                     $salesReturn->items()->create([
-                        'sale_item_id' => $saleItem->id,
-                        'medicine_id' => $saleItem->medicine_id,
-                        'stock_batch_id' => $saleItem->stock_batch_id,
-                        'qty_returned' => $itemData['qty_returned'],
-                        'unit_price' => $saleItem->unit_price,
-                        'tax_amount' => ($saleItem->tax_amount / $saleItem->qty_tablets) * $itemData['qty_returned'],
-                        'subtotal' => $saleItem->unit_price * $itemData['qty_returned'],
+                        'sale_item_id'     => $saleItem->id,
+                        'medicine_id'      => $saleItem->medicine_id,
+                        'stock_batch_id'   => $saleItem->stock_batch_id,
+                        'qty_returned'     => $itemData['qty_returned'],
+                        'sale_unit'        => $saleItem->sale_unit ?? 'unit',
+                        'unit_price'       => $saleItem->unit_price,
+                        'subtotal'         => $saleItem->unit_price * $itemData['qty_returned'],
+                        'return_condition' => $itemData['return_condition'] ?? 'resellable',
                     ]);
 
                     $batch = StockBatch::find($saleItem->stock_batch_id);
@@ -111,20 +125,30 @@ class ReturnController extends Controller
                     ->where('sales_returns.sale_id', $sale->id)
                     ->sum('qty_returned');
 
+                // Track the net refunded amount on the sale for accurate revenue reporting
+                $sale->increment('refunded_amount', $data['total_returned']);
+
                 if ($totalReturned >= $totalSold) {
                     $sale->update(['status' => 'Returned']);
                 } else if ($totalReturned > 0) {
                     $sale->update(['status' => 'Partially Returned']);
                 }
 
-                Cache::flush();
+                // Targeted cache invalidation — clears sale summary cards immediately
+                Cache::forget('sales_total_amount');
+                Cache::forget('sales_total_completed');
+                Cache::forget('sales_total_returned');
+                Cache::forget('sales_total_due');
+                Cache::forget('sales_total_due_customers');
+                Cache::tags(['reports'])->flush();
+
                 return $salesReturn;
             });
 
             return response()->json([
                 'success' => true,
                 'message' => 'Return processed successfully',
-                'data' => new ReturnResource($salesReturn->load(['sale', 'items.medicine']))
+                'data' => new SalesReturnResource($salesReturn->load(['sale', 'items.medicine']))
             ], 201);
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
@@ -134,6 +158,6 @@ class ReturnController extends Controller
     public function show(int $id)
     {
         $return = SalesReturn::with(['sale', 'items.medicine'])->findOrFail($id);
-        return new ReturnResource($return);
+        return new SalesReturnResource($return);
     }
 }

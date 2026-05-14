@@ -22,9 +22,13 @@ class StoreReturnRequest extends FormRequest
             'tax_returned' => 'nullable|numeric|min:0',
             'total_returned' => 'required|numeric|min:0',
             'reason' => 'nullable|string|max:255',
+            'refund_method' => 'required|in:cash,card,online,store_credit',
+            'original_payment_method' => 'required|in:cash,card,online,due',
+            'return_type' => 'required|in:full,partial',
             'items' => 'required|array|min:1',
             'items.*.sale_item_id' => 'required|exists:sale_items,id',
             'items.*.qty_returned' => 'required|integer|min:1',
+            'items.*.return_condition' => 'nullable|in:resellable,damaged,expired',
         ];
     }
 }

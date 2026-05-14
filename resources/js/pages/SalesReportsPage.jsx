@@ -35,6 +35,11 @@ const SalesReportsPage = () => {
     const { data: returnsData } = useGetReturnsQuery({ fromDate: dateRange.from_date, toDate: dateRange.to_date, perPage: 5 });
     const [refreshReports, { isLoading: isRefreshing }] = useRefreshReportsMutation();
 
+    const dashboardData = reportData?.data || {};
+    const summary = dashboardData.summary || {};
+    const top_medicines = dashboardData.top_medicines || [];
+    const categories = dashboardData.categories || [];
+
     const handleRefresh = async () => {
         try {
             await refreshReports().unwrap();
@@ -141,26 +146,64 @@ const SalesReportsPage = () => {
                 </div>
 
                 {/* Dashboard Content */}
-                <div className="flex-1 min-h-0 flex flex-col gap-8 overflow-auto custom-scrollbar pr-2">
-                    
-                    {/* Stats Row */}
-                    <ReportStats summary={reportData?.data.summary} returnsCount={returnsData?.meta?.total || 0} />
+                <div className="flex-1 min-h-0 flex flex-col gap-8 overflow-auto custom-scrollbar pr-2 relative">
+                    {(isLoading || isFetching) ? (
+                        <div className="space-y-8 animate-pulse">
+                            {/* Stats Skeleton */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                {[1, 2, 3, 4].map(i => (
+                                    <div key={i} className="h-40 bg-white rounded-[32px] border border-slate-100 p-6 flex flex-col justify-between">
+                                        <div className="flex justify-between items-center">
+                                            <div className="w-12 h-12 bg-slate-100 rounded-2xl" />
+                                            <div className="w-12 h-6 bg-slate-50 rounded-lg" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <div className="w-20 h-3 bg-slate-100 rounded-full" />
+                                            <div className="w-32 h-8 bg-slate-200 rounded-xl" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
 
-                    {/* Main Charts/Tables Row */}
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 min-h-[500px]">
-                        
-                        <div className="lg:col-span-8 flex flex-col h-full">
-                            <TopMedicinesTable medicines={reportData?.data.top_medicines} />
+                            {/* Main Content Skeleton */}
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                                <div className="lg:col-span-8 h-[500px] bg-white rounded-[32px] border border-slate-100 p-8">
+                                    <div className="w-48 h-6 bg-slate-100 rounded-full mb-8" />
+                                    <div className="space-y-4">
+                                        {[1, 2, 3, 4, 5, 6].map(i => (
+                                            <div key={i} className="h-12 bg-slate-50 rounded-xl w-full" />
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="lg:col-span-4 space-y-8">
+                                    <div className="h-[240px] bg-white rounded-[32px] border border-slate-100 p-8">
+                                        <div className="w-40 h-6 bg-slate-100 rounded-full mb-6" />
+                                        <div className="flex items-center justify-center pt-4">
+                                            <div className="w-32 h-32 rounded-full border-8 border-slate-50" />
+                                        </div>
+                                    </div>
+                                    <div className="h-[240px] bg-white rounded-[32px] border border-slate-100" />
+                                </div>
+                            </div>
                         </div>
+                    ) : (
+                        <>
+                            {/* Stats Row */}
+                            <ReportStats summary={summary} returnsCount={dashboardData.returns_count || 0} />
 
-                        <div className="lg:col-span-4 flex flex-col h-full gap-8">
-                            <CategoryRevenue categories={reportData?.data.categories} />
-                            
+                            {/* Main Charts/Tables Row */}
+                            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 min-h-[500px]">
+                                
+                                <div className="lg:col-span-8 flex flex-col h-full">
+                                    <TopMedicinesTable medicines={top_medicines} />
+                                </div>
 
-
-
-                        </div>
-                    </div>
+                                <div className="lg:col-span-4 flex flex-col h-full gap-8">
+                                    <CategoryRevenue categories={categories} />
+                                </div>
+                            </div>
+                        </>
+                    )}
 
                 </div>
             </div>

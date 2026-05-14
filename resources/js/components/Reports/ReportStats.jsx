@@ -8,7 +8,7 @@ const ReportStats = ({ summary, returnsCount }) => {
     const stats = [
         { 
             label: translations.sales_reports.total_revenue, 
-            value: `৳${Number(summary?.total_receivable || 0).toLocaleString()}`, 
+            value: `৳${Number(summary?.total_completed || 0).toLocaleString()}`, 
             icon: DollarSign, 
             color: 'emerald',
             change: '+12.5%' // Mock trend for UX
@@ -51,10 +51,20 @@ const ReportStats = ({ summary, returnsCount }) => {
                         <div className={`absolute top-0 right-0 w-32 h-32 bg-${stat.color}-50/50 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-700`} />
                         
                         <div className="flex items-center justify-between relative z-10">
-                            <div className={`w-12 h-12 rounded-2xl bg-${stat.color}-50 flex items-center justify-center text-${stat.color}-600`}>
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                                stat.color === 'emerald' ? 'bg-emerald-50 text-emerald-600' :
+                                stat.color === 'indigo' ? 'bg-indigo-50 text-indigo-600' :
+                                stat.color === 'blue' ? 'bg-blue-50 text-blue-600' :
+                                'bg-rose-50 text-rose-600'
+                            }`}>
                                 <Icon size={24} />
                             </div>
-                            <span className={`text-[10px] font-black px-2 py-1 bg-${stat.color}-50 text-${stat.color}-700 rounded-lg`}>
+                            <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${
+                                stat.color === 'emerald' ? 'bg-emerald-50 text-emerald-700' :
+                                stat.color === 'indigo' ? 'bg-indigo-50 text-indigo-700' :
+                                stat.color === 'blue' ? 'bg-blue-50 text-blue-700' :
+                                'bg-rose-50 text-rose-700'
+                            }`}>
                                 {stat.change}
                             </span>
                         </div>

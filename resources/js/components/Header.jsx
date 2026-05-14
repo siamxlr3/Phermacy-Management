@@ -4,37 +4,33 @@ import { cn } from '../lib/utils';
 import { useLocation } from 'react-router-dom';
 import { useLanguage } from '../language/GlobalTranslate.jsx';
 
-const pathTitleMap = {
-  '/dashboard': { title: 'Dashboard', subtitle: 'Overview of pharmacy operations' },
-  '/pos/new': { title: 'New Sale (POS)', subtitle: 'Create a new transaction' },
-  '/sales': { title: 'Sales History', subtitle: 'View previous transactions' },
-  '/sales/returns': { title: 'Sales Returns', subtitle: 'Manage returned items' },
-  '/inventory/medicines': { title: 'Medicines', subtitle: 'Manage drug inventory' },
-  '/inventory/stock': { title: 'Stock Levels', subtitle: 'Monitor availability' },
-  '/inventory/adjustments': { title: 'Stock Adjustments', subtitle: 'Manual inventory corrections' },
-  '/inventory/interactions': { title: 'Drug Interactions', subtitle: 'Safety and compatibility checks' },
-  '/purchasing/suppliers': { title: 'Suppliers', subtitle: 'Manage vendors and contacts' },
-  '/purchasing/orders': { title: 'Purchase Orders', subtitle: 'Order new inventory' },
-  '/purchasing/grn': { title: 'Good Received Note (GRN)', subtitle: 'Log incoming stock' },
-  '/purchasing/returns': { title: 'Purchase Returns', subtitle: 'Return stock to suppliers' },
-  '/patients': { title: 'Patients', subtitle: 'Manage patient profiles' },
-  '/patients/allergies': { title: 'Allergies', subtitle: 'Patient safety records' },
-  '/patients/history': { title: 'Medical History', subtitle: 'Previous prescriptions and visits' },
-  '/reports/sales': { title: 'Sales Reports', subtitle: 'Analysis of revenue' },
-  '/reports/inventory': { title: 'Inventory Reports', subtitle: 'Stock movement analysis' },
-  '/reports/purchase': { title: 'Purchase Reports', subtitle: 'Supplier performance' },
-  '/reports/patients': { title: 'Patient Reports', subtitle: 'Demographics and history' },
-  '/alerts': { title: 'System Alerts', subtitle: 'Immediate action items' },
-  '/settings/users': { title: 'Users & Permissions', subtitle: 'Manage staff access' },
-  '/settings/audit': { title: 'Audit Trail', subtitle: 'Security and change logs' },
-  '/settings': { title: 'System Settings', subtitle: 'Global configurations' },
-};
 
 const Header = () => {
-  const { language, toggleLanguage } = useLanguage();
+  const { language, translations, toggleLanguage } = useLanguage();
   const location = useLocation();
   const currentPath = location.pathname;
-  const { title, subtitle } = pathTitleMap[currentPath] || { title: 'Pharmacy System', subtitle: 'Management Dashboard' };
+  const h = translations?.header || {};
+
+  const pathTitleMap = {
+    '/dashboard': h.dashboard,
+    '/pos': h.pos,
+    '/pos/new': h.pos,
+    '/sales': h.sales,
+    '/sales-history': h.sales,
+    '/sales/returns': h.returns,
+    '/inventory/medicines': h.medicines,
+    '/inventory/stock': h.stock,
+    '/inventory/reports': h.inventory_reports,
+    '/suppliers': h.suppliers,
+    '/orders': h.orders,
+    '/returns': h.purchasing_returns,
+    '/expenses': h.expenses,
+    '/hrm': h.hrm,
+    '/cash-register': h.cash_register,
+    '/settings': h.settings,
+  };
+
+  const { title, subtitle } = pathTitleMap[currentPath] || h.generic || { title: 'Pharmacy System', subtitle: 'Management Dashboard' };
 
   return (
     <header className="h-[80px] bg-white border-b border-zinc-100 px-8 flex items-center justify-between sticky top-0 z-10 shrink-0">

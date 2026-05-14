@@ -17,6 +17,10 @@ class SalesReturn extends Model
         'tax_returned',
         'total_returned',
         'reason',
+        'refund_method',
+        'original_payment_method',
+        'return_type',
+        'cash_transaction_id',
     ];
 
     protected $casts = [
@@ -34,5 +38,10 @@ class SalesReturn extends Model
     public function items()
     {
         return $this->hasMany(SalesReturnItem::class);
+    }
+
+    public function cashTransaction()
+    {
+        return $this->belongsTo(CashTransaction::class);
     }
 }

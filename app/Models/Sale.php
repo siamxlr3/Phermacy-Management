@@ -40,6 +40,7 @@ class Sale extends Model
         'grand_total',
         'paid_amount',
         'due_amount',
+        'refunded_amount',
         'payment_method',
         'status',
         'notes',
@@ -54,6 +55,7 @@ class Sale extends Model
         'grand_total' => 'decimal:2',
         'paid_amount' => 'decimal:2',
         'due_amount' => 'decimal:2',
+        'refunded_amount' => 'decimal:2',
     ];
 
     public function user()

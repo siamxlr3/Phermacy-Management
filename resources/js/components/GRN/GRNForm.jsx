@@ -134,26 +134,9 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
     const item = { ...newItems[index] };
     item[field] = value;
 
-    // Auto-calculate logic
-    const isStripBased = GROUP_A.includes(item.dosage_form_snapshot);
-    
-    // For Tablet/Capsule, allow fully independent manual entry
-    if (isStripBased) {
-      if (field === 'cost_per_box' || field === 'qty_boxes_received') {
-        item.subtotal = (parseFloat(item.qty_boxes_received) || 0) * (parseFloat(item.cost_per_box) || 0);
-      }
-      // cost_per_stripe and cost_per_unit are now independent - no auto-overwriting
-    } else {
-      // For liquids, keep the box/unit relationship as it's simpler
-      if (field === 'cost_per_box') {
-        item.cost_per_unit = (parseFloat(value) / (parseFloat(item.qty_units_received) || 1)).toFixed(4);
-        item.subtotal = (parseFloat(item.qty_boxes_received) || 0) * (parseFloat(value) || 0);
-      } else if (field === 'cost_per_unit') {
-        item.cost_per_box = (parseFloat(value) * (parseFloat(item.qty_units_received) || 1)).toFixed(2);
-        item.subtotal = (parseFloat(item.qty_boxes_received) || 0) * (parseFloat(item.cost_per_box) || 0);
-      } else if (field === 'qty_boxes_received') {
-        item.subtotal = (parseFloat(value) || 0) * (parseFloat(item.cost_per_box) || 0);
-      }
+    // Only calculate subtotal based on boxes received and box cost
+    if (field === 'cost_per_box' || field === 'qty_boxes_received') {
+      item.subtotal = (parseFloat(item.qty_boxes_received) || 0) * (parseFloat(item.cost_per_box) || 0);
     }
 
     newItems[index] = item;
@@ -486,17 +469,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
                         />
                       </div>
                     </>
-                  ) : (
-                    <div className="form-group">
-                      <label>Cost/unit <span className="auto-tag">auto</span></label>
-                      <input 
-                        type="number" 
-                        className="readonly" 
-                        value={(parseFloat(item.cost_per_box) / (parseFloat(item.qty_units_received) || 1)).toFixed(2)} 
-                        readOnly 
-                      />
-                    </div>
-                  )}
+                  ) : null}
                 </div>
 
                 <div className="calc-box">
@@ -535,7 +508,6 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
                         <p>{med.generic_name} · {med.dosage_form} · {med.package_size}</p>
                       </div>
                       <div className="dd-right">
-                        <div className="price">৳{parseFloat(med.price_per_unit).toFixed(2)}/unit</div>
                         <div className="stock">{med.stock} in stock</div>
                       </div>
                     </div>

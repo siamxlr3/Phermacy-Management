@@ -18,9 +18,10 @@ return new class extends Migration
             $table->foreignId('medicine_id')->constrained('medicines');
             $table->foreignId('stock_batch_id')->constrained('stock_batches');
             $table->integer('qty_returned');
+            $table->string('sale_unit')->default('unit');
             $table->decimal('unit_price', 15, 2);
-            $table->decimal('tax_amount', 15, 2)->default(0);
             $table->decimal('subtotal', 15, 2);
+            $table->enum('return_condition', ['resellable', 'damaged', 'expired'])->default('resellable');
             $table->timestamps();
             
             $table->index('sales_return_id', 'sr_id_idx');

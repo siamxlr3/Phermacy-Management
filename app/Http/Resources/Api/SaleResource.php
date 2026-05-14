@@ -22,6 +22,8 @@ class SaleResource extends JsonResource
             'tax_total' => $this->tax_total,
             'discount_total' => $this->discount_total,
             'grand_total' => $this->grand_total,
+            'refunded_amount' => $this->refunded_amount ?? 0,
+            'net_total' => ($this->grand_total - ($this->refunded_amount ?? 0)),
             'paid_amount' => $this->paid_amount,
             'due_amount' => $this->due_amount,
             'customer_name' => $this->customer_name,

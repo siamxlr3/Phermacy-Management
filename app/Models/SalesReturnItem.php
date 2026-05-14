@@ -15,15 +15,15 @@ class SalesReturnItem extends Model
         'medicine_id',
         'stock_batch_id',
         'qty_returned',
+        'sale_unit',
         'unit_price',
-        'tax_amount',
         'subtotal',
+        'return_condition',
     ];
 
     protected $casts = [
         'unit_price' => 'decimal:2',
-        'tax_amount' => 'decimal:2',
-        'subtotal' => 'decimal:2',
+        'subtotal'   => 'decimal:2',
         'qty_returned' => 'integer',
     ];
 

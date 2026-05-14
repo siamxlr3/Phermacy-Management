@@ -15,8 +15,101 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class AlertController extends Controller
 {
+    private function syncAlerts(): void
+    {
+        $today = Carbon::today();
+        
+        // 1. Scan Expiries (Within 90 days)
+        $batches = StockBatch::where('expiry_date', '<=', $today->copy()->addDays(90))
+            ->where('qty_tablets_remaining', '>', 0)
+            ->with('medicine')
+            ->get();
+
+        $existingExpiryAlerts = Alert::where('type', 'Expiry')
+            ->whereIn('stock_batch_id', $batches->pluck('id'))
+            ->get()
+            ->keyBy('stock_batch_id');
+
+        $toInsertExpiries = [];
+        $now = now();
+
+        foreach ($batches as $batch) {
+            $expiryDate = Carbon::parse($batch->expiry_date);
+            $daysRemaining = $today->diffInDays($expiryDate, false);
+            
+            $severity = 'Info';
+            if ($daysRemaining <= 0) $severity = 'Critical';
+            elseif ($daysRemaining <= 30) $severity = 'Critical';
+            elseif ($daysRemaining <= 60) $severity = 'Warning';
+
+            $message = "Batch {$batch->batch_number} of " . ($batch->medicine->medicine_name ?? 'Unknown') . " expires in {$daysRemaining} days.";
+
+            if ($existingExpiryAlerts->has($batch->id)) {
+                $alert = $existingExpiryAlerts->get($batch->id);
+                if ($alert->status === Alert::STATUS_ACTIVE && $alert->severity !== $severity) {
+                    $alert->update(['severity' => $severity, 'message' => $message]);
+                }
+                continue;
+            }
+
+            $toInsertExpiries[] = [
+                'medicine_id' => $batch->medicine_id,
+                'stock_batch_id' => $batch->id,
+                'type' => 'Expiry',
+                'severity' => $severity,
+                'message' => $message,
+                'status' => Alert::STATUS_ACTIVE,
+                'created_at' => $now,
+                'updated_at' => $now
+            ];
+        }
+
+        if (!empty($toInsertExpiries)) Alert::insert($toInsertExpiries);
+
+        // 2. Scan Stock Levels
+        $medicines = Medicine::whereRaw('stock <= reorder_level')->get();
+        $existingStockAlerts = Alert::where('type', 'Low Stock')
+            ->whereIn('medicine_id', $medicines->pluck('id'))
+            ->get()
+            ->keyBy('medicine_id');
+
+        $toInsertStock = [];
+
+        foreach ($medicines as $medicine) {
+            $severity = $medicine->stock <= 0 ? 'Critical' : 'Warning';
+            $message = "Stock level for {$medicine->medicine_name} is low ({$medicine->stock} remaining).";
+
+            if ($existingStockAlerts->has($medicine->id)) {
+                $alert = $existingStockAlerts->get($medicine->id);
+                if ($alert->status === Alert::STATUS_ACTIVE && $alert->severity !== $severity) {
+                    $alert->update(['severity' => $severity, 'message' => $message]);
+                }
+                continue;
+            }
+
+            $toInsertStock[] = [
+                'medicine_id' => $medicine->id,
+                'stock_batch_id' => null,
+                'type' => 'Low Stock',
+                'severity' => $severity,
+                'message' => $message,
+                'status' => Alert::STATUS_ACTIVE,
+                'created_at' => $now,
+                'updated_at' => $now
+            ];
+        }
+
+        if (!empty($toInsertStock)) Alert::insert($toInsertStock);
+        Cache::forget('active_alerts_count');
+    }
+
     public function index(Request $request): AnonymousResourceCollection
     {
+        // Auto-sync alerts on first page request to ensure data is up-to-date
+        if ($request->get('page', 1) == 1) {
+            $this->syncAlerts();
+        }
+
         // FIX: limit max per_page to prevent memory exhaustion
         $perPage = min($request->get('per_page', 10), 100);
         $type = $request->get('type');
@@ -42,7 +135,7 @@ class AlertController extends Controller
             // FIX: JOIN instead of whereHas for large dataset text searching
             $query->join('medicines', 'alerts.medicine_id', '=', 'medicines.id')
                   ->where(function($q) use ($search) {
-                      $q->where('medicines.name', 'like', "%{$search}%")
+                      $q->where('medicines.medicine_name', 'like', "%{$search}%")
                         ->orWhere('alerts.message', 'like', "%{$search}%");
                   })
                   ->select('alerts.*'); // ensure we only select alert columns
@@ -107,7 +200,7 @@ class AlertController extends Controller
             elseif ($daysRemaining <= 30) $severity = 'Critical';
             elseif ($daysRemaining <= 60) $severity = 'Warning';
 
-            $message = "Batch {$batch->batch_number} of " . ($batch->medicine->name ?? 'Unknown') . " expires in {$daysRemaining} days.";
+            $message = "Batch {$batch->batch_number} of " . ($batch->medicine->medicine_name ?? 'Unknown') . " expires in {$daysRemaining} days.";
 
             if ($existingAlerts->has($batch->id)) {
                 $alert = $existingAlerts->get($batch->id);
@@ -159,7 +252,7 @@ class AlertController extends Controller
 
         foreach ($medicines as $medicine) {
             $severity = $medicine->stock <= 0 ? 'Critical' : 'Warning';
-            $message = "Stock level for {$medicine->name} is low ({$medicine->stock} remaining).";
+            $message = "Stock level for {$medicine->medicine_name} is low ({$medicine->stock} remaining).";
 
             if ($existingAlerts->has($medicine->id)) {
                 $alert = $existingAlerts->get($medicine->id);

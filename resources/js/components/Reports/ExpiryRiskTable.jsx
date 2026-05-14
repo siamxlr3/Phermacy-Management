@@ -25,7 +25,9 @@ const ExpiryRiskTable = ({ risks }) => {
                                         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 flex items-center justify-center group-hover:scale-110 transition-transform">
                                             <Package size={16} className="text-slate-400" />
                                         </div>
-                                        <span className="text-[13px] font-extrabold text-[#0f1923] tracking-tight group-hover:text-blue-600 transition-colors">{risk.medicine.name}</span>
+                                        <span className="text-[13px] font-extrabold text-[#0f1923] tracking-tight group-hover:text-blue-600 transition-colors">
+                                            {risk.medicine?.medicine_name || risk.medicine?.name || 'Unknown Medicine'}
+                                        </span>
                                     </div>
                                 </td>
                                 <td className="px-6 py-5">
