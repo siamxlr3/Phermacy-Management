@@ -25,6 +25,7 @@ class CashTransaction extends Model
     use HasFactory;
 
     protected $fillable = [
+        'user_id',
         'description',
         'amount',
         'transaction_type',
@@ -38,9 +39,25 @@ class CashTransaction extends Model
     ];
 
     protected $casts = [
+        'user_id'       => 'integer',
         'amount'        => 'decimal:2',
         'balance_after' => 'decimal:2',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function scopeInflow($query)
+    {
+        return $query->where('transaction_type', 'In');
+    }
+
+    public function scopeOutflow($query)
+    {
+        return $query->whereIn('transaction_type', ['Out', 'sale_refund', 'expense']);
+    }
 
     protected static function boot()
     {
@@ -76,12 +93,13 @@ class CashTransaction extends Model
         ?string $referenceNumber = null,
         string  $paymentMethod = 'cash',
         ?string $partyName = null,
-        string  $partyType = 'other'
+        string  $partyType = 'other',
+        ?int    $userId = null
     ): self {
         return DB::transaction(function () use (
             $transactionType, $amount, $description,
             $referenceType, $referenceId, $referenceNumber,
-            $paymentMethod, $partyName, $partyType
+            $paymentMethod, $partyName, $partyType, $userId
         ) {
             $last = self::lockForUpdate()->latest('id')->first();
             $currentBalance = $last ? (float) $last->balance_after : 0.0;
@@ -92,6 +110,7 @@ class CashTransaction extends Model
                 : $currentBalance + $amount;
 
             return self::create([
+                'user_id'          => $userId,
                 'transaction_type' => $transactionType,
                 'amount'           => $amount,
                 'description'      => $description,

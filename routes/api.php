@@ -30,13 +30,6 @@ use App\Http\Controllers\Api\AlertController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\InventoryReportController;
 use App\Http\Controllers\Api\ExpenseController;
-use App\Http\Controllers\Api\AttendanceController;
-use App\Http\Controllers\Api\LeaveTypeController;
-use App\Http\Controllers\Api\LeaveController;
-use App\Http\Controllers\Api\PayrollController;
-use App\Http\Controllers\Api\RoleController;
-use App\Http\Controllers\Api\ShiftController;
-use App\Http\Controllers\Api\StaffController;
 use App\Http\Controllers\Api\CashRegisterController;
 use App\Http\Controllers\Api\DashboardController;
 
@@ -101,20 +94,4 @@ Route::apiResource('addresses', AddressController::class);
 Route::get('expenses/summary', [ExpenseController::class, 'summary']);
 Route::apiResource('expenses', ExpenseController::class);
 
-// HRM Module
-Route::get('hrm/roles/active', [RoleController::class, 'active']);
-Route::apiResource('hrm/roles', RoleController::class);
-
-Route::get('hrm/shifts/active', [ShiftController::class, 'active']);
-Route::apiResource('hrm/shifts', ShiftController::class);
-
-Route::get('hrm/staff/active', [StaffController::class, 'active']);
-Route::apiResource('hrm/staff', StaffController::class);
-
-Route::apiResource('hrm/attendance', AttendanceController::class);
-
-Route::get('hrm/leave-types/active', [LeaveTypeController::class, 'active']);
-Route::apiResource('hrm/leave-types', LeaveTypeController::class);
-
-Route::apiResource('hrm/leaves', LeaveController::class);
-Route::apiResource('hrm/payrolls', PayrollController::class);
+Route::apiResource('expenses', ExpenseController::class);

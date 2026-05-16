@@ -15,18 +15,18 @@ class PurchaseOrderResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'supplier_id' => $this->supplier_id,
+            'id' => (int) $this->id,
+            'supplier_id' => (int) $this->supplier_id,
             'supplier' => new SupplierResource($this->whenLoaded('supplier')),
-            'order_date' => $this->order_date->format('Y-m-d'),
-            'status' => $this->status,
-            'payment_status' => $this->payment_status,
-            'total_amount' => $this->total_amount,
-            'paid_amount' => $this->paid_amount,
-            'notes' => $this->notes,
+            'order_date' => $this->order_date?->toISOString(),
+            'status' => (string) $this->status,
+            'payment_status' => (string) $this->payment_status,
+            'total_amount' => (float) $this->total_amount,
+            'paid_amount' => (float) $this->paid_amount,
+            'notes' => (string) $this->notes,
             'items' => PurchaseOrderItemResource::collection($this->whenLoaded('items')),
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

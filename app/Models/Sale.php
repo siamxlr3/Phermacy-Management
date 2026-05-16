@@ -41,6 +41,7 @@ class Sale extends Model
         'paid_amount',
         'due_amount',
         'refunded_amount',
+        'refunded_subtotal',
         'payment_method',
         'status',
         'notes',
@@ -56,6 +57,7 @@ class Sale extends Model
         'paid_amount' => 'decimal:2',
         'due_amount' => 'decimal:2',
         'refunded_amount' => 'decimal:2',
+        'refunded_subtotal' => 'decimal:2',
     ];
 
     public function user()

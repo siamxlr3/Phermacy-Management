@@ -8,7 +8,7 @@ const ReportStats = ({ summary, returnsCount }) => {
     const stats = [
         { 
             label: translations.sales_reports.total_revenue, 
-            value: `৳${Number(summary?.total_completed || 0).toLocaleString()}`, 
+            value: `৳${Number(summary?.total_revenue || 0).toLocaleString()}`, 
             icon: DollarSign, 
             color: 'emerald',
             change: '+12.5%' // Mock trend for UX
@@ -22,17 +22,17 @@ const ReportStats = ({ summary, returnsCount }) => {
         },
         { 
             label: translations.sales_reports.avg_order_value, 
-            value: `৳${Number(summary?.total_transactions > 0 ? summary.total_receivable / summary.total_transactions : 0).toFixed(2)}`, 
+            value: `৳${Number(summary?.total_transactions > 0 ? summary.total_revenue / summary.total_transactions : 0).toFixed(2)}`, 
             icon: CreditCard, 
             color: 'blue',
             change: '+2.4%'
         },
         { 
             label: translations.sales_reports.total_returns, 
-            value: returnsCount || 0, 
+            value: summary?.returns_count || 0, 
             icon: RotateCcw, 
             color: 'rose',
-            change: 'Last 30d' // We can just provide a label or calculation
+            change: 'Last 30d' 
         }
     ];
 

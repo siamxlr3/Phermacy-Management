@@ -65,8 +65,8 @@ const CashRegisterPage = () => {
   };
 
   const summary = statusData?.summary || { current_balance: 0, total_in: 0, total_out: 0, today_in: 0, today_out: 0 };
-  const transactions = ledgerData?.data?.data || [];
-  const meta = ledgerData?.data || {};
+  const transactions = ledgerData?.data || [];
+  const meta = ledgerData || {};
 
   const summaryCards = [
     { 
@@ -153,10 +153,11 @@ const CashRegisterPage = () => {
             {/* Transaction type */}
             <select value={txTypeFilter} onChange={(e) => { setTxTypeFilter(e.target.value); setPage(1); }}
               className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-[11px] font-bold text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500/10 shadow-sm">
-              <option value="">{translations.cash_register.outflow_only || 'All Expenses'}</option>
-              <option value="Out">Cash Out (Withdrawal)</option>
-              <option value="sale_refund">Sale Refund</option>
-              <option value="expense">Expense</option>
+              <option value="">Outflows (Cash Out & Refunds)</option>
+              <option value="all">All Transactions</option>
+              <option value="Out">Cash Out Only</option>
+              <option value="sale_refund">Refunds Only</option>
+              <option value="In">Cash In (Sales)</option>
             </select>
 
             {/* Payment method */}

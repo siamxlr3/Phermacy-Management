@@ -24,9 +24,20 @@ class Tax extends Model
         'rate' => 'decimal:4',
     ];
 
+    /**
+     * Scope a query to only include active taxes.
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'Active');
+    }
+
     protected static function booted()
     {
-        static::saved(fn () => Cache::forget('taxes.active_list'));
-        static::deleted(fn () => Cache::forget('taxes.active_list'));
+        $clearCache = fn () => \Illuminate\Support\Facades\Cache::forget('taxes.active_list');
+
+        static::saved($clearCache);
+        static::deleted($clearCache);
+        static::restored($clearCache);
     }
 }

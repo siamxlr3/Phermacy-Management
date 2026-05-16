@@ -76,9 +76,10 @@ const ReturnForm = ({ onComplete }) => {
             const subtotal = tabletsToReturn * item.unit_price;
             return {
                 subtotal: acc.subtotal + subtotal,
+                tax: 0,
                 total: acc.total + subtotal
             };
-        }, { subtotal: 0, total: 0 });
+        }, { subtotal: 0, tax: 0, total: 0 });
     };
 
     const handleSubmit = async () => {
@@ -229,11 +230,11 @@ const ReturnForm = ({ onComplete }) => {
                                                 </td>
                                                 <td className="px-6 py-5 text-center">
                                                     <span className="text-[10px] font-black text-blue-600 bg-blue-100/50 px-2.5 py-1 rounded-full uppercase">
-                                                        {item.sale_unit === 'Tablet' ? (item.dosage_form || 'Pc') : item.sale_unit}
+                                                        {item.sale_qty - (item.alreadyReturnedInSaleUnits || 0)} {item.sale_unit === 'Tablet' ? (item.dosage_form || 'Pc') : item.sale_unit}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-5 text-center">
-                                                    <span className="text-sm font-black text-slate-900">{item.sale_qty}</span>
+                                                    <span className="text-sm font-black text-slate-900">{item.sale_qty - (item.alreadyReturnedInSaleUnits || 0)}</span>
                                                 </td>
                                                 <td className="px-6 py-5 text-center">
                                                     <span className="text-sm font-black text-rose-500">{item.alreadyReturnedInSaleUnits || 0}</span>

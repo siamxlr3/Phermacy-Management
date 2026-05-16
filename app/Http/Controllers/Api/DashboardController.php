@@ -11,117 +11,111 @@ use App\Models\GRN;
 use App\Models\CashTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Http\JsonResponse;
 use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * Get consolidated dashboard metrics with high-performance caching.
+     */
+    public function index(Request $request): JsonResponse
     {
         $fromDate = $request->input('from_date');
         $toDate = $request->input('to_date');
 
-        // If no dates provided, default to current month for trending data, but "Today's Sale" should be today
         $now = Carbon::now();
         $start = $fromDate ? Carbon::parse($fromDate)->startOfDay() : $now->copy()->startOfDay();
         $end = $toDate ? Carbon::parse($toDate)->endOfDay() : $now->copy()->endOfDay();
 
-        // 1. Today's Sale / Sales in Range — net of any refunds
-        $salesQuery = Sale::whereBetween('sale_date', [$start, $end])
-            ->whereIn('status', ['Completed', 'Due', 'Partially Returned']);
-        $totalSales = (float) $salesQuery->selectRaw('SUM(grand_total - COALESCE(refunded_amount, 0))')->value('SUM(grand_total - COALESCE(refunded_amount, 0))');
-        $totalTransactions = Sale::whereBetween('sale_date', [$start, $end])
-            ->whereIn('status', ['Completed', 'Due', 'Partially Returned'])
-            ->count();
-        $remainingDue = (float) Sale::whereBetween('sale_date', [$start, $end])->sum('due_amount');
+        // Unique cache key based on date range
+        $cacheKey = "dashboard_metrics_" . md5($start . $end);
 
-        // 2. Cash in Hand (This is always current total, not range-based usually, but we can show it)
-        $cashInHand = CashTransaction::getCurrentBalance();
+        $data = Cache::tags(['dashboard', 'sales', 'inventory'])->remember($cacheKey, 600, function() use ($start, $end, $now) {
+            
+            // 1. Consolidated Sales Summary (One Optimized Query)
+            $salesSummary = Sale::whereBetween('sale_date', [$start, $end])
+                ->whereIn('status', ['Completed', 'Due', 'Partially Returned', 'Returned'])
+                ->selectRaw('
+                    SUM(grand_total - COALESCE(refunded_subtotal, 0)) as net_sales,
+                    SUM(due_amount) as total_due,
+                    COUNT(*) as transaction_count
+                ')
+                ->first();
 
-        // 3. Best Selling Products
-        $bestSelling = SaleItem::select('medicine_id', DB::raw('SUM(qty_tablets) as total_qty'), DB::raw('SUM(subtotal) as total_revenue'))
-            ->whereHas('sale', function($q) use ($start, $end) {
-                $q->whereBetween('sale_date', [$start, $end]);
-            })
-            ->groupBy('medicine_id')
-            ->orderByDesc('total_qty')
-            ->with('medicine:id,medicine_name')
-            ->take(5)
-            ->get();
+            // 2. Optimized Best Selling (Using Join instead of whereHas)
+            $bestSelling = SaleItem::join('sales', 'sale_items.sale_id', '=', 'sales.id')
+                ->join('medicines', 'sale_items.medicine_id', '=', 'medicines.id')
+                ->whereBetween('sales.sale_date', [$start, $end])
+                ->whereIn('sales.status', ['Completed', 'Partially Returned'])
+                ->selectRaw('
+                    sale_items.medicine_id, 
+                    medicines.medicine_name,
+                    SUM(sale_items.qty_tablets) as total_qty, 
+                    SUM(sale_items.subtotal) as total_revenue
+                ')
+                ->groupBy('sale_items.medicine_id', 'medicines.medicine_name')
+                ->orderByDesc('total_qty')
+                ->limit(5)
+                ->get();
 
-        // 4. Payments by Method
-        $payments = Sale::select('payment_method', DB::raw('SUM(grand_total) as total'))
-            ->whereBetween('sale_date', [$start, $end])
-            ->groupBy('payment_method')
-            ->get();
+            // 3. Consolidated Low Stock (One Query)
+            $lowStockItems = Medicine::where('stock', '<=', DB::raw('reorder_level'))
+                ->where('is_active', 1)
+                ->select('id', 'medicine_name', 'stock', 'reorder_level')
+                ->orderBy('stock', 'asc')
+                ->limit(5)
+                ->get();
 
-        // 5. Low Stock (Stock below reorder level)
-        $lowStockCount = Medicine::where('stock', '<=', DB::raw('reorder_level'))->count();
-        $lowStockItems = Medicine::where('stock', '<=', DB::raw('reorder_level'))
-            ->select('id', 'medicine_name', 'stock', 'reorder_level')
-            ->take(5)
-            ->get();
+            $lowStockCount = Medicine::where('is_active', 1)
+                ->whereColumn('stock', '<=', 'reorder_level')
+                ->count();
 
-        // 6. Expiring Soon (Within 90 days)
-        $expiringSoonCount = StockBatch::where('qty_tablets_remaining', '>', 0)
-            ->whereBetween('expiry_date', [Carbon::now(), Carbon::now()->addDays(90)])
-            ->count();
-        
-        $expiringItems = StockBatch::where('qty_tablets_remaining', '>', 0)
-            ->whereBetween('expiry_date', [Carbon::now(), Carbon::now()->addDays(90)])
-            ->with('medicine:id,medicine_name')
-            ->orderBy('expiry_date')
-            ->take(5)
-            ->get();
+            // 4. Optimized COGS and Profit (Using Direct Join)
+            $cogs = (float) SaleItem::join('sales', 'sale_items.sale_id', '=', 'sales.id')
+                ->join('stock_batches', 'sale_items.stock_batch_id', '=', 'stock_batches.id')
+                ->whereBetween('sales.sale_date', [$start, $end])
+                ->whereIn('sales.status', ['Completed', 'Partially Returned'])
+                ->sum(DB::raw('sale_items.qty_tablets * stock_batches.cost_per_unit'));
 
-        // 7. Monthly Revenue (Current Year)
-        $monthlyRevenue = Sale::select(
-                DB::raw('MONTH(sale_date) as month'),
-                DB::raw('SUM(grand_total) as revenue')
-            )
-            ->whereYear('sale_date', $now->year)
-            ->groupBy('month')
-            ->orderBy('month')
-            ->get();
+            $netSales = (float) ($salesSummary->net_sales ?? 0);
 
-        // 8. Stock Value & Purchase Cost
-        // Stock Value is current total value of inventory
-        $stockValue = (float) Medicine::select(DB::raw('SUM(stock * cost_price) as total_value'))->value('total_value');
+            // 5. Monthly Revenue Trend (Optimized Year Filter)
+            $monthlyRevenue = Sale::whereYear('sale_date', $now->year)
+                ->whereIn('status', ['Completed', 'Partially Returned'])
+                ->selectRaw('MONTH(sale_date) as month, SUM(grand_total - COALESCE(refunded_subtotal, 0)) as revenue')
+                ->groupBy('month')
+                ->orderBy('month')
+                ->get();
 
-        // Purchase Cost in range
-        $purchaseCost = (float) GRN::whereBetween('received_date', [$start, $end])->sum('total_amount');
-
-        // 9. Estimated Profit
-        // Profit = Sales - COGS
-        // COGS = Sum(sale_items.qty * batch.cost_per_unit)
-        $cogs = (float) SaleItem::whereHas('sale', function($q) use ($start, $end) {
-                $q->whereBetween('sale_date', [$start, $end]);
-            })
-            ->join('stock_batches', 'sale_items.stock_batch_id', '=', 'stock_batches.id')
-            ->select(DB::raw('SUM(sale_items.qty_tablets * stock_batches.cost_per_unit) as total_cogs'))
-            ->value('total_cogs');
-
-        $estimatedProfit = $totalSales - $cogs;
+            return [
+                'metrics' => [
+                    'total_sales'         => (float) $netSales,
+                    'total_transactions'  => (int) ($salesSummary->transaction_count ?? 0),
+                    'remaining_due'       => (float) ($salesSummary->total_due ?? 0),
+                    'cash_in_hand'        => (float) CashTransaction::getCurrentBalance(),
+                    'stock_value'         => (float) Medicine::where('is_active', 1)->selectRaw('SUM(stock * cost_price) as total')->value('total'),
+                    'purchase_cost'       => (float) GRN::whereBetween('received_date', [$start, $end])->sum('total_amount'),
+                    'estimated_profit'    => (float) ($netSales - $cogs),
+                    'low_stock_count'     => (int) $lowStockCount,
+                    'expiring_soon_count' => (int) StockBatch::where('qty_tablets_remaining', '>', 0)
+                                                ->whereBetween('expiry_date', [Carbon::now(), Carbon::now()->addDays(90)])
+                                                ->count(),
+                ],
+                'best_selling'    => $bestSelling,
+                'low_stock_items' => $lowStockItems,
+                'monthly_trend'   => $monthlyRevenue,
+                'payments'        => Sale::whereBetween('sale_date', [$start, $end])
+                                        ->selectRaw('payment_method, SUM(grand_total) as total')
+                                        ->groupBy('payment_method')
+                                        ->get(),
+            ];
+        });
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'metrics' => [
-                    'total_sales' => $totalSales,
-                    'total_transactions' => $totalTransactions,
-                    'remaining_due' => $remainingDue,
-                    'cash_in_hand' => $cashInHand,
-                    'stock_value' => $stockValue,
-                    'purchase_cost' => $purchaseCost,
-                    'estimated_profit' => $estimatedProfit,
-                    'low_stock_count' => $lowStockCount,
-                    'expiring_soon_count' => $expiringSoonCount,
-                ],
-                'best_selling' => $bestSelling,
-                'payments' => $payments,
-                'low_stock_items' => $lowStockItems,
-                'expiring_items' => $expiringItems,
-                'monthly_revenue' => $monthlyRevenue,
-            ]
+            'data' => $data
         ]);
     }
 }

@@ -22,6 +22,8 @@ return new class extends Migration
             $table->decimal('tax_total', 15, 2)->default(0);
             $table->decimal('discount_total', 15, 2)->default(0);
             $table->decimal('grand_total', 15, 2);
+            $table->decimal('refunded_amount', 15, 2)->default(0);
+            $table->decimal('refunded_subtotal', 15, 2)->default(0);
             $table->decimal('paid_amount', 15, 2)->default(0);
             $table->decimal('due_amount', 15, 2)->default(0);
             $table->string('payment_method')->default('Cash');

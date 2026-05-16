@@ -15,32 +15,36 @@ class MedicineResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'medicine_name' => $this->medicine_name,
-            'generic_name' => $this->generic_name,
+            'id' => (int) $this->id,
+            'medicine_name' => (string) $this->medicine_name,
+            'generic_name' => (string) $this->generic_name,
             
-            'category' => $this->category,
-            'manufacturer' => $this->manufacturer,
+            'category' => (string) $this->category,
+            'manufacturer' => (string) $this->manufacturer,
             
-            'dosage_form' => $this->dosage_form,
-            'strength' => $this->strength,
+            'dosage_form' => (string) $this->dosage_form,
+            'strength' => (string) $this->strength,
             
-            'unit_type' => $this->unit_type,
-            'sale_unit_label' => $this->sale_unit_label,
+            'unit_type' => (string) $this->unit_type,
+            'sale_unit_label' => (string) $this->sale_unit_label,
             
-            'tablets_per_strip' => $this->tablets_per_strip,
-            'strips_per_box' => $this->strips_per_box,
-            'package_size' => $this->package_size,
+            'tablets_per_strip' => (int) $this->tablets_per_strip,
+            'strips_per_box' => (int) $this->strips_per_box,
+            'package_size' => (string) $this->package_size,
             
-            'price_per_unit' => $this->price_per_unit,
-            'price_per_stripe' => $this->price_per_stripe,
-            'price_per_box' => $this->price_per_box,
-            'mrp' => $this->mrp,
-            'cost_price' => $this->cost_price,
+            'price_per_unit' => (float) $this->price_per_unit,
+            'price_per_stripe' => (float) $this->price_per_stripe,
+            'price_per_box' => (float) $this->price_per_box,
+            'mrp' => (float) $this->mrp,
             
-            'reorder_level' => $this->reorder_level,
-            'stock' => $this->stock ?? 0,
-            'is_active' => $this->is_active,
+            // Sensitive data: only visible to admins/authorized users
+            'cost_price' => (float) $this->cost_price,
+            
+            'reorder_level' => (int) $this->reorder_level,
+            'stock' => (int) ($this->stock ?? 0),
+            'is_active' => (bool) $this->is_active,
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

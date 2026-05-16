@@ -15,111 +15,21 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class AlertController extends Controller
 {
-    private function syncAlerts(): void
-    {
-        $today = Carbon::today();
-        
-        // 1. Scan Expiries (Within 90 days)
-        $batches = StockBatch::where('expiry_date', '<=', $today->copy()->addDays(90))
-            ->where('qty_tablets_remaining', '>', 0)
-            ->with('medicine')
-            ->get();
-
-        $existingExpiryAlerts = Alert::where('type', 'Expiry')
-            ->whereIn('stock_batch_id', $batches->pluck('id'))
-            ->get()
-            ->keyBy('stock_batch_id');
-
-        $toInsertExpiries = [];
-        $now = now();
-
-        foreach ($batches as $batch) {
-            $expiryDate = Carbon::parse($batch->expiry_date);
-            $daysRemaining = $today->diffInDays($expiryDate, false);
-            
-            $severity = 'Info';
-            if ($daysRemaining <= 0) $severity = 'Critical';
-            elseif ($daysRemaining <= 30) $severity = 'Critical';
-            elseif ($daysRemaining <= 60) $severity = 'Warning';
-
-            $message = "Batch {$batch->batch_number} of " . ($batch->medicine->medicine_name ?? 'Unknown') . " expires in {$daysRemaining} days.";
-
-            if ($existingExpiryAlerts->has($batch->id)) {
-                $alert = $existingExpiryAlerts->get($batch->id);
-                if ($alert->status === Alert::STATUS_ACTIVE && $alert->severity !== $severity) {
-                    $alert->update(['severity' => $severity, 'message' => $message]);
-                }
-                continue;
-            }
-
-            $toInsertExpiries[] = [
-                'medicine_id' => $batch->medicine_id,
-                'stock_batch_id' => $batch->id,
-                'type' => 'Expiry',
-                'severity' => $severity,
-                'message' => $message,
-                'status' => Alert::STATUS_ACTIVE,
-                'created_at' => $now,
-                'updated_at' => $now
-            ];
-        }
-
-        if (!empty($toInsertExpiries)) Alert::insert($toInsertExpiries);
-
-        // 2. Scan Stock Levels
-        $medicines = Medicine::whereRaw('stock <= reorder_level')->get();
-        $existingStockAlerts = Alert::where('type', 'Low Stock')
-            ->whereIn('medicine_id', $medicines->pluck('id'))
-            ->get()
-            ->keyBy('medicine_id');
-
-        $toInsertStock = [];
-
-        foreach ($medicines as $medicine) {
-            $severity = $medicine->stock <= 0 ? 'Critical' : 'Warning';
-            $message = "Stock level for {$medicine->medicine_name} is low ({$medicine->stock} remaining).";
-
-            if ($existingStockAlerts->has($medicine->id)) {
-                $alert = $existingStockAlerts->get($medicine->id);
-                if ($alert->status === Alert::STATUS_ACTIVE && $alert->severity !== $severity) {
-                    $alert->update(['severity' => $severity, 'message' => $message]);
-                }
-                continue;
-            }
-
-            $toInsertStock[] = [
-                'medicine_id' => $medicine->id,
-                'stock_batch_id' => null,
-                'type' => 'Low Stock',
-                'severity' => $severity,
-                'message' => $message,
-                'status' => Alert::STATUS_ACTIVE,
-                'created_at' => $now,
-                'updated_at' => $now
-            ];
-        }
-
-        if (!empty($toInsertStock)) Alert::insert($toInsertStock);
-        Cache::forget('active_alerts_count');
-    }
-
+    /**
+     * List active alerts with optimized joins and background-ready scanning.
+     * Note: Scanning is now handled by 'alerts:scan-daily' console command.
+     */
     public function index(Request $request): AnonymousResourceCollection
     {
-        // Auto-sync alerts on first page request to ensure data is up-to-date
-        if ($request->get('page', 1) == 1) {
-            $this->syncAlerts();
-        }
-
-        // FIX: limit max per_page to prevent memory exhaustion
-        $perPage = min($request->get('per_page', 10), 100);
+        $perPage = min($request->integer('per_page', 10), 100);
         $type = $request->get('type');
         $severity = $request->get('severity');
         $fromDate = $request->get('from_date');
         $toDate = $request->get('to_date');
         $search = $request->get('search');
 
-        // FIX: 'batch' typo changed to 'stockBatch' to actually trigger eager loading
-        $query = Alert::with(['medicine', 'stockBatch'])->where('status', Alert::STATUS_ACTIVE);
+        $query = Alert::with(['medicine:id,medicine_name', 'stockBatch:id,batch_number'])
+            ->where('status', Alert::STATUS_ACTIVE);
 
         if ($type) $query->where('type', $type);
         if ($severity) $query->where('severity', $severity);
@@ -132,36 +42,42 @@ class AlertController extends Controller
         }
         
         if ($search) {
-            // FIX: JOIN instead of whereHas for large dataset text searching
+            // Optimized join for high-performance text searching
             $query->join('medicines', 'alerts.medicine_id', '=', 'medicines.id')
                   ->where(function($q) use ($search) {
-                      $q->where('medicines.medicine_name', 'like', "%{$search}%")
+                      $q->where('medicines.medicine_name', 'like', "{$search}%")
                         ->orWhere('alerts.message', 'like', "%{$search}%");
                   })
-                  ->select('alerts.*'); // ensure we only select alert columns
+                  ->select('alerts.*');
         }
 
-        // FIX: simplePaginate is much faster for large datasets
         $alerts = $query->latest('alerts.created_at')->simplePaginate($perPage);
         return AlertResource::collection($alerts);
     }
 
+    /**
+     * Dismiss an alert.
+     */
     public function dismiss(int $id): JsonResponse
     {
         $alert = Alert::findOrFail($id);
         $alert->update(['status' => Alert::STATUS_DISMISSED]);
-        Cache::forget('active_alerts_count');
+        
+        Cache::tags(['inventory', 'dashboard'])->flush();
         return response()->json(['success' => true, 'message' => 'Alert dismissed']);
     }
 
+    /**
+     * Get a high-performance summary of active alerts.
+     */
     public function summary(): JsonResponse
     {
-        // FIX: Combined 3 separate table scans into 1 SQL aggregation
-        $summary = Alert::selectRaw("
-            COUNT(*) as total,
-            SUM(CASE WHEN type = 'Expiry' THEN 1 ELSE 0 END) as expiry_alerts,
-            SUM(CASE WHEN type = 'Low Stock' THEN 1 ELSE 0 END) as low_stock_alerts
-        ")->where('status', Alert::STATUS_ACTIVE)->first();
+        $summary = Alert::active()
+            ->selectRaw("
+                COUNT(*) as total,
+                SUM(CASE WHEN type = 'Expiry' THEN 1 ELSE 0 END) as expiry_alerts,
+                SUM(CASE WHEN type = 'Low Stock' THEN 1 ELSE 0 END) as low_stock_alerts
+            ")->first();
 
         return response()->json([
             'success' => true, 
@@ -171,120 +87,5 @@ class AlertController extends Controller
                 'low_stock_alerts' => (int) ($summary->low_stock_alerts ?? 0),
             ]
         ]);
-    }
-
-    public function scanExpiries(): JsonResponse
-    {
-        $today = Carbon::today();
-        $batches = StockBatch::where('expiry_date', '<=', $today->copy()->addDays(90))
-            ->where('qty_tablets_remaining', '>', 0)
-            ->with('medicine')
-            ->get();
-
-        // FIX: Pre-load existing alerts to prevent N+1 query loop
-        $existingAlerts = Alert::where('type', 'Expiry')
-            ->whereIn('stock_batch_id', $batches->pluck('id'))
-            ->get()
-            ->keyBy('stock_batch_id');
-
-        $toInsert = [];
-        $now = now();
-        $count = 0;
-
-        foreach ($batches as $batch) {
-            $expiryDate = Carbon::parse($batch->expiry_date);
-            $daysRemaining = $today->diffInDays($expiryDate, false);
-            
-            $severity = 'Info';
-            if ($daysRemaining <= 0) $severity = 'Critical';
-            elseif ($daysRemaining <= 30) $severity = 'Critical';
-            elseif ($daysRemaining <= 60) $severity = 'Warning';
-
-            $message = "Batch {$batch->batch_number} of " . ($batch->medicine->medicine_name ?? 'Unknown') . " expires in {$daysRemaining} days.";
-
-            if ($existingAlerts->has($batch->id)) {
-                $alert = $existingAlerts->get($batch->id);
-                // Update severity/message if it's active and changed
-                if ($alert->status === Alert::STATUS_ACTIVE && $alert->severity !== $severity) {
-                    $alert->update([
-                        'severity' => $severity,
-                        'message' => $message
-                    ]);
-                }
-                continue;
-            }
-
-            $toInsert[] = [
-                'medicine_id' => $batch->medicine_id,
-                'stock_batch_id' => $batch->id,
-                'type' => 'Expiry',
-                'severity' => $severity,
-                'message' => $message,
-                'status' => Alert::STATUS_ACTIVE,
-                'created_at' => $now,
-                'updated_at' => $now
-            ];
-            $count++;
-        }
-
-        // FIX: Bulk Insert all new alerts in 1 query
-        if (!empty($toInsert)) {
-            Alert::insert($toInsert);
-        }
-
-        Cache::forget('active_alerts_count');
-        return response()->json(['success' => true, 'message' => "Scan complete. {$count} new expiry alerts generated."]);
-    }
-
-    public function scanStock(): JsonResponse
-    {
-        $medicines = Medicine::whereRaw('stock <= reorder_level')->get();
-
-        // FIX: Pre-load existing alerts to prevent N+1 query loop
-        $existingAlerts = Alert::where('type', 'Low Stock')
-            ->whereIn('medicine_id', $medicines->pluck('id'))
-            ->get()
-            ->keyBy('medicine_id');
-
-        $toInsert = [];
-        $now = now();
-        $count = 0;
-
-        foreach ($medicines as $medicine) {
-            $severity = $medicine->stock <= 0 ? 'Critical' : 'Warning';
-            $message = "Stock level for {$medicine->medicine_name} is low ({$medicine->stock} remaining).";
-
-            if ($existingAlerts->has($medicine->id)) {
-                $alert = $existingAlerts->get($medicine->id);
-                // Update severity/message if it's active and changed
-                if ($alert->status === Alert::STATUS_ACTIVE && $alert->severity !== $severity) {
-                    $alert->update([
-                        'severity' => $severity,
-                        'message' => $message
-                    ]);
-                }
-                continue;
-            }
-
-            $toInsert[] = [
-                'medicine_id' => $medicine->id,
-                'stock_batch_id' => null,
-                'type' => 'Low Stock',
-                'severity' => $severity,
-                'message' => $message,
-                'status' => Alert::STATUS_ACTIVE,
-                'created_at' => $now,
-                'updated_at' => $now
-            ];
-            $count++;
-        }
-
-        // FIX: Bulk Insert all new alerts in 1 query
-        if (!empty($toInsert)) {
-            Alert::insert($toInsert);
-        }
-
-        Cache::forget('active_alerts_count');
-        return response()->json(['success' => true, 'message' => "Scan complete. {$count} new low stock alerts generated."]);
     }
 }

@@ -15,18 +15,24 @@ class StockResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'name' => $this->medicine_name,
-            'generic_name' => $this->generic_name,
-            'dosage_form' => $this->dosage_form,
-            'strength' => $this->strength,
-            'category_name' => $this->category,
-            'manufacturer_name' => $this->manufacturer,
-            'total_stock' => $this->total_stock ?? 0,
-            'reorder_level' => $this->reorder_level,
-            'tablet_per_stripe' => $this->tablets_per_strip ?? 10,
-            'stripe_per_box' => $this->strips_per_box ?? 10,
-            'status' => $this->is_active ? 'Active' : 'Inactive',
+            'id' => (int) $this->id,
+            'name' => (string) $this->medicine_name,
+            'generic_name' => (string) $this->generic_name,
+            'dosage_form' => (string) $this->dosage_form,
+            'strength' => (string) $this->strength,
+            'category_name' => (string) $this->category,
+            'manufacturer_name' => (string) $this->manufacturer,
+            
+            // Cast sum results to prevent string output from DB
+            'total_stock' => (int) ($this->total_stock ?? 0),
+            'reorder_level' => (int) ($this->reorder_level ?? 0),
+            
+            'tablet_per_stripe' => (int) ($this->tablets_per_strip ?? 10),
+            'stripe_per_box' => (int) ($this->strips_per_box ?? 10),
+            'status' => (string) ($this->is_active ? 'Active' : 'Inactive'),
+            
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

@@ -11,6 +11,7 @@ return new class extends Migration
         Schema::create('sales_returns', function (Blueprint $table) {
             $table->id();
             $table->foreignId('sale_id')->constrained('sales');
+            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('return_invoice_number')->unique();
             $table->dateTime('return_date');
             $table->decimal('subtotal_returned', 15, 2);

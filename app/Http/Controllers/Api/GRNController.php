@@ -18,17 +18,20 @@ use Illuminate\Support\Facades\Cache;
 
 class GRNController extends Controller
 {
+    /**
+     * List GRNs with optimized joins and pagination.
+     */
     public function index(Request $request): AnonymousResourceCollection
     {
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->integer('per_page', 10);
         $search = $request->get('search');
         $fromDate = $request->get('from_date');
         $toDate = $request->get('to_date');
 
-        $query = GRN::with(['supplier', 'purchaseOrder', 'items.medicine']);
+        $query = GRN::with(['supplier:id,name', 'purchaseOrder:id', 'items.medicine:id,medicine_name']);
 
         if ($search) {
-            // FIX: JOIN instead of whereHas to eliminate the correlated subquery
+            // Optimized join to utilize supplier index
             $query->join('suppliers', 'grns.supplier_id', '=', 'suppliers.id')
                   ->where(function($q) use ($search) {
                       $q->where('grns.invoice_number', 'like', "{$search}%")
@@ -45,37 +48,23 @@ class GRNController extends Controller
         return GRNResource::collection($grns);
     }
 
-    public function store(Request $request): JsonResponse
+    /**
+     * Store a new GRN and update inventory.
+     */
+    public function store(StoreGRNRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'supplier_id' => 'required|exists:suppliers,id',
-            'purchase_order_id' => 'nullable|exists:purchase_orders,id',
-            'received_date' => 'required|date',
-            'invoice_number' => 'nullable|string|max:255',
-            'received_by' => 'nullable|string|max:255',
-            'total_amount' => 'required|numeric|min:0',
-            'paid_amount' => 'nullable|numeric|min:0',
-            'payment_status' => 'required|string|in:Paid,Partially Paid,Due',
-            'notes' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.medicine_id' => 'required|exists:medicines,id',
-            'items.*.dosage_form_snapshot' => 'required|string',
-            'items.*.batch_number' => 'required|string|max:255',
-            'items.*.expiry_date' => 'required|date',
-            'items.*.qty_boxes_received' => 'required|integer|min:1',
-            'items.*.qty_units_received' => 'nullable|integer',
-            'items.*.package_size' => 'nullable|string',
-            'items.*.cost_per_box' => 'nullable|numeric',
-            'items.*.cost_per_stripe' => 'nullable|numeric',
-            'items.*.cost_per_unit' => 'required|numeric',
-            'items.*.subtotal' => 'required|numeric|min:0',
-        ]);
+        $data = $request->validated();
 
         try {
             $grn = DB::transaction(function () use ($data) {
-                $medicineIds = collect($data['items'])->pluck('medicine_id');
-                $medicines = Medicine::whereIn('id', $medicineIds)->get()->keyBy('id');
+                // Pre-fetch medicines to avoid redundant queries in loops
+                $medicineIds = collect($data['items'])->pluck('medicine_id')->unique();
+                $medicines = Medicine::whereIn('id', $medicineIds)
+                    ->select(['id', 'stock', 'tablets_per_strip', 'strips_per_box'])
+                    ->get()
+                    ->keyBy('id');
 
+                // 1. Auto-generate PO if missing (Procurement sync)
                 if (empty($data['purchase_order_id'])) {
                     $po = PurchaseOrder::create([
                         'supplier_id' => $data['supplier_id'],
@@ -106,6 +95,7 @@ class GRNController extends Controller
                     $data['purchase_order_id'] = $po->id;
                 }
 
+                // 2. Generate Invoice Number safely
                 $invoiceNumber = $data['invoice_number'];
                 if (empty($invoiceNumber)) {
                     $lastGRN = DB::table('grns')->lockForUpdate()->latest('id')->first();
@@ -119,8 +109,9 @@ class GRNController extends Controller
                     $invoiceNumber = 'GRN-' . str_pad($number, 6, '0', STR_PAD_LEFT);
                 }
 
+                // 3. Create GRN
                 $grn = GRN::create([
-                    'purchase_order_id' => $data['purchase_order_id'] ?? null,
+                    'purchase_order_id' => $data['purchase_order_id'],
                     'supplier_id' => $data['supplier_id'],
                     'received_date' => $data['received_date'],
                     'invoice_number' => $invoiceNumber,
@@ -131,6 +122,7 @@ class GRNController extends Controller
                     'notes' => $data['notes'] ?? null,
                 ]);
 
+                // 4. Process items and update stock
                 $grnItemsData = [];
                 $stockBatchesData = [];
 
@@ -154,18 +146,10 @@ class GRNController extends Controller
                         'updated_at' => now(),
                     ];
 
-                    // Calculate total units and secondary quantities based on dosage form
                     $isGroupA = in_array($item['dosage_form_snapshot'], ['Tablet', 'Capsule', 'Suppository', 'Sachet']);
-                    
-                    $totalTablets = 0;
-                    $totalUnits = 0; // Group B units (bottles/tubes)
-                    
-                    if ($isGroupA) {
-                        $totalTablets = $item['qty_boxes_received'] * (($medicine?->tablets_per_strip ?? 1) * ($medicine?->strips_per_box ?? 1));
-                    } else {
-                        $totalUnits = $item['qty_boxes_received'] * ($item['qty_units_received'] ?? 1);
-                        $totalTablets = $totalUnits; // For non-tablets, total_tablets acts as smallest unit count
-                    }
+                    $totalTablets = $isGroupA 
+                        ? $item['qty_boxes_received'] * (($medicine?->tablets_per_strip ?? 1) * ($medicine?->strips_per_box ?? 1))
+                        : $item['qty_boxes_received'] * ($item['qty_units_received'] ?? 1);
 
                     $stockBatchesData[] = [
                         'medicine_id' => $item['medicine_id'],
@@ -178,8 +162,8 @@ class GRNController extends Controller
                         'qty_tablets_remaining' => $totalTablets,
                         'qty_boxes' => $item['qty_boxes_received'],
                         'qty_boxes_remaining' => $item['qty_boxes_received'],
-                        'qty_units' => $isGroupA ? null : $totalUnits,
-                        'qty_units_remaining' => $isGroupA ? null : $totalUnits,
+                        'qty_units' => $isGroupA ? null : $totalTablets,
+                        'qty_units_remaining' => $isGroupA ? null : $totalTablets,
                         'cost_per_unit' => $item['cost_per_unit'],
                         'cost_per_stripe' => $item['cost_per_stripe'] ?? null,
                         'cost_per_box' => $item['cost_per_box'] ?? null,
@@ -195,15 +179,10 @@ class GRNController extends Controller
                 StockBatch::insert($stockBatchesData);
 
                 if (!empty($data['purchase_order_id'])) {
-                    PurchaseOrder::where('id', $data['purchase_order_id'])
-                        ->where('status', '!=', 'Received')
-                        ->update(['status' => 'Received']);
+                    PurchaseOrder::where('id', $data['purchase_order_id'])->update(['status' => 'Received']);
                 }
 
-                Cache::forget('medicines.active_list');
-                Cache::tags(['inventory'])->flush();
-                Cache::tags(['reports'])->flush();
-
+                $this->clearCache();
                 return $grn;
             });
 
@@ -222,58 +201,46 @@ class GRNController extends Controller
         return new GRNResource($grn->load(['supplier', 'purchaseOrder', 'items.medicine']));
     }
 
-    public function update(Request $request, GRN $grn): JsonResponse
+    /**
+     * Update an existing GRN. Implements safety checks against active sales.
+     */
+    public function update(UpdateGRNRequest $request, GRN $grn): JsonResponse
     {
-        $data = $request->validate([
-            'supplier_id' => 'required|exists:suppliers,id',
-            'purchase_order_id' => 'nullable|exists:purchase_orders,id',
-            'received_date' => 'required|date',
-            'invoice_number' => 'nullable|string|max:255',
-            'received_by' => 'nullable|string|max:255',
-            'total_amount' => 'required|numeric|min:0',
-            'paid_amount' => 'nullable|numeric|min:0',
-            'payment_status' => 'required|string|in:Paid,Partially Paid,Due',
-            'notes' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.medicine_id' => 'required|exists:medicines,id',
-            'items.*.dosage_form_snapshot' => 'required|string',
-            'items.*.batch_number' => 'required|string|max:255',
-            'items.*.expiry_date' => 'required|date',
-            'items.*.qty_boxes_received' => 'required|integer|min:1',
-            'items.*.qty_units_received' => 'nullable|integer',
-            'items.*.package_size' => 'nullable|string',
-            'items.*.cost_per_box' => 'nullable|numeric',
-            'items.*.cost_per_stripe' => 'nullable|numeric',
-            'items.*.cost_per_unit' => 'required|numeric',
-            'items.*.subtotal' => 'required|numeric|min:0',
-        ]);
+        $data = $request->validated();
 
         try {
             $grn = DB::transaction(function () use ($grn, $data) {
+                // Safety Check: Edit-Lock
+                $this->checkHasSales($grn);
+
                 $this->reverseGrnStock($grn);
                 $grn->items()->delete();
 
                 $grn->update([
                     'purchase_order_id' => $data['purchase_order_id'] ?? $grn->purchase_order_id,
-                    'supplier_id' => $data['supplier_id'],
+                    'supplier_id' => $data['supplier_id'] ?? $grn->supplier_id,
                     'received_date' => $data['received_date'],
-                    'invoice_number' => $data['invoice_number'] ?? null,
-                    'received_by' => $data['received_by'] ?? null,
+                    'invoice_number' => $data['invoice_number'] ?? $grn->invoice_number,
+                    'received_by' => $data['received_by'] ?? $grn->received_by,
                     'total_amount' => $data['total_amount'],
                     'paid_amount' => $data['paid_amount'] ?? 0,
                     'payment_status' => $data['payment_status'] ?? 'Due',
                     'notes' => $data['notes'] ?? null,
                 ]);
 
-                $medicineIds = collect($data['items'])->pluck('medicine_id');
-                $medicines = Medicine::whereIn('id', $medicineIds)->get()->keyBy('id');
+                $medicineIds = collect($data['items'])->pluck('medicine_id')->unique();
+                $medicines = Medicine::whereIn('id', $medicineIds)->select(['id', 'stock', 'tablets_per_strip', 'strips_per_box'])->get()->keyBy('id');
 
                 $grnItemsData = [];
                 $stockBatchesData = [];
 
                 foreach ($data['items'] as $item) {
                     $medicine = $medicines->get($item['medicine_id']);
-                    
+                    $isGroupA = in_array($item['dosage_form_snapshot'], ['Tablet', 'Capsule', 'Suppository', 'Sachet']);
+                    $totalTablets = $isGroupA 
+                        ? $item['qty_boxes_received'] * (($medicine?->tablets_per_strip ?? 1) * ($medicine?->strips_per_box ?? 1))
+                        : $item['qty_boxes_received'] * ($item['qty_units_received'] ?? 1);
+
                     $grnItemsData[] = [
                         'grn_id' => $grn->id,
                         'medicine_id' => $item['medicine_id'],
@@ -291,21 +258,9 @@ class GRNController extends Controller
                         'updated_at' => now(),
                     ];
 
-                    $isGroupA = in_array($item['dosage_form_snapshot'], ['Tablet', 'Capsule', 'Suppository', 'Sachet']);
-                    
-                    $totalTablets = 0;
-                    $totalUnits = 0;
-                    
-                    if ($isGroupA) {
-                        $totalTablets = $item['qty_boxes_received'] * (($medicine?->tablets_per_strip ?? 1) * ($medicine?->strips_per_box ?? 1));
-                    } else {
-                        $totalUnits = $item['qty_boxes_received'] * ($item['qty_units_received'] ?? 1);
-                        $totalTablets = $totalUnits;
-                    }
-
                     $stockBatchesData[] = [
                         'medicine_id' => $item['medicine_id'],
-                        'supplier_id' => $data['supplier_id'],
+                        'supplier_id' => $grn->supplier_id,
                         'grn_id' => $grn->id,
                         'dosage_form_snapshot' => $item['dosage_form_snapshot'],
                         'batch_number' => $item['batch_number'],
@@ -314,12 +269,12 @@ class GRNController extends Controller
                         'qty_tablets_remaining' => $totalTablets,
                         'qty_boxes' => $item['qty_boxes_received'],
                         'qty_boxes_remaining' => $item['qty_boxes_received'],
-                        'qty_units' => $isGroupA ? null : $totalUnits,
-                        'qty_units_remaining' => $isGroupA ? null : $totalUnits,
+                        'qty_units' => $isGroupA ? null : $totalTablets,
+                        'qty_units_remaining' => $isGroupA ? null : $totalTablets,
                         'cost_per_unit' => $item['cost_per_unit'],
                         'cost_per_stripe' => $item['cost_per_stripe'] ?? null,
                         'cost_per_box' => $item['cost_per_box'] ?? null,
-                        'received_date' => $data['received_date'],
+                        'received_date' => $grn->received_date,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ];
@@ -330,10 +285,7 @@ class GRNController extends Controller
                 GRNItem::insert($grnItemsData);
                 StockBatch::insert($stockBatchesData);
 
-                Cache::forget('medicines.active_list');
-                Cache::tags(['inventory'])->flush();
-                Cache::tags(['reports'])->flush();
-
+                $this->clearCache();
                 return $grn->fresh(['supplier', 'purchaseOrder', 'items.medicine']);
             });
 
@@ -351,26 +303,14 @@ class GRNController extends Controller
     {
         try {
             DB::transaction(function () use ($grn) {
-                // FIX: Guard against editing batches that already have sales
-                $batchIds = StockBatch::where('grn_id', $grn->id)->pluck('id');
-                $hasSales = DB::table('sale_items')
-                    ->whereIn('stock_batch_id', $batchIds)
-                    ->exists();
+                // Safety Check: Edit-Lock
+                $this->checkHasSales($grn);
 
-                if ($hasSales) {
-                    throw new \Exception('Cannot delete GRN — one or more batches have active sales records.');
-                }
-
-                // Safely reverse stock before soft-deleting
                 $this->reverseGrnStock($grn);
                 $grn->items()->delete();
-
-                // FIX: SoftDelete on GRN only — PO is preserved for procurement audit trail
                 $grn->delete();
 
-                Cache::forget('medicines.active_list');
-                Cache::tags(['inventory'])->flush();
-                Cache::tags(['reports'])->flush();
+                $this->clearCache();
             });
 
             return response()->json(null, 204);
@@ -380,23 +320,42 @@ class GRNController extends Controller
     }
 
     /**
-     * Reverse the stock impact of a GRN's batches without touching sale_items.
-     * Extracted to eliminate duplication between update() and destroy().
+     * Internal helper to verify if any batch in the GRN has existing sales.
+     */
+    private function checkHasSales(GRN $grn): void
+    {
+        $batchIds = StockBatch::where('grn_id', $grn->id)->pluck('id');
+        $hasSales = DB::table('sale_items')->whereIn('stock_batch_id', $batchIds)->exists();
+
+        if ($hasSales) {
+            throw new \Exception('Action Denied — one or more batches in this GRN already have active sales records.');
+        }
+    }
+
+    /**
+     * Safely reverse stock impact.
      */
     private function reverseGrnStock(GRN $grn): void
     {
         $grn->loadMissing('items');
         $medicineIds = $grn->items->pluck('medicine_id')->unique();
-        $medicines = Medicine::whereIn('id', $medicineIds)->get()->keyBy('id');
+        $medicines = Medicine::whereIn('id', $medicineIds)->select(['id', 'stock'])->get()->keyBy('id');
 
         $batches = StockBatch::where('grn_id', $grn->id)->get();
 
         foreach ($batches as $batch) {
             $medicine = $medicines->get($batch->medicine_id);
-            // Only decrement the remaining stock that hasn't been sold yet
             $medicine?->decrement('stock', $batch->qty_tablets_remaining);
-            // SoftDelete the batch — preserves existing sale_item references
             $batch->delete();
         }
+    }
+
+    /**
+     * Clear surgical cache tags.
+     */
+    private function clearCache(): void
+    {
+        Cache::forget('medicines.active_list');
+        Cache::tags(['inventory', 'reports'])->flush();
     }
 }

@@ -15,12 +15,12 @@ class TaxResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'name' => $this->name,
-            'rate' => $this->rate,
-            'status' => $this->status,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'id' => (int) $this->id,
+            'name' => (string) $this->name,
+            'rate' => (float) $this->rate,
+            'status' => (string) $this->status,
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

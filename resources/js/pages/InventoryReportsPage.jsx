@@ -84,7 +84,7 @@ const InventoryReportsPage = () => {
                 <div className="shrink-0 space-y-7 mb-7">
                     <StockValuationCards 
                         summaries={reportData?.data.summaries} 
-                        alertSummary={alertSummary}
+                        alertSummary={alertSummary?.data}
                         isLoading={isLoading || isFetching} 
                     />
 

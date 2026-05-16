@@ -68,9 +68,19 @@ class Medicine extends Model
 
     protected static function booted(): void
     {
-        // Auto-clear dropdown cache when a medicine is modified
-        static::saved(fn() => Cache::forget('medicines.active_list'));
-        static::deleted(fn() => Cache::forget('medicines.active_list'));
+        $clearCache = fn() => Cache::forget('medicines.active_list');
+
+        static::saved($clearCache);
+        static::deleted($clearCache);
+        static::restored($clearCache);
+    }
+
+    /**
+     * Scope a query to only include active medicines.
+     */
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
     }
 
     // Removed category() and manufacturer() relationships as they are now plain strings

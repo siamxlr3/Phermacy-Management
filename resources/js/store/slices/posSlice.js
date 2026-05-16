@@ -47,6 +47,7 @@ const posSlice = createSlice({
         state.cart.push({ 
           medicine_id: medicine.id,
           name: medicine.medicine_name,
+          category: medicine.category,
           manufacturer: medicine.manufacturer,
           dosage_form: medicine.dosage_form,
           unit: selectedUnit,

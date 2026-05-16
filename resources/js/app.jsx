@@ -20,7 +20,6 @@ import ReturnsPage from './pages/ReturnsPage';
 import SalesReportsPage from './pages/SalesReportsPage';
 import InventoryReportsPage from './pages/InventoryReportsPage';
 import ExpensePage from './pages/ExpensePage';
-import HRMPage from './pages/HRMPage';
 import CashRegisterPage from './pages/CashRegisterPage';
 import { LanguageProvider } from './language/GlobalTranslate.jsx';
 
@@ -59,8 +58,7 @@ const App = () => {
                     <Route path="/purchasing/orders" element={<OrdersPage />} />
                     <Route path="/purchasing/returns" element={<SuppliersReturnPage />} />
 
-                    {/* HRM */}
-                    <Route path="/hrm" element={<HRMPage />} />
+
 
                     {/* Expenses */}
                     <Route path="/expenses" element={<ExpensePage />} />

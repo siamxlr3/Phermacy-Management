@@ -15,23 +15,33 @@ use App\Http\Requests\Api\StoreReturnRequest;
 use App\Models\CashTransaction;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Exception;
 
 class ReturnController extends Controller
 {
-    public function index(Request $request)
+    /**
+     * List returns with optimized eager loading and simple pagination.
+     */
+    public function index(Request $request): AnonymousResourceCollection
     {
-        $perPage = $request->get('per_page', 10);
+        $perPage = min($request->integer('per_page', 10), 100);
         $search = $request->get('search');
         $fromDate = $request->get('from_date');
         $toDate = $request->get('to_date');
 
-        $query = SalesReturn::with(['sale', 'items.medicine', 'items.batch']);
+        $query = SalesReturn::with([
+            'sale:id,invoice_number,customer_name', 
+            'items.medicine:id,medicine_name,dosage_form', 
+            'user:id,name'
+        ]);
 
         if ($search) {
-            $query->where('return_invoice_number', 'like', "%{$search}%")
+            $query->where('return_invoice_number', 'like', "{$search}%")
                   ->orWhereHas('sale', function($sq) use ($search) {
-                      $sq->where('invoice_number', 'like', "%{$search}%");
+                      $sq->where('invoice_number', 'like', "{$search}%");
                   });
         }
 
@@ -42,20 +52,29 @@ class ReturnController extends Controller
             ]);
         }
 
-        $returns = $query->orderBy('return_date', 'desc')->paginate($perPage);
+        $returns = $query->latest('return_date')->simplePaginate($perPage);
         return SalesReturnResource::collection($returns);
     }
 
-    public function lookup(string $invoiceNumber)
+    /**
+     * Specialized lookup for a sale to be returned.
+     */
+    public function lookup(string $invoiceNumber): JsonResponse
     {
-        $sale = Sale::with(['items.medicine'])
+        $sale = Sale::with(['items.medicine:id,medicine_name,dosage_form', 'items.returnItems'])
             ->where('invoice_number', $invoiceNumber)
             ->firstOrFail();
 
-        return new SaleResource($sale);
+        return response()->json([
+            'success' => true,
+            'data' => new SaleResource($sale)
+        ]);
     }
 
-    public function store(StoreReturnRequest $request)
+    /**
+     * Process a return with full inventory and financial reconciliation.
+     */
+    public function store(StoreReturnRequest $request): JsonResponse
     {
         $data = $request->validated();
 
@@ -63,12 +82,14 @@ class ReturnController extends Controller
             $salesReturn = DB::transaction(function () use ($data) {
                 $sale = Sale::findOrFail($data['sale_id']);
 
-                $lastReturn = SalesReturn::latest()->first();
+                // 1. Atomic Invoice Generation
+                $lastReturn = DB::table('sales_returns')->lockForUpdate()->latest('id')->first();
                 $number = $lastReturn ? (int) substr($lastReturn->return_invoice_number, 4) + 1 : 1;
                 $invoiceNumber = 'RET-' . str_pad($number, 6, '0', STR_PAD_LEFT);
 
                 $salesReturn = SalesReturn::create([
                     'sale_id' => $sale->id,
+                    'user_id' => Auth::id(),
                     'return_invoice_number' => $invoiceNumber,
                     'return_date' => now(),
                     'subtotal_returned' => $data['subtotal_returned'],
@@ -80,6 +101,7 @@ class ReturnController extends Controller
                     'return_type' => $data['return_type'],
                 ]);
 
+                // 2. Financial Integration
                 if ($data['refund_method'] === 'cash') {
                     $transaction = CashTransaction::record(
                         'sale_refund',
@@ -90,17 +112,19 @@ class ReturnController extends Controller
                         $invoiceNumber,
                         'cash',
                         $sale->customer_name ?? 'Walk-in Customer',
-                        'customer'
+                        'customer',
+                        Auth::id()
                     );
                     $salesReturn->update(['cash_transaction_id' => $transaction->id]);
                 }
 
+                // 3. Inventory Reversal
                 foreach ($data['items'] as $itemData) {
                     $saleItem = SaleItem::findOrFail($itemData['sale_item_id']);
                     
                     $alreadyReturned = $saleItem->returnItems()->sum('qty_returned');
                     if (($alreadyReturned + $itemData['qty_returned']) > $saleItem->qty_tablets) {
-                        throw new Exception("Returned quantity exceeds sold quantity.");
+                        throw new Exception("Returned quantity exceeds sold quantity for item ID: {$saleItem->id}");
                     }
 
                     $salesReturn->items()->create([
@@ -114,19 +138,20 @@ class ReturnController extends Controller
                         'return_condition' => $itemData['return_condition'] ?? 'resellable',
                     ]);
 
-                    $batch = StockBatch::find($saleItem->stock_batch_id);
-                    if ($batch) $batch->increment('qty_tablets_remaining', $itemData['qty_returned']);
-                    Medicine::where('id', $saleItem->medicine_id)->increment('stock', $itemData['qty_returned']);
+                    // Only put back to stock if resellable
+                    if (($itemData['return_condition'] ?? 'resellable') === 'resellable') {
+                        $batch = StockBatch::find($saleItem->stock_batch_id);
+                        if ($batch) $batch->increment('qty_tablets_remaining', $itemData['qty_returned']);
+                        Medicine::where('id', $saleItem->medicine_id)->increment('stock', $itemData['qty_returned']);
+                    }
                 }
 
-                $totalSold = $sale->items()->sum('qty_tablets');
-                $totalReturned = DB::table('sales_return_items')
-                    ->join('sales_returns', 'sales_returns.id', '=', 'sales_return_items.sales_return_id')
-                    ->where('sales_returns.sale_id', $sale->id)
-                    ->sum('qty_returned');
-
-                // Track the net refunded amount on the sale for accurate revenue reporting
+                // 4. Update Sale Totals and Status
                 $sale->increment('refunded_amount', $data['total_returned']);
+                $sale->increment('refunded_subtotal', $data['subtotal_returned']);
+
+                $totalSold = $sale->items()->sum('qty_tablets');
+                $totalReturned = $sale->items()->withSum('returnItems', 'qty_returned')->get()->sum('return_items_sum_qty_returned');
 
                 if ($totalReturned >= $totalSold) {
                     $sale->update(['status' => 'Returned']);
@@ -134,13 +159,8 @@ class ReturnController extends Controller
                     $sale->update(['status' => 'Partially Returned']);
                 }
 
-                // Targeted cache invalidation — clears sale summary cards immediately
-                Cache::forget('sales_total_amount');
-                Cache::forget('sales_total_completed');
-                Cache::forget('sales_total_returned');
-                Cache::forget('sales_total_due');
-                Cache::forget('sales_total_due_customers');
-                Cache::tags(['reports'])->flush();
+                // 5. Targeted Cache Invalidation
+                Cache::tags(['sales', 'reports', 'dashboard'])->flush();
 
                 return $salesReturn;
             });
@@ -155,9 +175,15 @@ class ReturnController extends Controller
         }
     }
 
-    public function show(int $id)
+    /**
+     * Show return details.
+     */
+    public function show(int $id): JsonResponse
     {
-        $return = SalesReturn::with(['sale', 'items.medicine'])->findOrFail($id);
-        return new SalesReturnResource($return);
+        $return = SalesReturn::with(['sale', 'items.medicine', 'user:id,name'])->findOrFail($id);
+        return response()->json([
+            'success' => true,
+            'data' => new SalesReturnResource($return)
+        ]);
     }
 }

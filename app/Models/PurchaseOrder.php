@@ -50,4 +50,21 @@ class PurchaseOrder extends Model
     {
         return $this->hasMany(GRN::class, 'purchase_order_id');
     }
+
+    /**
+     * Re-calculate and save the total amount based on items.
+     */
+    public function syncTotal(): void
+    {
+        $this->total_amount = (float) $this->items()->sum('subtotal');
+        $this->save();
+    }
+
+    /**
+     * Scope a query to only include pending orders.
+     */
+    public function scopePending($query)
+    {
+        return $query->where('status', 'Pending');
+    }
 }

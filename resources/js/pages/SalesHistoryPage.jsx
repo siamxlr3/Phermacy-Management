@@ -40,20 +40,39 @@ const paymentStyle = {
 };
 
 const formatSoldQty = (item) => {
-  if (item.sale_qty !== undefined && item.sale_qty !== null) {
-    const qty = Number(item.sale_qty);
-    return Number.isInteger(qty) ? qty : qty.toFixed(2);
-  }
+  const qty = Number(item.sale_qty || 0);
+  if (qty > 0) return Number.isInteger(qty) ? qty : qty.toFixed(2);
 
   // Fallback calculation for older records
+  const tablets = Number(item.qty_tablets || 0);
+  if (tablets === 0) return 0;
+
   if (item.sale_unit === 'Box') {
-    const boxQty = item.qty_tablets / ((item.tablet_per_stripe || 1) * (item.stripe_per_box || 1));
+    const boxQty = tablets / ((item.tablet_per_stripe || 1) * (item.stripe_per_box || 1));
     return Number.isInteger(boxQty) ? boxQty : boxQty.toFixed(2);
-  } else if (item.sale_unit === 'Stripe') {
-    const stripeQty = item.qty_tablets / (item.tablet_per_stripe || 1);
+  } else if (item.sale_unit === 'Strip') {
+    const stripeQty = tablets / (item.tablet_per_stripe || 1);
     return Number.isInteger(stripeQty) ? stripeQty : stripeQty.toFixed(2);
   }
-  return item.qty_tablets;
+  return tablets;
+};
+
+
+const formatReturnedQty = (item) => {
+  const returnedTablets = Number(item.returned_qty_tablets || 0);
+  if (returnedTablets === 0) return 0;
+  
+  const totalTablets = Number(item.qty_tablets || 0);
+  const totalSaleQty = Number(item.sale_qty || 1);
+  
+  if (totalTablets === 0) return 0;
+  
+  const tabletsPerSaleUnit = totalTablets / totalSaleQty;
+  if (tabletsPerSaleUnit === 0) return 0;
+  
+  const returnedInSaleUnits = returnedTablets / tabletsPerSaleUnit;
+  
+  return Number.isInteger(returnedInSaleUnits) ? returnedInSaleUnits : returnedInSaleUnits.toFixed(2);
 };
 
 
@@ -68,7 +87,7 @@ const SalesHistoryPage = () => {
   const [showDueOnly, setShowDueOnly] = useState(location.state?.showDueOnly || false);
   const [expandedRow, setExpandedRow] = useState(null);
   const [dateRange, setDateRange] = useState({
-    from: '',
+    from: format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
     to: format(new Date(), 'yyyy-MM-dd')
   });
 
@@ -84,7 +103,9 @@ const SalesHistoryPage = () => {
     page,
     perPage,
     search: searchTerm,
-    status: showDueOnly ? 'Due' : (statusFilter === 'all' ? '' : statusFilter)
+    status: showDueOnly ? 'Due' : (statusFilter === 'all' ? '' : statusFilter),
+    from_date: dateRange.from,
+    to_date: dateRange.to
   });
 
   const [updateStatus] = useUpdateSaleStatusMutation();
@@ -477,6 +498,7 @@ const SalesHistoryPage = () => {
                                             <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{translations.medicine.medicine_name || 'Medicine'}</th>
                                             <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.medicine.dosage_form || 'Unit'}</th>
                                             <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.qty || 'Qty'}</th>
+                                            <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Returned</th>
                                             <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.expense.amount || 'Subtotal'}</th>
                                           </tr>
                                         </thead>
@@ -496,6 +518,16 @@ const SalesHistoryPage = () => {
                                               </td>
                                               <td className="px-6 py-4 text-center">
                                                 <span className="text-sm font-black text-indigo-600">{formatSoldQty(ritem)}</span>
+                                              </td>
+                                              <td className="px-6 py-4 text-center">
+                                                <span className={cn(
+                                                  "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter border",
+                                                  ritem.returned_qty_tablets > 0 
+                                                    ? "bg-rose-50 text-rose-500 border-rose-100" 
+                                                    : "bg-slate-50 text-slate-400 border-slate-100"
+                                                )}>
+                                                  {formatReturnedQty(ritem)}
+                                                </span>
                                               </td>
                                               <td className="px-6 py-4 text-right font-black text-slate-900 text-sm">৳{parseFloat(ritem.subtotal).toFixed(2)}</td>
                                             </tr>

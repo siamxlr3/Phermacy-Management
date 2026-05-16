@@ -11,6 +11,7 @@ class SalesReturn extends Model
 
     protected $fillable = [
         'sale_id',
+        'user_id',
         'return_invoice_number',
         'return_date',
         'subtotal_returned',
@@ -24,11 +25,19 @@ class SalesReturn extends Model
     ];
 
     protected $casts = [
+        'sale_id' => 'integer',
+        'user_id' => 'integer',
         'return_date' => 'datetime',
         'subtotal_returned' => 'decimal:2',
         'tax_returned' => 'decimal:2',
         'total_returned' => 'decimal:2',
+        'cash_transaction_id' => 'integer',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 
     public function sale()
     {

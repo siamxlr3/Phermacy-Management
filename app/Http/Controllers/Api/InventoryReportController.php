@@ -16,7 +16,6 @@ class InventoryReportController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        // FIX 1: Validate date inputs — prevent Carbon 500 crashes on bad input
         $request->validate([
             'from_date' => 'nullable|date',
             'to_date' => 'nullable|date|after_or_equal:from_date',
@@ -25,12 +24,11 @@ class InventoryReportController extends Controller
         $fromDate = $request->get('from_date', Carbon::now()->toDateString());
         $toDate = $request->get('to_date', Carbon::now()->addDays(90)->toDateString());
 
-        $cacheKey = "inventory_" . md5($fromDate . $toDate);
+        $cacheKey = "inventory_v2_" . md5($fromDate . $toDate);
 
-        // FIX 2: Use Cache Tags for safe, scoped invalidation without touching other caches
-        $data = Cache::tags(['inventory'])->remember($cacheKey, 3600, function() use ($fromDate, $toDate) {
+        $data = Cache::tags(['inventory', 'dashboard'])->remember($cacheKey, 3600, function() use ($fromDate, $toDate) {
 
-            // Stock valuation grouped by category
+            // 1. Precise Stock Valuation (The Source of Truth)
             $valuation = StockBatch::where('qty_tablets_remaining', '>', 0)
                 ->join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id')
                 ->selectRaw('
@@ -49,20 +47,13 @@ class InventoryReportController extends Controller
                 ->orderByDesc('total_value')
                 ->get();
 
-            // Total outstanding PO payment dues
+            // 2. Outstanding Debts (Optimized Aggregation)
             $poDues = PurchaseOrder::where('status', '!=', 'Cancelled')
                 ->where('payment_status', '!=', 'Paid')
                 ->whereRaw('total_amount > paid_amount')
                 ->sum(DB::raw('total_amount - paid_amount'));
 
-            // FIX 3: Replace pluck()->unique() with a DB subquery — prevents loading
-            // potentially millions of IDs into PHP memory
-            $soldRecentlySubquery = DB::table('sale_items')
-                ->where('created_at', '>=', now()->subDays(90))
-                ->select('medicine_id')
-                ->distinct();
-
-            // FIX 4: Combine 3 separate COUNT queries into ONE aggregation query
+            // 3. Consolidated Expiry & Risk Counts (One Query)
             $stockCounts = StockBatch::where('qty_tablets_remaining', '>', 0)
                 ->selectRaw('
                     SUM(CASE WHEN expiry_date BETWEEN ? AND ? THEN 1 ELSE 0 END) as expiry_count,
@@ -77,56 +68,68 @@ class InventoryReportController extends Controller
                 ])
                 ->first();
 
+            // 4. Slow-Moving Inventory (Optimized using whereNotExists)
+            $slowMoving = Medicine::where('stock', '>', 0)
+                ->whereNotExists(function ($query) {
+                    $query->select(DB::raw(1))
+                        ->from('sale_items')
+                        ->whereRaw('sale_items.medicine_id = medicines.id')
+                        ->where('created_at', '>=', now()->subDays(90));
+                })
+                ->select('id', 'medicine_name as name', 'stock', 'reorder_level')
+                ->orderByDesc('stock')
+                ->limit(20)
+                ->get();
+
             return [
-                'valuation' => $valuation,
+                'valuation' => $valuation->map(fn($v) => [
+                    'category' => (string) $v->category_name,
+                    'value'    => (float) $v->total_value,
+                    'medicines'=> (int) $v->unique_medicines,
+                    'qty'      => (int) $v->total_tablets
+                ]),
 
                 'expiry_risks' => [
-                    // FIX 5: Added ->limit() safety cap to prevent OOM on large datasets
                     'critical' => StockBatch::where('qty_tablets_remaining', '>', 0)
-                        ->whereBetween('expiry_date', [
-                            Carbon::tomorrow()->toDateString(),
-                            Carbon::today()->addDays(30)->toDateString(),
-                        ])
-                        ->with(['medicine', 'supplier'])
+                        ->whereBetween('expiry_date', [Carbon::tomorrow(), Carbon::today()->addDays(30)])
+                        ->with(['medicine:id,medicine_name', 'supplier:id,name'])
                         ->orderBy('expiry_date')
-                        ->limit(100)
+                        ->limit(50)
                         ->get(),
-
                     'warning' => StockBatch::where('qty_tablets_remaining', '>', 0)
                         ->whereBetween('expiry_date', [$fromDate, $toDate])
-                        ->with(['medicine', 'supplier'])
+                        ->with(['medicine:id,medicine_name', 'supplier:id,name'])
                         ->orderBy('expiry_date')
-                        ->limit(100)
+                        ->limit(50)
                         ->get(),
                 ],
 
-                'dues' => PurchaseOrder::with('supplier')
+                'dues' => PurchaseOrder::with('supplier:id,name')
                     ->where('status', '!=', 'Cancelled')
                     ->where('payment_status', '!=', 'Paid')
                     ->whereRaw('total_amount > paid_amount')
-                    ->selectRaw('*, (total_amount - paid_amount) as balance_due')
-                    ->orderByDesc('balance_due')
-                    ->limit(50) // Safety cap for dues list
-                    ->get(),
+                    ->orderBy('order_date')
+                    ->get()
+                    ->map(fn($po) => [
+                        'id' => $po->id,
+                        'supplier' => [
+                            'name' => $po->supplier?->name
+                        ],
+                        'order_date' => $po->order_date?->toDateString(),
+                        'total_amount' => (float) $po->total_amount,
+                        'paid_amount' => (float) $po->paid_amount,
+                        'balance_due' => (float) ($po->total_amount - $po->paid_amount),
+                    ]),
 
-                // FIX 6: DB subquery replaces PHP-side pluck/unique memory pattern
-                'slow_moving' => Medicine::where('stock', '>', 0)
-                    ->whereNotIn('id', $soldRecentlySubquery)
-                    ->select('id', 'medicine_name as name', 'stock', 'reorder_level')
-                    ->orderByDesc('stock')
-                    ->limit(50)
-                    ->get(),
+                'slow_moving' => $slowMoving,
 
                 'summaries' => [
-                    'total_stock_value' => (float) PurchaseOrder::where('status', '!=', 'Cancelled')->sum('paid_amount'),
+                    'total_stock_value'      => (float) $valuation->sum('total_value'),
                     'total_pending_payments' => (float) $poDues,
-                    // FIX 7: All counts now come from the single aggregation query above
-                    'expiry_count' => (int) ($stockCounts->expiry_count ?? 0),
-                    'expired_count' => (int) ($stockCounts->expired_count ?? 0),
-                    'low_stock_count' => Medicine::where('is_active', 1)
-                        ->whereColumn('stock', '<=', 'reorder_level')
-                        ->count(),
-                    'category_count' => $valuation->count(),
+                    'expiry_count'           => (int) ($stockCounts->expiry_count ?? 0),
+                    'expired_count'          => (int) ($stockCounts->expired_count ?? 0),
+                    'low_stock_count'        => (int) Medicine::active()->whereColumn('stock', '<=', 'reorder_level')->count(),
+                    'total_items'            => (int) $valuation->sum('unique_medicines'),
                 ],
             ];
         });

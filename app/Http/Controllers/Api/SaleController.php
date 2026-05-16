@@ -20,19 +20,31 @@ use Exception;
 
 class SaleController extends Controller
 {
+    /**
+     * List sales with high-performance summary aggregation.
+     */
     public function index(Request $request): AnonymousResourceCollection
     {
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->integer('per_page', 10);
         $search = $request->get('search');
         $status = $request->get('status');
+        $fromDate = $request->get('from_date');
+        $toDate = $request->get('to_date');
 
-        $query = Sale::with(['items.medicine']);
+        $query = Sale::with(['items.medicine:id,medicine_name,dosage_form', 'items.returnItems']);
+
+        if ($fromDate && $toDate) {
+            $query->whereBetween('sale_date', [
+                \Carbon\Carbon::parse($fromDate)->startOfDay(),
+                \Carbon\Carbon::parse($toDate)->endOfDay()
+            ]);
+        }
 
         if ($search) {
             $query->where(function($q) use ($search) {
-                $q->where('invoice_number', 'like', "%{$search}%")
-                  ->orWhere('customer_name', 'like', "%{$search}%")
-                  ->orWhere('customer_phone', 'like', "%{$search}%");
+                $q->where('invoice_number', 'like', "{$search}%")
+                  ->orWhere('customer_name', 'like', "{$search}%")
+                  ->orWhere('customer_phone', 'like', "{$search}%");
             });
         }
 
@@ -40,54 +52,50 @@ class SaleController extends Controller
             $query->where('status', $status);
         }
 
-        // Cache dynamic sums — net of refunds
-        $totalAmount = Cache::remember('sales_total_amount', 300, fn() =>
-            Sale::whereIn('status', ['Completed', 'Due', 'Partially Returned'])
-                ->selectRaw('SUM(grand_total - COALESCE(refunded_amount, 0))')
-                ->value('SUM(grand_total - COALESCE(refunded_amount, 0))')
-        );
-        // Completed card: Completed + Partially Returned sales at their net value (grand_total - refunded_amount)
-        // A partially-returned sale was still originally paid; we show what remains after the partial refund.
-        $totalCompleted = Cache::remember('sales_total_completed', 300, fn() =>
-            Sale::whereIn('status', ['Completed', 'Partially Returned'])
-                ->selectRaw('SUM(grand_total - COALESCE(refunded_amount, 0))')
-                ->value('SUM(grand_total - COALESCE(refunded_amount, 0))')
-        );
-        // Returned card: fully-returned sales (full grand_total) + partial refund amounts from partially-returned sales
-        $totalReturned = Cache::remember('sales_total_returned', 300, fn() =>
-            (float) Sale::where('status', 'Returned')->sum('grand_total')
-            + (float) Sale::where('status', 'Partially Returned')
-                ->selectRaw('SUM(COALESCE(refunded_amount, 0))')
-                ->value('SUM(COALESCE(refunded_amount, 0))')
-        );
-        $totalDue = Cache::remember('sales_total_due', 300, fn() => Sale::sum('due_amount'));
-        $totalDueCustomers = Cache::remember('sales_total_due_customers', 300, fn() => Sale::where('due_amount', '>', 0)->distinct('customer_phone')->count('customer_phone'));
+        // Consolidated Summary Stats in ONE query
+        $stats = Sale::query()
+            ->when($fromDate && $toDate, function($q) use ($fromDate, $toDate) {
+                $q->whereBetween('sale_date', [
+                    \Carbon\Carbon::parse($fromDate)->startOfDay(),
+                    \Carbon\Carbon::parse($toDate)->endOfDay()
+                ]);
+            })
+            ->selectRaw("
+                SUM(CASE WHEN status IN ('Completed', 'Due', 'Partially Returned', 'Returned') THEN (grand_total - COALESCE(refunded_subtotal, 0)) ELSE 0 END) as total_amount,
+                SUM(CASE WHEN status IN ('Completed', 'Partially Returned', 'Returned') THEN (grand_total - COALESCE(refunded_subtotal, 0)) ELSE 0 END) as total_completed,
+                SUM(COALESCE(refunded_subtotal, 0)) as total_returned,
+                SUM(due_amount) as total_due,
+                COUNT(DISTINCT CASE WHEN due_amount > 0 THEN customer_phone END) as total_due_customers
+            ")
+            ->first();
 
         $paginator = $query->latest('sale_date')->simplePaginate($perPage);
         
         return SaleResource::collection($paginator)->additional([
             'summary' => [
-                'total_amount' => $totalAmount,
-                'total_completed' => $totalCompleted,
-                'total_returned' => $totalReturned,
-                'total_due' => $totalDue,
-                'total_due_customers' => $totalDueCustomers
+                'total_amount' => (float) ($stats->total_amount ?? 0),
+                'total_completed' => (float) ($stats->total_completed ?? 0),
+                'total_returned' => (float) ($stats->total_returned ?? 0),
+                'total_due' => (float) ($stats->total_due ?? 0),
+                'total_due_customers' => (int) ($stats->total_due_customers ?? 0)
             ]
         ]);
     }
 
+    /**
+     * Process a sale with accurate batch-splitting and FIFO inventory deduction.
+     */
     public function store(StoreSaleRequest $request): JsonResponse
     {
         $data = $request->validated();
 
         try {
             $sale = DB::transaction(function () use ($data) {
-                // 1. Atomic Invoice Generation using lockForUpdate
+                // 1. Atomic Invoice Generation
                 $lastSale = DB::table('sales')->lockForUpdate()->latest('id')->first();
                 $number = $lastSale ? (int) substr($lastSale->invoice_number, 4) + 1 : 1;
                 $invoiceNumber = 'INV-' . str_pad($number, 6, '0', STR_PAD_LEFT);
 
-                // 2. Create the Sale Record
                 $sale = Sale::create([
                     'user_id' => Auth::id() ?? (User::first()->id ?? null),
                     'invoice_number' => $invoiceNumber,
@@ -105,10 +113,8 @@ class SaleController extends Controller
                     'due_amount' => ($data['payment_method'] ?? null) === 'Due' ? $data['grand_total'] : 0,
                 ]);
 
-                // 3. Preload Collections to prevent N+1 queries in the loop
+                // 2. Preload batches for optimized processing
                 $medicineIds = collect($data['items'])->pluck('medicine_id');
-                $medicines = Medicine::whereIn('id', $medicineIds)->get()->keyBy('id');
-                
                 $batches = StockBatch::whereIn('medicine_id', $medicineIds)
                     ->where('qty_tablets_remaining', '>', 0)
                     ->where('expiry_date', '>', now())
@@ -121,55 +127,42 @@ class SaleController extends Controller
                 foreach ($data['items'] as $item) {
                     $medicineId = $item['medicine_id'];
                     $remainingToDeduct = $item['qty_tablets'];
-
-                    $medicine = $medicines->get($medicineId);
-                    if (!$medicine) {
-                        throw new Exception("Medicine not found.");
-                    }
-                    
-                    $tabletPerStripe = $medicine->tablet_per_stripe ?? 1;
-                    $stripePerBox = $medicine->stripe_per_box ?? 1;
-
                     $medicineBatches = $batches->get($medicineId, collect());
 
                     if ($medicineBatches->sum('qty_tablets_remaining') < $remainingToDeduct) {
-                        throw new Exception("Insufficient stock for {$medicine->name}.");
+                        throw new Exception("Insufficient stock for medicine ID: {$medicineId}");
                     }
 
-                    // Record EXACTLY ONE row per cart item to preserve the integer box/stripe count logic
-                    $saleItemsData[] = [
-                        'sale_id' => $sale->id,
-                        'medicine_id' => $medicineId,
-                        'sale_unit' => $item['sale_unit'] ?? 'Tablet',
-                        'sale_qty' => (int) $item['quantity'], // Strictly integer counts (e.g. 1, 2, 7)
-                        'stock_batch_id' => $medicineBatches->first()->id,
-                        'qty_tablets' => $item['qty_tablets'],
-                        'unit_price' => $item['unit_price'],
-                        'tax_amount' => $item['tax_amount'],
-                        'subtotal' => $item['subtotal'],
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
-
-                    // Safely deduct from batches under the hood without splitting the cart item row
+                    // 3. FIFO Batch Deduction with Multi-Row Tracking (Crucial for Audit)
                     foreach ($medicineBatches as $batch) {
                         if ($remainingToDeduct <= 0) break;
 
-                        $deductFromThisBatch = min($batch->qty_tablets_remaining, $remainingToDeduct);
+                        $deduct = min($batch->qty_tablets_remaining, $remainingToDeduct);
                         
-                        $batch->qty_tablets_remaining -= $deductFromThisBatch;
-                        $batch->save();
+                        // Create a separate SaleItem for EACH batch used
+                        $saleItemsData[] = [
+                            'sale_id' => $sale->id,
+                            'medicine_id' => $medicineId,
+                            'sale_unit' => $item['sale_unit'],
+                            'sale_qty' => (float) ($deduct / ($item['qty_tablets'] / $item['quantity'])), // Weighted qty
+                            'stock_batch_id' => $batch->id,
+                            'qty_tablets' => $deduct,
+                            'unit_price' => $item['unit_price'],
+                            'tax_amount' => ($item['tax_amount'] / $item['qty_tablets']) * $deduct,
+                            'subtotal' => ($item['subtotal'] / $item['qty_tablets']) * $deduct,
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ];
 
-                        Medicine::where('id', $medicineId)->decrement('stock', $deductFromThisBatch);
-
-                        $remainingToDeduct -= $deductFromThisBatch;
+                        $batch->decrement('qty_tablets_remaining', $deduct);
+                        Medicine::where('id', $medicineId)->decrement('stock', $deduct);
+                        $remainingToDeduct -= $deduct;
                     }
                 }
 
-                // Bulk Insert items in exactly 1 query!
                 SaleItem::insert($saleItemsData);
 
-                // 4. Record the Cash Transaction to update the ledger automatically
+                // 4. Update Ledger
                 if ($sale->paid_amount > 0) {
                     \App\Models\CashTransaction::record(
                         'In',
@@ -178,13 +171,7 @@ class SaleController extends Controller
                     );
                 }
 
-                // Targeted invalidation. NEVER use Cache::flush() in production!
-                Cache::forget('sales_total_amount');
-                Cache::forget('sales_total_completed');
-                Cache::forget('sales_total_returned');
-                Cache::forget('sales_total_due');
-                Cache::forget('sales_total_due_customers');
-                
+                Cache::tags(['sales', 'dashboard'])->flush();
                 return $sale;
             });
 
@@ -194,20 +181,17 @@ class SaleController extends Controller
                 'data' => new SaleResource($sale->load('items.medicine'))
             ], 201);
         } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 422);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
     }
 
-    public function show(int $id)
+    public function show(int $id): JsonResponse
     {
-        $sale = Sale::with(['items.medicine', 'items.batch'])->find($id);
+        $sale = Sale::with(['items.medicine', 'items.batch', 'items.returnItems'])->find($id);
         if (!$sale) {
             return response()->json(['message' => 'Sale not found'], 404);
         }
-        return new SaleResource($sale);
+        return response()->json(['success' => true, 'data' => new SaleResource($sale)]);
     }
 
     public function updateStatus(Request $request, Sale $sale): JsonResponse
@@ -219,37 +203,28 @@ class SaleController extends Controller
         ]);
 
         try {
-            $oldPaidAmount = $sale->paid_amount;
+            DB::transaction(function () use ($sale, $request) {
+                $oldPaidAmount = $sale->paid_amount;
+                $sale->update($request->only(['status', 'paid_amount', 'due_amount']));
+                
+                $newPaidAmount = $sale->paid_amount;
+                if ($newPaidAmount > $oldPaidAmount) {
+                    \App\Models\CashTransaction::record(
+                        'In',
+                        $newPaidAmount - $oldPaidAmount,
+                        "Due Payment Collected - Invoice {$sale->invoice_number}"
+                    );
+                }
+            });
             
-            $sale->update($request->only(['status', 'paid_amount', 'due_amount']));
-            
-            // Log any new cash collected (e.g., when a Due bill is marked as Paid)
-            $newPaidAmount = $sale->paid_amount;
-            if ($newPaidAmount > $oldPaidAmount) {
-                $difference = $newPaidAmount - $oldPaidAmount;
-                \App\Models\CashTransaction::record(
-                    'In',
-                    $difference,
-                    "Due Payment Collected - Invoice {$sale->invoice_number}"
-                );
-            }
-            
-            Cache::forget('sales_total_amount');
-            Cache::forget('sales_total_completed');
-            Cache::forget('sales_total_returned');
-            Cache::forget('sales_total_due');
-            Cache::forget('sales_total_due_customers');
-            
+            Cache::tags(['sales', 'dashboard'])->flush();
             return response()->json([
                 'success' => true,
                 'message' => 'Sale status updated successfully',
-                'data' => new SaleResource($sale)
+                'data' => new SaleResource($sale->fresh())
             ]);
         } catch (Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => $e->getMessage()
-            ], 422);
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
     }
 }

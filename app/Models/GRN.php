@@ -57,4 +57,20 @@ class GRN extends Model
     {
         return $this->hasMany(GRNItem::class, 'grn_id');
     }
+
+    /**
+     * Get the remaining balance due for this GRN.
+     */
+    public function getBalanceDueAttribute(): float
+    {
+        return (float) ($this->total_amount - $this->paid_amount);
+    }
+
+    /**
+     * Scope a query to filter by payment status.
+     */
+    public function scopePaymentStatus($query, string $status)
+    {
+        return $query->where('payment_status', $status);
+    }
 }

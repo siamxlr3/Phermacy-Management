@@ -52,23 +52,26 @@ const Dashboard = () => {
 
   const dashboardData = response?.data || {};
   const summary = dashboardData.summary || {};
+  const alerts = dashboardData.alerts || {};
+  const charts = dashboardData.charts || {};
+
   const metrics = {
-    total_sales: summary.total_completed || 0,
+    total_sales: summary.total_revenue || 0,
     total_transactions: summary.total_transactions || 0,
-    remaining_due: dashboardData.remaining_due || 0,
-    cash_in_hand: dashboardData.cash_in_hand || 0,
-    stock_value: dashboardData.total_stock_value || 0,
-    purchase_cost: dashboardData.total_purchase_cost || 0,
-    estimated_profit: dashboardData.estimated_profit || 0,
-    low_stock_count: dashboardData.low_stock_items?.length || 0,
-    expiring_soon_count: dashboardData.expiring_items?.length || 0,
-    returns_count: dashboardData.returns_count || 0,
+    remaining_due: summary.remaining_due || 0,
+    cash_in_hand: summary.cash_in_hand || 0,
+    stock_value: summary.total_stock_value || 0,
+    purchase_cost: summary.total_purchase_cost || 0,
+    estimated_profit: summary.estimated_profit || 0,
+    low_stock_count: alerts.low_stock?.length || 0,
+    expiring_soon_count: alerts.expiring?.length || 0,
+    returns_count: summary.returns_count || 0,
   };
   
-  const low_stock_items = dashboardData.low_stock_items || [];
-  const expiring_items = dashboardData.expiring_items || [];
+  const low_stock_items = alerts.low_stock || [];
+  const expiring_items = alerts.expiring || [];
   const monthly_revenue = dashboardData.monthly_revenue || []; 
-  const daily_sales = dashboardData.daily_sales || [];
+  const daily_sales = charts.daily_sales || [];
   const best_selling = dashboardData.top_medicines || [];
   const payments = dashboardData.payments || [];
 
@@ -196,110 +199,147 @@ const Dashboard = () => {
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
         >
           {[
-            { label: t?.today_sale || "Sale", val: metrics.total_sales, icon: ShoppingBag, color: 'text-amber-500', bg: 'bg-amber-50', trend: t?.selected_range || 'Selected Range', trendDesc: t?.total_revenue || 'Total Revenue', trendColor: 'text-emerald-500' },
-            { label: t?.total_transactions || "Transactions", val: metrics.total_transactions, icon: History, color: 'text-slate-500', bg: 'bg-slate-100', trend: t?.total || 'Total', trendDesc: t?.invoices || 'Invoices', trendColor: 'text-indigo-500', isNumber: true },
-            { label: t?.remaining_due || "Due", val: metrics.remaining_due, icon: Clock, color: 'text-orange-500', bg: 'bg-orange-50', trend: t?.awaiting || 'Awaiting', trendDesc: t?.collection || 'Collection', trendColor: 'text-rose-500' },
-            { label: t?.cash_in_hand || "Cash", val: metrics.cash_in_hand, icon: Wallet, color: 'text-emerald-500', bg: 'bg-emerald-50', trend: t?.available || 'Available', trendDesc: t?.in_register || 'In Register', trendColor: 'text-indigo-500' },
+            { label: t?.today_sale || "Sale", val: metrics.total_sales, icon: ShoppingBag, color: 'emerald', trend: t?.selected_range || 'Selected Range', trendDesc: t?.total_revenue || 'Total Revenue' },
+            { label: t?.total_transactions || "Transactions", val: metrics.total_transactions, icon: History, color: 'indigo', trend: t?.total || 'Total', trendDesc: t?.invoices || 'Invoices', isNumber: true },
+            { label: t?.remaining_due || "Due", val: metrics.remaining_due, icon: Clock, color: 'orange', trend: t?.awaiting || 'Awaiting', trendDesc: t?.collection || 'Collection' },
+            { label: t?.cash_in_hand || "Cash", val: metrics.cash_in_hand, icon: Wallet, color: 'blue', trend: t?.available || 'Available', trendDesc: t?.in_register || 'In Register' },
           ].map((item, i) => (
             <motion.div 
               key={i}
               variants={itemVariants}
-              className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden"
+              className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-500 group relative overflow-hidden"
             >
-              <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110", item.bg)}>
-                <item.icon size={24} className={item.color} />
+              <div className={cn(
+                "absolute top-0 right-0 w-32 h-32 rounded-full -mr-16 -mt-16 opacity-[0.03] transition-transform duration-700 group-hover:scale-110",
+                item.color === 'emerald' ? 'bg-emerald-600' :
+                item.color === 'indigo' ? 'bg-indigo-600' :
+                item.color === 'orange' ? 'bg-orange-600' : 'bg-blue-600'
+              )} />
+              
+              <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center mb-5 transition-transform group-hover:scale-110 shadow-sm",
+                item.color === 'emerald' ? 'bg-emerald-50 text-emerald-600' :
+                item.color === 'indigo' ? 'bg-indigo-50 text-indigo-600' :
+                item.color === 'orange' ? 'bg-orange-50 text-orange-600' : 'bg-blue-50 text-blue-600'
+              )}>
+                <item.icon size={24} />
               </div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">{item.label}</p>
-              <h3 className="text-3xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
-                {!item.isNumber && <span className="text-xl">৳</span>}
-                {(item.val || 0).toLocaleString()}
-              </h3>
-              <div className={cn("mt-4 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight", item.trendColor)}>
-                <span className="bg-current opacity-10 px-2 py-0.5 rounded-full">{item.trend}</span>
-                <span className="opacity-60">{item.trendDesc || ''}</span>
+              
+              <div className="relative z-10">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[2px] mb-1">{item.label}</p>
+                <h3 className="text-3xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
+                  {!item.isNumber && <span className="text-xl font-bold opacity-40">৳</span>}
+                  {(item.val || 0).toLocaleString()}
+                </h3>
+                
+                <div className={cn(
+                  "mt-4 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight",
+                  item.color === 'emerald' ? 'text-emerald-600' :
+                  item.color === 'indigo' ? 'text-indigo-600' :
+                  item.color === 'orange' ? 'text-orange-600' : 'text-blue-600'
+                )}>
+                  <span className="bg-current opacity-10 px-2 py-0.5 rounded-lg">{item.trend}</span>
+                  <span className="opacity-40">{item.trendDesc || ''}</span>
+                </div>
               </div>
             </motion.div>
           ))}
         </motion.div>
 
         {/* Row 2: Charts and Tables */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
           
           {/* Left Stacked Column (lg:col-span-2) */}
-          <div className="lg:col-span-2 flex flex-col gap-6">
+          <div className="lg:col-span-2 flex flex-col gap-8">
             {/* Top Card: Best Selling */}
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex-1 flex flex-col min-h-[320px]">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-50 flex items-center justify-center">
-                    <Zap size={20} className="text-amber-500" />
+            <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm flex-1 flex flex-col min-h-[340px] group">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-[20px] bg-amber-50 flex items-center justify-center shadow-sm group-hover:rotate-12 transition-transform duration-500">
+                    <Zap size={22} className="text-amber-500 fill-amber-500" />
                   </div>
-                  <h4 className="text-sm font-black text-slate-900 tracking-widest uppercase">{translations?.dashboard?.sales_analysis?.best_selling || 'Best Selling'}</h4>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900 tracking-widest uppercase">{translations?.dashboard?.sales_analysis?.best_selling || 'Best Selling'}</h4>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{translations?.dashboard?.sales_analysis?.by_volume || 'By Volume'}</p>
+                  </div>
                 </div>
               </div>
-              <div className="space-y-5 flex-1 overflow-y-auto pr-1 custom-scrollbar">
+              
+              <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
                 {best_selling.length > 0 ? best_selling.map((item, i) => (
-                  <div key={i} className="space-y-2">
-                    <div className="flex items-center justify-between text-[13px]">
-                      <span className="font-bold text-slate-700">{item.medicine_name}</span>
-                      <span className="font-black text-slate-500 uppercase text-[10px]">{item.total_qty} {translations?.dashboard?.sales_analysis?.units || 'units'}</span>
+                  <div key={i} className="group/item">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex flex-col">
+                        <span className="text-[13px] font-black text-slate-700 group-hover/item:text-indigo-600 transition-colors uppercase tracking-tight">{item.medicine_name}</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase">{item.generic_name}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="block text-[11px] font-black text-slate-900">{item.total_qty} <span className="opacity-40 uppercase">Units</span></span>
+                        <span className="block text-[9px] font-bold text-emerald-500">৳{Number(item.total_revenue).toLocaleString()}</span>
+                      </div>
                     </div>
-                    <div className="h-1.5 w-full bg-slate-50 rounded-full overflow-hidden">
+                    <div className="h-2 w-full bg-slate-50 rounded-full overflow-hidden border border-slate-100">
                       <motion.div 
                         initial={{ width: 0 }}
                         animate={{ width: `${Math.min((parseFloat(item.total_revenue) / (metrics.total_sales || 1)) * 100, 100)}%` }}
-                        className={cn("h-full rounded-full", i === 0 ? 'bg-indigo-500' : 'bg-slate-200')}
+                        className={cn("h-full rounded-full transition-all duration-1000", i === 0 ? 'bg-indigo-500' : 'bg-slate-300')}
                       />
                     </div>
                   </div>
                 )) : (
-                  <div className="flex flex-col items-center justify-center h-full opacity-30 gap-2">
-                    <Activity size={32} />
-                    <p className="text-[10px] font-black uppercase tracking-widest text-center">{translations?.dashboard?.sales_analysis?.no_sales_data || 'No sales data available'}</p>
+                  <div className="flex flex-col items-center justify-center h-full opacity-20 gap-3 grayscale">
+                    <Activity size={40} />
+                    <p className="text-[10px] font-black uppercase tracking-[3px] text-center">{translations?.dashboard?.sales_analysis?.no_sales_data || 'No data available'}</p>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Bottom Card: Payment Methods */}
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex-1 flex flex-col min-h-[180px]">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center">
-                  <CreditCard size={20} className="text-emerald-500" />
+            <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm flex flex-col min-h-[200px] group">
+              <div className="flex items-center gap-4 mb-8">
+                <div className="w-12 h-12 rounded-[20px] bg-emerald-50 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                  <CreditCard size={22} className="text-emerald-500" />
                 </div>
                 <h4 className="text-sm font-black text-slate-900 tracking-widest uppercase">{translations?.dashboard?.sales_analysis?.payments || 'Payments'}</h4>
               </div>
-              <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 {payments.length > 0 ? payments.map((method, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">{method.payment_method}</span>
+                  <div key={i} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/50 border border-slate-100 group/pay hover:bg-white hover:shadow-md transition-all">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500 group-hover/pay:scale-125 transition-transform" />
+                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">{method.payment_method}</span>
                     </div>
-                    <span className="text-xs font-black text-slate-900 tracking-tight">৳ {parseFloat(method.total).toLocaleString()}</span>
+                    <span className="text-xs font-black text-slate-900 tracking-tight">৳{parseFloat(method.total).toLocaleString()}</span>
                   </div>
                 )) : (
-                   <p className="text-[10px] font-black text-slate-400 text-center uppercase tracking-widest">{translations?.dashboard?.sales_analysis?.no_payment_data || 'No payment data'}</p>
+                   <p className="col-span-2 text-[10px] font-black text-slate-400 text-center uppercase tracking-widest py-4">No payment records</p>
                 )}
               </div>
             </div>
           </div>
 
           {/* Right Large Column (lg:col-span-3) - Monthly Revenue Trends */}
-          <div className="lg:col-span-3 bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col min-h-[500px]">
-            <div className="flex items-center justify-between mb-10">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-50 flex items-center justify-center">
-                  <TrendingUp size={20} className="text-indigo-600" />
+          <div className="lg:col-span-3 bg-white p-10 rounded-[48px] border border-slate-100 shadow-sm flex flex-col min-h-[580px] group">
+            <div className="flex items-center justify-between mb-12">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 rounded-[24px] bg-indigo-50 flex items-center justify-center shadow-sm shadow-indigo-100 group-hover:rotate-6 transition-transform">
+                  <TrendingUp size={28} className="text-indigo-600" />
                 </div>
                 <div>
-                  <h4 className="text-lg font-black text-slate-900 tracking-tight uppercase">{translations?.dashboard?.monthly_summary?.revenue || 'Monthly Revenue'}</h4>
-                  <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase">{translations?.dashboard?.sales_analysis?.performance_year || 'Performance this Year'}</p>
+                  <h4 className="text-xl font-black text-slate-900 tracking-tight uppercase">{translations?.dashboard?.monthly_summary?.revenue || 'Monthly Revenue'}</h4>
+                  <p className="text-[10px] font-bold text-slate-400 tracking-widest uppercase flex items-center gap-2">
+                    <CheckCircle2 size={12} className="text-emerald-500" />
+                    {translations?.dashboard?.sales_analysis?.performance_year || 'Performance this Year'}
+                  </p>
                 </div>
+              </div>
+              <div className="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100">
+                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Year: {new Date().getFullYear()}</span>
               </div>
             </div>
 
-            <div className="flex-1 flex items-end justify-between gap-6 px-4 mb-10">
+            <div className="flex-1 flex items-end justify-between gap-5 px-4 mb-12">
               {Array.from({ length: 12 }).map((_, i) => {
                 const month = i + 1;
                 const match = monthly_revenue.find(m => m.month === month);
@@ -309,25 +349,30 @@ const Dashboard = () => {
                 const monthName = format(new Date(2024, i, 1), 'MMM');
 
                 return (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-4 group h-full">
+                  <div key={i} className="flex-1 flex flex-col items-center gap-5 group/bar h-full">
                     <div className="w-full relative flex-1 flex items-end">
                       <motion.div 
                         initial={{ height: 0 }}
                         animate={{ height: `${Math.max(h, 5)}%` }}
-                        transition={{ duration: 1, delay: i * 0.05 }}
+                        transition={{ duration: 1.2, delay: i * 0.05, ease: "circOut" }}
                         className={cn(
-                          "w-full rounded-2xl transition-all group-hover:scale-105 cursor-pointer",
-                          val > 0 ? "bg-indigo-600 shadow-2xl shadow-indigo-100" : "bg-slate-100 group-hover:bg-slate-200"
+                          "w-full rounded-2xl transition-all duration-500 cursor-pointer relative",
+                          val > 0 
+                            ? "bg-gradient-to-t from-indigo-600 to-indigo-400 shadow-xl shadow-indigo-100 group-hover/bar:scale-105" 
+                            : "bg-slate-50 group-hover/bar:bg-slate-100"
                         )}
                       >
                         {val > 0 && (
-                          <div className="opacity-0 group-hover:opacity-100 absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black px-2 py-1 rounded transition-opacity pointer-events-none z-20">
+                          <div className="opacity-0 group-hover/bar:opacity-100 absolute -top-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[10px] font-black px-3 py-1.5 rounded-xl shadow-xl transition-all duration-300 pointer-events-none z-20 whitespace-nowrap">
                             ৳ {val.toLocaleString()}
                           </div>
                         )}
                       </motion.div>
                     </div>
-                    <span className={cn("text-[10px] font-black uppercase tracking-tighter transition-colors", val > 0 ? "text-indigo-600" : "text-slate-400")}>
+                    <span className={cn(
+                      "text-[10px] font-black uppercase tracking-tighter transition-all duration-300", 
+                      val > 0 ? "text-indigo-600 scale-110" : "text-slate-300 group-hover/bar:text-slate-400"
+                    )}>
                       {monthName}
                     </span>
                   </div>
@@ -335,86 +380,120 @@ const Dashboard = () => {
               })}
             </div>
 
-            <div className="grid grid-cols-2 gap-8 pt-8 border-t border-slate-50">
-              <div className="p-4 rounded-3xl bg-slate-50/50">
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{translations?.dashboard?.monthly_summary?.revenue || 'Monthly Revenue'}</p>
-                <p className="text-sm font-black text-slate-800">৳ {(monthly_revenue.reduce((acc, m) => acc + parseFloat(m.revenue), 0) / (monthly_revenue.length || 1)).toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+            <div className="grid grid-cols-2 gap-8 pt-10 border-t border-slate-50">
+              <div className="p-6 rounded-[32px] bg-slate-50/50 border border-slate-50 hover:bg-white hover:shadow-md transition-all group/info">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                   <div className="w-1.5 h-1.5 rounded-full bg-slate-300 group-hover/info:bg-indigo-500 transition-colors" />
+                   {translations?.dashboard?.monthly_summary?.avg_revenue || 'Average Monthly'}
+                </p>
+                <p className="text-lg font-black text-slate-800 tracking-tight">৳ {(monthly_revenue.reduce((acc, m) => acc + parseFloat(m.revenue), 0) / (monthly_revenue.length || 1)).toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
               </div>
-              <div className="p-4 rounded-3xl bg-indigo-50/30">
-                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1">{t?.peak_performance || 'Peak Performance'}</p>
-                <p className="text-sm font-black text-indigo-600 tracking-tight">৳ {(Math.max(...monthly_revenue.map(m => parseFloat(m.revenue)), 0)).toLocaleString()}</p>
+              <div className="p-6 rounded-[32px] bg-indigo-50/30 border border-indigo-50/50 hover:bg-white hover:shadow-md transition-all group/peak">
+                <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                   <div className="w-1.5 h-1.5 rounded-full bg-indigo-300 group-hover/peak:scale-125 transition-all" />
+                   {t?.peak_performance || 'Peak Performance'}
+                </p>
+                <p className="text-lg font-black text-indigo-600 tracking-tight">৳ {(Math.max(...monthly_revenue.map(m => parseFloat(m.revenue)), 0)).toLocaleString()}</p>
               </div>
             </div>
           </div>
         </div>
 
         {/* Row 3: Alerts & Inventory */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Alerts Stack (Low Stock & Expiring) */}
-          <div className="flex flex-col gap-6">
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex-1 min-h-[220px]">
-              <div className="flex items-center justify-between mb-6">
-                <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">{translations?.dashboard?.alerts?.low_stock || 'Low Stock'}</h4>
-                <span className="text-[10px] font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full uppercase tracking-widest">{metrics.low_stock_count} {translations?.dashboard?.alerts?.items_left || 'Items'}</span>
+          <div className="flex flex-col gap-8">
+            <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm flex-1 min-h-[300px] max-h-[400px] flex flex-col group">
+              <div className="flex items-center justify-between mb-6 shrink-0">
+                <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center">
+                      <AlertTriangle size={20} className="text-rose-500" />
+                   </div>
+                   <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">{translations?.dashboard?.alerts?.low_stock || 'Low Stock'}</h4>
+                </div>
+                <span className="text-[10px] font-black text-rose-500 bg-rose-50 px-3 py-1 rounded-full uppercase tracking-widest border border-rose-100">{metrics.low_stock_count} {translations?.dashboard?.alerts?.items_left || 'Items'}</span>
               </div>
-              <div className="space-y-4">
+              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
                 {low_stock_items.length > 0 ? low_stock_items.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-600">{item.medicine_name}</span>
-                    <span className="text-xs font-black text-rose-500 bg-rose-50 px-2 py-0.5 rounded-lg">{item.stock} LEFT</span>
+                  <div key={i} className="flex items-center justify-between group/alert p-2.5 hover:bg-rose-50/30 rounded-xl transition-colors border border-transparent hover:border-rose-100">
+                    <span className="text-xs font-bold text-slate-600 truncate mr-2 uppercase tracking-tight">{item.medicine_name}</span>
+                    <span className="text-[10px] font-black text-rose-500 uppercase bg-white border border-rose-100 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">{item.stock} LEFT</span>
                   </div>
                 )) : (
-                  <p className="text-[10px] font-black text-slate-400 text-center uppercase tracking-widest py-10">Stock Levels Healthy</p>
+                  <div className="flex flex-col items-center justify-center h-full py-6 gap-2 opacity-30">
+                     <CheckCircle2 size={32} className="text-emerald-500" />
+                     <p className="text-[10px] font-black uppercase tracking-widest">Stock Levels Healthy</p>
+                  </div>
                 )}
               </div>
             </div>
-            <div className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm flex-1 min-h-[220px]">
-              <div className="flex items-center justify-between mb-6">
-                <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">{translations?.dashboard?.alerts?.expiring || 'Expiring Soon'}</h4>
-                <span className="text-[10px] font-black text-amber-500 bg-amber-50 px-2 py-0.5 rounded-full uppercase tracking-widest">{metrics.expiring_soon_count} Batches</span>
+
+            <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm flex-1 min-h-[300px] max-h-[400px] flex flex-col group">
+              <div className="flex items-center justify-between mb-6 shrink-0">
+                <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
+                      <Clock size={20} className="text-amber-500" />
+                   </div>
+                   <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">{translations?.dashboard?.alerts?.expiring || 'Expiring Soon'}</h4>
+                </div>
+                <span className="text-[10px] font-black text-amber-500 bg-amber-50 px-3 py-1 rounded-full uppercase tracking-widest border border-amber-100">{metrics.expiring_soon_count} Batches</span>
               </div>
-              <div className="space-y-4">
+              <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
                 {expiring_items.length > 0 ? expiring_items.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-600">{item.medicine_name || item.medicine?.medicine_name || item.name || 'Unknown'}</span>
-                    <span className="text-xs font-black text-amber-500 bg-amber-50 px-2 py-0.5 rounded-lg">
+                  <div key={i} className="flex items-center justify-between group/alert p-2.5 hover:bg-amber-50/30 rounded-xl transition-colors border border-transparent hover:border-amber-100">
+                    <span className="text-xs font-bold text-slate-600 truncate mr-2 uppercase tracking-tight">{item.medicine_name || item.medicine?.medicine_name || 'Unknown'}</span>
+                    <span className="text-[10px] font-black text-amber-600 uppercase bg-white border border-amber-100 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">
                       {item.date ? format(new Date(item.date), 'MMM dd, yy') : 'N/A'}
                     </span>
                   </div>
                 )) : (
-                   <p className="text-[10px] font-black text-slate-400 text-center uppercase tracking-widest py-10">{translations?.dashboard?.alerts?.no_expiring_items || 'No expiring items'}</p>
+                   <p className="text-[10px] font-black text-slate-400 text-center uppercase tracking-widest py-10 opacity-30">No expiring items</p>
                 )}
               </div>
             </div>
           </div>
 
-
-
           {/* Right: Quick Actions */}
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex flex-col min-h-[460px]">
-            <div className="flex items-center gap-3 mb-10">
-              <Zap size={20} className="text-amber-500 fill-amber-500" />
-              <h4 className="text-sm font-black text-slate-900 tracking-widest uppercase">{translations?.dashboard?.sales_analysis?.quick_actions || 'Quick Actions'}</h4>
+          <div className="bg-slate-900 p-10 rounded-[48px] shadow-2xl shadow-slate-900/20 flex flex-col min-h-[500px] group relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full -mr-32 -mt-32 blur-3xl" />
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-500/5 rounded-full -ml-24 -mb-24 blur-2xl" />
+            
+            <div className="flex items-center gap-4 mb-12 relative z-10">
+              <div className="w-12 h-12 rounded-[20px] bg-white/10 flex items-center justify-center backdrop-blur-md">
+                 <Zap size={24} className="text-amber-400 fill-amber-400" />
+              </div>
+              <div>
+                <h4 className="text-lg font-black text-white tracking-widest uppercase">{translations?.dashboard?.sales_analysis?.quick_actions || 'Quick Actions'}</h4>
+                <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Immediate Management</p>
+              </div>
             </div>
-            <div className="space-y-4">
+            
+            <div className="space-y-5 relative z-10">
               {[
-                { label: translations?.dashboard?.sales_analysis?.new_pos || 'New POS Sale', icon: ShoppingBag, color: 'text-indigo-600', bg: 'bg-indigo-50', path: '/pos' },
-                { label: translations?.dashboard?.sales_analysis?.receive_inventory || 'Receive Inventory', icon: Package, color: 'text-emerald-600', bg: 'bg-emerald-50', path: '/grn/create' },
-                { label: translations?.dashboard?.sales_analysis?.stock_reports || 'Stock Reports', icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50', path: '/inventory/reports' },
-                { label: translations?.dashboard?.sales_analysis?.supplier_dues || 'Supplier Dues', icon: Truck, color: 'text-rose-600', bg: 'bg-rose-50', path: '/suppliers' },
+                { label: translations?.dashboard?.sales_analysis?.new_pos || 'New POS Sale', icon: ShoppingBag, color: 'indigo', path: '/pos' },
+                { label: translations?.dashboard?.sales_analysis?.receive_inventory || 'Receive Inventory', icon: Package, color: 'emerald', path: '/grn/create' },
+                { label: translations?.dashboard?.sales_analysis?.stock_reports || 'Stock Reports', icon: AlertTriangle, color: 'amber', path: '/inventory/reports' },
+                { label: translations?.dashboard?.sales_analysis?.supplier_dues || 'Supplier Dues', icon: Truck, color: 'rose', path: '/suppliers' },
               ].map((action, i) => (
                 <button 
                   key={i}
                   onClick={() => navigate(action.path)}
-                  className="w-full flex items-center justify-between p-5 rounded-3xl bg-slate-50/30 border border-slate-50 hover:bg-white hover:border-indigo-100 hover:shadow-lg hover:shadow-indigo-50 transition-all group active:scale-95"
+                  className="w-full flex items-center justify-between p-6 rounded-[28px] bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/20 transition-all group/btn active:scale-[0.98]"
                 >
-                  <div className="flex items-center gap-4">
-                    <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-12", action.bg)}>
-                      <action.icon size={18} className={action.color} />
+                  <div className="flex items-center gap-5">
+                    <div className={cn(
+                      "w-12 h-12 rounded-[18px] flex items-center justify-center transition-all group-hover/btn:rotate-12",
+                      action.color === 'indigo' ? 'bg-indigo-500/20 text-indigo-400' :
+                      action.color === 'emerald' ? 'bg-emerald-500/20 text-emerald-400' :
+                      action.color === 'amber' ? 'bg-amber-500/20 text-amber-400' : 'bg-rose-500/20 text-rose-400'
+                    )}>
+                      <action.icon size={22} />
                     </div>
-                    <span className="text-sm font-black text-slate-700 tracking-tight">{action.label}</span>
+                    <span className="text-sm font-black text-slate-100 tracking-tight uppercase group-hover/btn:translate-x-1 transition-transform">{action.label}</span>
                   </div>
-                  <ArrowRight size={16} className="text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
+                  <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover/btn:bg-white/20 transition-all">
+                     <ArrowRight size={16} className="text-slate-400 group-hover/btn:text-white group-hover/btn:translate-x-1 transition-all" />
+                  </div>
                 </button>
               ))}
             </div>
@@ -422,36 +501,45 @@ const Dashboard = () => {
         </div>
 
         {/* Row 4: Financial Deep-Dive */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {[
             { label: t?.monthly_summary?.revenue || 'Monthly Revenue', val: monthly_revenue.reduce((acc, m) => acc + parseFloat(m.revenue), 0), trend: t?.monthly_summary?.fy_total || 'FY Total', color: 'indigo' },
             { label: t?.monthly_summary?.purchase_cost || 'Purchase Cost', val: metrics.purchase_cost, sub: t?.monthly_summary?.selected_range || 'FOR SELECTED RANGE', color: 'slate' },
             { label: t?.monthly_summary?.estimated_profit || 'Estimated Profit', val: metrics.estimated_profit, trend: `${metrics.total_sales > 0 ? ((metrics.estimated_profit / metrics.total_sales) * 100).toFixed(1) : 0}%`, color: 'emerald' },
             { label: t?.monthly_summary?.stock_valuation || 'Stock Valuation', val: metrics.stock_value, sub: t?.monthly_summary?.total_investment || 'TOTAL INVESTMENT', color: 'indigo' },
             { label: t?.monthly_summary?.customer_returns || 'Customer Returns', val: metrics.returns_count, sub: t?.monthly_summary?.processed_range || 'PROCESSED IN RANGE', color: 'amber', isNumber: true },
-            { label: t?.monthly_summary?.supplier_dues || 'Supplier Dues', val: dashboardData.total_supplier_due || 0, sub: t?.monthly_summary?.total_outstanding || 'TOTAL OUTSTANDING', color: 'rose' },
+            { label: t?.monthly_summary?.supplier_dues || 'Supplier Dues', val: summary.total_supplier_due || 0, sub: t?.monthly_summary?.total_outstanding || 'TOTAL OUTSTANDING', color: 'rose' },
           ].map((item, i) => (
-            <div key={i} className="bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-sm hover:shadow-md transition-all">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="bg-slate-100 text-[9px] font-black text-slate-500 px-2.5 py-1 rounded-full uppercase tracking-widest">{item.label}</span>
+            <div key={i} className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-500 group">
+              <div className="flex items-center justify-between mb-6">
+                <span className="bg-slate-50 text-[9px] font-black text-slate-400 px-3 py-1.5 rounded-xl uppercase tracking-widest border border-slate-100">{item.label}</span>
+                <div className={cn(
+                  "w-2 h-2 rounded-full",
+                  item.color === 'indigo' ? 'bg-indigo-500' :
+                  item.color === 'emerald' ? 'bg-emerald-500' :
+                  item.color === 'amber' ? 'bg-amber-500' : 
+                  item.color === 'rose' ? 'bg-rose-500' : 'bg-slate-500'
+                )} />
               </div>
-              <h3 className="text-3xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
-                <span className="text-xl">৳</span>
+              <h3 className="text-3xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5 group-hover:scale-105 transition-transform duration-500 origin-left">
+                {!item.isNumber && <span className="text-xl font-bold opacity-30">৳</span>}
                 {(item.val || 0).toLocaleString()}
               </h3>
-              <div className="mt-4 flex items-center gap-1.5">
+              <div className="mt-6 flex items-center">
                 {item.trend ? (
-                  <span className={cn("text-[10px] font-black px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm", item.color === 'emerald' ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600')}>
-                    <ArrowUpRight size={12} /> {item.trend}
+                  <span className={cn(
+                    "text-[10px] font-black px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-sm border transition-all", 
+                    item.color === 'emerald' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'
+                  )}>
+                    <ArrowUpRight size={14} className="group-hover:rotate-45 transition-transform" /> {item.trend}
                   </span>
                 ) : (
-                  <span className="text-[10px] font-black text-indigo-500 bg-indigo-50/50 px-3 py-1 rounded-full uppercase tracking-widest">{item.sub}</span>
+                  <span className="text-[10px] font-black text-slate-400 bg-slate-50 px-4 py-1.5 rounded-xl uppercase tracking-widest border border-slate-100 opacity-60">{item.sub}</span>
                 )}
               </div>
             </div>
           ))}
         </div>
-
       </div>
     </DashboardLayout>
   );

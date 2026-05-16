@@ -181,12 +181,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       ]
     },
     {
-      title: s.management || 'Management',
-      items: [
-        { icon: Users, label: s.hrm || 'HRM', path: '/hrm' },
-      ]
-    },
-    {
       title: s.system || 'System',
       items: [
         { icon: Settings, label: s.system_settings || 'System Settings', path: '/settings' },

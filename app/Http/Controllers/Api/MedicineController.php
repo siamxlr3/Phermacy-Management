@@ -18,35 +18,61 @@ class MedicineController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->integer('per_page', 10);
         $search = $request->get('search');
         $status = $request->get('status');
 
-        $query = Medicine::query();
+        $query = Medicine::query()->select([
+            'id', 'medicine_name', 'generic_name', 'category', 'manufacturer', 
+            'dosage_form', 'strength', 'unit_type', 'sale_unit_label', 
+            'tablets_per_strip', 'strips_per_box', 'package_size',
+            'price_per_unit', 'price_per_stripe', 'price_per_box', 'mrp', 'cost_price',
+            'stock', 'reorder_level', 'is_active'
+        ]);
 
         if ($status !== null && $status !== '') {
             $query->where('is_active', $status);
         }
 
         if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('medicine_name', 'like', "%{$search}%")
-                  ->orWhere('generic_name', 'like', "%{$search}%")
-                  ->orWhere('category', 'like', "%{$search}%")
-                  ->orWhere('manufacturer', 'like', "%{$search}%");
+            // Find categories of medicines that match the search term to include "category peers"
+            $matchedCategories = Medicine::where('medicine_name', 'like', "{$search}%")
+                ->orWhere('generic_name', 'like', "{$search}%")
+                ->pluck('category')
+                ->unique()
+                ->filter()
+                ->toArray();
+
+            $query->where(function($q) use ($search, $matchedCategories) {
+                $q->where('medicine_name', 'like', "{$search}%")
+                  ->orWhere('generic_name', 'like', "{$search}%")
+                  ->orWhere('category', 'like', "{$search}%")
+                  ->orWhere('manufacturer', 'like', "{$search}%");
+                
+                if (!empty($matchedCategories)) {
+                    $q->orWhereIn('category', $matchedCategories);
+                }
             });
+
+            // Priority: Direct matches first, then others in the same category
+            $query->orderByRaw("CASE 
+                WHEN medicine_name LIKE ? THEN 1 
+                WHEN generic_name LIKE ? THEN 2 
+                ELSE 3 END", ["{$search}%", "{$search}%"]);
+        } else {
+            $query->orderBy('medicine_name');
         }
 
-        $medicines = $query->orderBy('medicine_name')->paginate($perPage);
+        $medicines = $query->simplePaginate($perPage);
         return MedicineResource::collection($medicines);
     }
 
     public function active(): AnonymousResourceCollection
     {
         $medicines = Cache::remember('medicines.active_list', 3600, function () {
-            return Medicine::where('is_active', true)
+            return Medicine::active()
                 ->orderBy('medicine_name')
-                ->get();
+                ->get(['id', 'medicine_name', 'generic_name', 'dosage_form', 'strength']);
         });
 
         return MedicineResource::collection($medicines);

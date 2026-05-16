@@ -15,15 +15,15 @@ class AddressResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'name' => $this->name,
-            'phone' => $this->phone,
-            'email' => $this->email,
-            'address' => $this->address,
-            'google_maps_embed' => $this->google_maps_embed,
-            'status' => $this->status,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'id' => (int) $this->id,
+            'name' => (string) $this->name,
+            'phone' => (string) $this->phone,
+            'email' => (string) $this->email,
+            'address' => (string) $this->address,
+            'google_maps_embed' => (string) $this->google_maps_embed,
+            'status' => (string) $this->status,
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

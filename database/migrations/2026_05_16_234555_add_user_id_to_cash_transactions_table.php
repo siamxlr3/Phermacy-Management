@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('staff_management', function (Blueprint $table) {
-            $table->string('designation')->nullable()->change();
+        Schema::table('cash_transactions', function (Blueprint $table) {
+            $table->foreignId('user_id')->nullable()->after('id')->constrained('users')->nullOnDelete();
         });
     }
 
@@ -21,8 +21,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('staff_management', function (Blueprint $table) {
-            $table->string('designation')->nullable(false)->change();
+        Schema::table('cash_transactions', function (Blueprint $table) {
+            $table->dropForeign(['user_id']);
+            $table->dropColumn('user_id');
         });
     }
 };

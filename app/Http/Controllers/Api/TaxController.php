@@ -13,18 +13,36 @@ use Illuminate\Http\JsonResponse;
 
 class TaxController extends Controller
 {
+    /**
+     * List taxes with optional search and pagination.
+     * Uses optimized indexing for name searches.
+     */
     public function index(Request $request): AnonymousResourceCollection
     {
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->integer('per_page', 10);
         $search = $request->get('search');
 
-        $query = Tax::query();
+        // High-performance path: If no search, hit the DB with optimized query
+        $query = Tax::query()->select(['id', 'name', 'rate', 'status']);
 
         if ($search) {
+            // Anchored search to utilize B-Tree index on 'name'
             $query->where('name', 'like', "{$search}%");
         }
 
         $taxes = $query->orderBy('name')->simplePaginate($perPage);
+        return TaxResource::collection($taxes);
+    }
+
+    /**
+     * For internal lookups (e.g., POS), use the cached retrieval directly.
+     */
+    public function listActive(): AnonymousResourceCollection
+    {
+        $taxes = \Illuminate\Support\Facades\Cache::remember('taxes.active_list', 3600, function () {
+            return Tax::active()->orderBy('name')->get(['id', 'name', 'rate']);
+        });
+
         return TaxResource::collection($taxes);
     }
 

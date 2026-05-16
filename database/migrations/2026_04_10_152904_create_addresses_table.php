@@ -19,6 +19,7 @@ return new class extends Migration
             $table->text('address')->nullable();
             $table->text('google_maps_embed')->nullable();
             $table->enum('status', ['Active', 'Inactive'])->default('Active')->index();
+            $table->softDeletes();
             $table->timestamps();
         });
     }

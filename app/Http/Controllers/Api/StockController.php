@@ -14,12 +14,15 @@ class StockController extends Controller
 {
     public function index(Request $request): AnonymousResourceCollection
     {
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->integer('per_page', 10);
         $search = $request->get('search');
 
-        $query = Medicine::withSum('stockBatches as total_stock', 'qty_tablets_remaining');
+        $query = Medicine::query()
+            ->select(['id', 'medicine_name', 'generic_name', 'dosage_form', 'strength', 'category', 'manufacturer', 'is_active', 'reorder_level'])
+            ->withSum('stockBatches as total_stock', 'qty_tablets_remaining');
 
         if ($search) {
+            // Optimized anchored search
             $query->where(function($q) use ($search) {
                 $q->where('medicine_name', 'like', "{$search}%")
                   ->orWhere('generic_name', 'like', "{$search}%");
@@ -32,13 +35,18 @@ class StockController extends Controller
 
     public function batches(Request $request): AnonymousResourceCollection
     {
-        $perPage = $request->get('per_page', 10);
+        $perPage = $request->integer('per_page', 10);
         $search = $request->get('search');
         $fromExpiry = $request->get('from_expiry');
         $toExpiry = $request->get('to_expiry');
 
-        $query = StockBatch::select('stock_batches.*')
-            ->with(['medicine', 'supplier', 'grn'])
+        $query = StockBatch::query()
+            ->select('stock_batches.*')
+            ->with([
+                'medicine:id,medicine_name,dosage_form,strength', 
+                'supplier:id,name', 
+                'grn:id,invoice_number'
+            ])
             ->join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id');
 
         if ($search) {
@@ -59,7 +67,7 @@ class StockController extends Controller
     public function medicineBatches(Medicine $medicine): AnonymousResourceCollection
     {
         $batches = StockBatch::where('medicine_id', $medicine->id)
-            ->where('qty_tablets_remaining', '>', 0)
+            ->available() // Uses the new scope
             ->orderBy('expiry_date', 'asc')
             ->get();
             

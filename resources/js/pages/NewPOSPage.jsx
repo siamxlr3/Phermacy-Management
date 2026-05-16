@@ -268,7 +268,12 @@ const NewPOSPage = () => {
                         <div className="text-[11.5px] font-medium leading-tight mb-px truncate" style={{ color: T.text }} title={med.medicine_name}>{med.medicine_name}</div>
                         <div className="flex flex-col gap-0.5 mb-1.5">
                           <div className="text-[9.5px] font-medium italic leading-tight truncate" style={{ color: T.text3 }} title={med.generic_name}>{med.generic_name || '—'}</div>
-                          <div className="text-[9px] font-bold uppercase tracking-tight truncate" style={{ color: T.tealD }} title={med.manufacturer}>{med.manufacturer || '—'}</div>
+                          <div className="flex items-center gap-1">
+                            <div className="text-[9px] font-bold uppercase tracking-tight truncate flex-1" style={{ color: T.tealD }} title={med.manufacturer}>{med.manufacturer || '—'}</div>
+                            {med.category && (
+                              <div className="text-[8px] font-black uppercase bg-slate-100 text-slate-500 px-1 rounded truncate max-w-[60px]" title={med.category}>{med.category}</div>
+                            )}
+                          </div>
                         </div>
 
                         {/* Badges */}

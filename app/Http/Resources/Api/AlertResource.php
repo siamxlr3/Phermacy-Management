@@ -15,14 +15,17 @@ class AlertResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'id' => $this->id,
-            'medicine_name' => $this->medicine->medicine_name ?? 'N/A',
-            'batch_number' => $this->stockBatch->batch_number ?? 'N/A',
-            'type' => $this->type,
-            'severity' => $this->severity,
-            'message' => $this->message,
-            'status' => $this->status,
-            'created_at' => $this->created_at->toDateTimeString(),
+            'id' => (int) $this->id,
+            'medicine_id' => (int) $this->medicine_id,
+            'medicine_name' => (string) ($this->medicine->medicine_name ?? 'N/A'),
+            'stock_batch_id' => (int) $this->stock_batch_id,
+            'batch_number' => (string) ($this->stockBatch->batch_number ?? 'N/A'),
+            'type' => (string) $this->type,
+            'severity' => (string) $this->severity,
+            'message' => (string) $this->message,
+            'status' => (string) $this->status,
+            'created_at' => $this->created_at?->toISOString(),
+            'updated_at' => $this->updated_at?->toISOString(),
         ];
     }
 }

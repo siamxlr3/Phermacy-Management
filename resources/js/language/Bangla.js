@@ -11,7 +11,6 @@ export const Bangla = {
     orders: { title: "পারচেজ অর্ডার", subtitle: "নতুন ইনভেন্টরি অর্ডার করুন" },
     purchasing_returns: { title: "ক্রয় ফেরত", subtitle: "সরবরাহকারীকে পণ্য ফেরত দিন" },
     expenses: { title: "ব্যয়", subtitle: "ব্যবসার খরচ পরিচালনা করুন" },
-    hrm: { title: "এইচআরএম (HRM)", subtitle: "কর্মী এবং হাজিরা" },
     cash_register: { title: "ক্যাশ রেজিস্টার", subtitle: "আর্থিক লেনদেন লেজার" },
     settings: { title: "সিস্টেম সেটিংস", subtitle: "গ্লোবাল কনফিগারেশন" },
     generic: { title: "ফার্মেসি সিস্টেম", subtitle: "ম্যানেজমেন্ট ড্যাশবোর্ড" }
@@ -35,7 +34,6 @@ export const Bangla = {
     medicine_list: "ওষুধের তালিকা",
     stock_levels: "স্টক লেভেল",
     management: "ব্যবস্থাপনা",
-    hrm: "এইচআরএম (HRM)",
     system: "সিস্টেম",
     system_settings: "সিস্টেম সেটিংস"
   },
@@ -197,7 +195,7 @@ export const Bangla = {
       no_transaction: "কোনো লেনদেন লোড করা হয়নি",
       headers: {
         medicine: "ওষুধ",
-        sold_units: "বিক্রিত ইউনিট",
+        sold_units: "প্রাপ্য ইউনিট",
         unit_type: "ইউনিট টাইপ",
         returned: "ফেরত দেওয়া",
         return_qty: "ফেরত পরিমাণ",

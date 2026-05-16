@@ -82,8 +82,11 @@ const CartTable = () => {
 
               {/* Row 1: name + delete */}
               <div className="flex justify-between items-start mb-1.5">
-                <div className="text-[11.5px] font-medium flex-1 mr-1.5 leading-tight" style={{ color: T.text }}>
-                  {item.name}
+                <div className="flex-1 mr-1.5 leading-tight">
+                  <div className="text-[11.5px] font-medium" style={{ color: T.text }}>{item.name}</div>
+                  {item.category && (
+                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{item.category}</div>
+                  )}
                 </div>
                 <span className="cursor-pointer text-[11px] leading-none px-0.5 py-0.5 rounded transition-colors"
                   style={{ color: T.text3 }}

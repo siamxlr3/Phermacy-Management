@@ -11,7 +11,6 @@ export const English = {
     orders: { title: "Purchase Orders", subtitle: "Order new inventory" },
     purchasing_returns: { title: "Purchase Returns", subtitle: "Return stock to suppliers" },
     expenses: { title: "Expenses", subtitle: "Manage business costs" },
-    hrm: { title: "HRM", subtitle: "Staff and attendance" },
     cash_register: { title: "Cash Register", subtitle: "Financial ledger" },
     settings: { title: "System Settings", subtitle: "Global configurations" },
     generic: { title: "Pharmacy System", subtitle: "Management Dashboard" }
@@ -35,7 +34,6 @@ export const English = {
     medicine_list: "Medicine List",
     stock_levels: "Stock Levels",
     management: "Management",
-    hrm: "HRM",
     system: "System",
     system_settings: "System Settings"
   },
@@ -197,7 +195,7 @@ export const English = {
       no_transaction: "No transaction Loaded",
       headers: {
         medicine: "Medicine",
-        sold_units: "Sold Units",
+        sold_units: "Available",
         unit_type: "Unit Type",
         returned: "Returned",
         return_qty: "Return Qty",

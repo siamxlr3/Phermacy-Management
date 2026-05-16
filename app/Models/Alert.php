@@ -46,4 +46,14 @@ class Alert extends Model
     {
         return $query->where('status', self::STATUS_ACTIVE);
     }
+
+    public function scopeTypeExpiry($query)
+    {
+        return $query->where('type', 'Expiry');
+    }
+
+    public function scopeTypeLowStock($query)
+    {
+        return $query->where('type', 'Low Stock');
+    }
 }

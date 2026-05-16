@@ -68,4 +68,23 @@ class StockBatch extends Model
     {
         return $this->belongsTo(GRN::class);
     }
+
+    /**
+     * Scope a query to only include batches with remaining stock.
+     */
+    public function scopeAvailable($query)
+    {
+        return $query->where('qty_tablets_remaining', '>', 0);
+    }
+
+    /**
+     * Scope a query to only include expiring or soon-to-expire stock.
+     */
+    public function scopeExpiringSoon($query, $days = 90)
+    {
+        return $query->whereBetween('expiry_date', [
+            now()->toDateString(),
+            now()->addDays($days)->toDateString()
+        ]);
+    }
 }

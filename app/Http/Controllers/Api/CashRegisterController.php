@@ -6,6 +6,10 @@ use App\Http\Controllers\Controller;
 use App\Models\CashTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use App\Http\Resources\Api\CashTransactionResource;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Carbon\Carbon;
 
 class CashRegisterController extends Controller
@@ -13,9 +17,10 @@ class CashRegisterController extends Controller
     /**
      * Get the transaction ledger with full metadata.
      */
-    public function index(Request $request): JsonResponse
+    public function index(Request $request): AnonymousResourceCollection
     {
-        $query = CashTransaction::query();
+        $perPage = min($request->integer('per_page', 10), 100);
+        $query = CashTransaction::with('user:id,name');
 
         if ($request->filled('from')) {
             $query->where('created_at', '>=', Carbon::parse($request->from)->startOfDay());
@@ -24,10 +29,10 @@ class CashRegisterController extends Controller
             $query->where('created_at', '<=', Carbon::parse($request->to)->endOfDay());
         }
 
-        // Default to showing only outflow types (Out, Sale Refund, Expense)
-        if (!$request->filled('transaction_type')) {
-            $query->whereIn('transaction_type', ['Out', 'sale_refund', 'expense']);
-        } else {
+        // Default to showing only Out and Sale Refund if no type is specified
+        if (!$request->filled('transaction_type') || $request->transaction_type === 'outflow') {
+            $query->whereIn('transaction_type', ['Out', 'sale_refund']);
+        } elseif ($request->transaction_type !== 'all') {
             $query->where('transaction_type', $request->transaction_type);
         }
 
@@ -38,30 +43,31 @@ class CashRegisterController extends Controller
             $query->where('reference_type', $request->reference_type);
         }
 
-        $transactions = $query->latest('id')->simplePaginate(50);
-
-        return response()->json(['success' => true, 'data' => $transactions]);
+        $transactions = $query->latest('id')->paginate($perPage);
+        return CashTransactionResource::collection($transactions);
     }
 
     /**
-     * Get current cash register status.
+     * Get current cash register status with targeted caching.
      */
     public function status(): JsonResponse
     {
         $today = Carbon::today()->toDateString();
 
-        $summary = CashTransaction::selectRaw("
-            SUM(CASE WHEN transaction_type IN ('In') THEN amount ELSE 0 END) as total_in,
-            SUM(CASE WHEN transaction_type IN ('Out','sale_refund','expense') THEN amount ELSE 0 END) as total_out,
-            SUM(CASE WHEN transaction_type IN ('In') AND DATE(created_at) = ? THEN amount ELSE 0 END) as today_in,
-            SUM(CASE WHEN transaction_type IN ('Out','sale_refund','expense') AND DATE(created_at) = ? THEN amount ELSE 0 END) as today_out
-        ", [$today, $today])->first();
+        $summary = Cache::tags(['cash', 'dashboard'])->remember('cash_register_status', 3600, function() use ($today) {
+            return CashTransaction::selectRaw("
+                SUM(CASE WHEN transaction_type IN ('In') THEN amount ELSE 0 END) as total_in,
+                SUM(CASE WHEN transaction_type IN ('Out','sale_refund','expense') THEN amount ELSE 0 END) as total_out,
+                SUM(CASE WHEN transaction_type IN ('In') AND DATE(created_at) = ? THEN amount ELSE 0 END) as today_in,
+                SUM(CASE WHEN transaction_type IN ('Out','sale_refund','expense') AND DATE(created_at) = ? THEN amount ELSE 0 END) as today_out
+            ", [$today, $today])->first();
+        });
 
         return response()->json([
             'success' => true,
             'is_open' => true,
             'summary' => [
-                'current_balance' => CashTransaction::getCurrentBalance(),
+                'current_balance' => (float) CashTransaction::getCurrentBalance(),
                 'total_in'        => (float) ($summary->total_in ?? 0),
                 'total_out'       => (float) ($summary->total_out ?? 0),
                 'today_in'        => (float) ($summary->today_in ?? 0),
@@ -96,13 +102,16 @@ class CashRegisterController extends Controller
             $data['reference_number'] ?? null,
             $data['payment_method'] ?? 'cash',
             $data['party_name'] ?? null,
-            $data['party_type'] ?? 'other'
+            $data['party_type'] ?? 'other',
+            Auth::id()
         );
+
+        Cache::tags(['cash', 'dashboard'])->flush();
 
         return response()->json([
             'success' => true,
             'message' => 'Cash transaction recorded successfully',
-            'data'    => $transaction
+            'data'    => new CashTransactionResource($transaction)
         ]);
     }
 }
