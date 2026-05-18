@@ -162,6 +162,7 @@ const PurchaseOrderTable = () => {
             <thead className="sticky top-0 bg-white/95 backdrop-blur-sm z-10 border-b border-slate-200">
               <tr>
                 <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">{translations.purchase_order.supplier_col}</th>
+                <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Invoice #</th>
                 <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">{translations.purchase_order.items_col}</th>
                 <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">{translations.purchase_order.payment_col}</th>
                 <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">{translations.purchase_order.value_col}</th>
@@ -173,6 +174,7 @@ const PurchaseOrderTable = () => {
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
                     <td className="px-5 py-5"><div className="h-4 bg-slate-100 rounded w-36"></div></td>
+                    <td className="px-5 py-5 text-center"><div className="h-4 bg-slate-100 rounded w-20 mx-auto"></div></td>
                     <td className="px-5 py-5"><div className="h-4 bg-slate-100 rounded w-48"></div></td>
                     <td className="px-5 py-5 text-center"><div className="h-6 bg-slate-100 rounded-full w-16 mx-auto"></div></td>
                     <td className="px-5 py-5 text-right"><div className="h-4 bg-slate-100 rounded w-20 ml-auto"></div></td>
@@ -190,8 +192,18 @@ const PurchaseOrderTable = () => {
                         <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100 shrink-0">
                           <ShoppingBag size={14} className="text-slate-400" />
                         </div>
-                        <span className="text-sm font-bold text-slate-800 truncate">{order.supplier?.name || '—'}</span>
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-slate-800 truncate">{order.supplier?.name || '—'}</span>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">{format(new Date(order.order_date), 'dd MMM yyyy')}</span>
+                        </div>
                       </div>
+                    </td>
+
+                    {/* Invoice # */}
+                    <td className="px-5 py-5 text-center">
+                      <span className="text-xs font-black text-slate-600 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                        {`PO-${String(order.id).padStart(6, '0')}`}
+                      </span>
                     </td>
 
                     {/* Items Ordered — inline tags */}

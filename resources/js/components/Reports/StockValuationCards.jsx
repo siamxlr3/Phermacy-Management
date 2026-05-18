@@ -28,7 +28,7 @@ const StockValuationCards = ({ summaries, alertSummary, isLoading }) => {
         },
         {
             label: translations.reports.stock_valuation.low_stock,
-            value: alertSummary ? alertSummary.low_stock_alerts : (summaries ? summaries.low_stock_count : null),
+            value: (summaries && summaries.low_stock_count !== undefined) ? summaries.low_stock_count : (alertSummary ? alertSummary.low_stock_alerts : null),
             sub: translations.reports.stock_valuation.need_restocking,
             icon: TrendingUp,
             color: 'teal',

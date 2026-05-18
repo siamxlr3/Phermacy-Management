@@ -63,7 +63,7 @@ class MedicineController extends Controller
             $query->orderBy('medicine_name');
         }
 
-        $medicines = $query->simplePaginate($perPage);
+        $medicines = $query->paginate($perPage);
         return MedicineResource::collection($medicines);
     }
 

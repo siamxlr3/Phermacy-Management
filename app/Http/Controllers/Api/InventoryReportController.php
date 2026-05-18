@@ -37,7 +37,7 @@ class InventoryReportController extends Controller
                         CASE 
                             WHEN medicines.dosage_form IN ("Tablet", "Capsule", "Suppository", "Patch") 
                             THEN (stock_batches.qty_tablets_remaining / (IFNULL(medicines.tablets_per_strip, 1) * IFNULL(medicines.strips_per_box, 1))) * IFNULL(stock_batches.cost_per_box, 0)
-                            ELSE stock_batches.qty_tablets_remaining * IFNULL(stock_batches.cost_per_unit, 0)
+                            ELSE stock_batches.qty_tablets_remaining * IFNULL(NULLIF(stock_batches.cost_per_unit, 0), stock_batches.cost_per_box / (stock_batches.qty_tablets / IFNULL(NULLIF(stock_batches.qty_boxes, 0), 1)))
                         END
                     ) as total_value,
                     COUNT(DISTINCT medicines.id) as unique_medicines,
@@ -122,6 +122,12 @@ class InventoryReportController extends Controller
                     ]),
 
                 'slow_moving' => $slowMoving,
+
+                'low_stock' => Medicine::active()
+                    ->whereColumn('stock', '<=', 'reorder_level')
+                    ->select('id', 'medicine_name', 'stock', 'reorder_level')
+                    ->orderBy('stock', 'asc')
+                    ->get(),
 
                 'summaries' => [
                     'total_stock_value'      => (float) $valuation->sum('total_value'),

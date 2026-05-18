@@ -138,7 +138,7 @@ const GRNTable = ({ onAdd, onEdit }) => {
                   {/* Date & Receiver */}
                   <td className="px-5 py-5">
                     <div className="flex flex-col">
-                      <span className="text-sm font-black text-slate-700">{grn.received_date}</span>
+                      <span className="text-sm font-black text-slate-700">{format(new Date(grn.received_date), 'dd MMM yyyy')}</span>
                       <div className="flex items-center gap-1.5 mt-1">
                         <User size={10} className="text-slate-400" />
                         <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">

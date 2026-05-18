@@ -150,12 +150,25 @@ const BatchListTable = ({ onAdd }) => {
             ) : (
               batches.map((batch) => {
                 const isStripBased = GROUP_A.includes(batch.dosage_form_snapshot);
+                
+                // Fallback for missing unit cost from GRN
+                let unitCost = parseFloat(batch.cost_per_unit || 0);
+                if (unitCost === 0 && parseFloat(batch.cost_per_box || 0) > 0) {
+                  if (isStripBased) {
+                    const tpB = (batch.tablets_per_strip || 10) * (batch.strips_per_box || 10);
+                    unitCost = parseFloat(batch.cost_per_box) / tpB;
+                  } else {
+                    const unitsPerBox = (batch.qty_boxes > 0 && batch.qty_units > 0) ? (batch.qty_units / batch.qty_boxes) : 1;
+                    unitCost = parseFloat(batch.cost_per_box) / unitsPerBox;
+                  }
+                }
+
                 return (
                   <tr key={batch.id} className="group hover:bg-slate-50/50 transition-all duration-150">
                     <td className="px-6 py-5">
                       <div className="flex flex-col gap-0.5">
                         <span className="text-sm font-black text-slate-700">{batch.medicine_name}</span>
-                        <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-tighter">{translations.stock.batch_n.replace('{n}', batch.batch_number)}</span>
+                        <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-tighter">{batch.batch_number}</span>
                       </div>
                     </td>
                     <td className="px-6 py-5">
@@ -201,7 +214,7 @@ const BatchListTable = ({ onAdd }) => {
                     </td>
                     <td className="px-6 py-5 text-right">
                       <div className="flex flex-col items-end gap-0.5">
-                        <span className="text-xs font-black text-emerald-600">৳{parseFloat(batch.cost_per_unit).toFixed(2)}<span className="text-[10px] text-slate-400 uppercase ml-1">/ unit</span></span>
+                        <span className="text-xs font-black text-emerald-600">৳{unitCost.toFixed(2)}<span className="text-[10px] text-slate-400 uppercase ml-1">/ unit</span></span>
                         {isStripBased ? (
                           <>
                             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mt-0.5">৳{parseFloat(batch.cost_per_stripe || 0).toFixed(2)} / strip • ৳{parseFloat(batch.cost_per_box || 0).toFixed(2)} / box</span>

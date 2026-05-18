@@ -15,6 +15,8 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use App\Http\Resources\Api\GRNResource;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use App\Http\Requests\Api\StoreGRNRequest;
+use App\Http\Requests\Api\UpdateGRNRequest;
 
 class GRNController extends Controller
 {

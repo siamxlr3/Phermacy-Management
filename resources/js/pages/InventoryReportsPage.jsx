@@ -18,7 +18,7 @@ import { useRunProcessMutation, useGetAlertSummaryQuery } from '../store/api/ale
 import StockValuationCards from '../components/Reports/StockValuationCards';
 import ExpiryRiskTable from '../components/Reports/ExpiryRiskTable';
 import SupplierDebtList from '../components/Reports/SupplierDebtList';
-import AlertTable from '../components/Alerts/AlertTable';
+import LowStockTable from '../components/Reports/LowStockTable';
 import { Toaster, toast } from 'react-hot-toast';
 import { useLanguage } from '../language/GlobalTranslate.jsx';
 
@@ -144,7 +144,7 @@ const InventoryReportsPage = () => {
                             </div>
 
                             <div className="flex-1 min-h-0 overflow-hidden">
-                                {activeTab === 'alerts' && <AlertTable type="Low Stock" />}
+                                {activeTab === 'alerts' && <LowStockTable items={reportData?.data.low_stock || []} />}
                                 {activeTab === 'expiry' && <ExpiryRiskTable risks={reportData?.data.expiry_risks.warning} />}
                                 {activeTab === 'debts' && <SupplierDebtList dues={reportData?.data.dues} />}
                             </div>

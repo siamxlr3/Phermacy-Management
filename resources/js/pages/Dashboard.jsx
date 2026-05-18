@@ -417,7 +417,7 @@ const Dashboard = () => {
                 {low_stock_items.length > 0 ? low_stock_items.map((item, i) => (
                   <div key={i} className="flex items-center justify-between group/alert p-2.5 hover:bg-rose-50/30 rounded-xl transition-colors border border-transparent hover:border-rose-100">
                     <span className="text-xs font-bold text-slate-600 truncate mr-2 uppercase tracking-tight">{item.medicine_name}</span>
-                    <span className="text-[10px] font-black text-rose-500 uppercase bg-white border border-rose-100 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">{item.stock} LEFT</span>
+                    <span className="text-[10px] font-black text-rose-500 uppercase bg-white border border-rose-100 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">{item.qty} LEFT</span>
                   </div>
                 )) : (
                   <div className="flex flex-col items-center justify-center h-full py-6 gap-2 opacity-30">
@@ -504,7 +504,6 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {[
             { label: t?.monthly_summary?.revenue || 'Monthly Revenue', val: monthly_revenue.reduce((acc, m) => acc + parseFloat(m.revenue), 0), trend: t?.monthly_summary?.fy_total || 'FY Total', color: 'indigo' },
-            { label: t?.monthly_summary?.purchase_cost || 'Purchase Cost', val: metrics.purchase_cost, sub: t?.monthly_summary?.selected_range || 'FOR SELECTED RANGE', color: 'slate' },
             { label: t?.monthly_summary?.estimated_profit || 'Estimated Profit', val: metrics.estimated_profit, trend: `${metrics.total_sales > 0 ? ((metrics.estimated_profit / metrics.total_sales) * 100).toFixed(1) : 0}%`, color: 'emerald' },
             { label: t?.monthly_summary?.stock_valuation || 'Stock Valuation', val: metrics.stock_value, sub: t?.monthly_summary?.total_investment || 'TOTAL INVESTMENT', color: 'indigo' },
             { label: t?.monthly_summary?.customer_returns || 'Customer Returns', val: metrics.returns_count, sub: t?.monthly_summary?.processed_range || 'PROCESSED IN RANGE', color: 'amber', isNumber: true },

@@ -57,10 +57,19 @@ class ReportController extends Controller
                 ')
                 ->first();
 
-            // 3. CORRECT Stock Valuation (Based on current inventory * cost price)
-            $inventoryValuation = Medicine::where('is_active', 1)
-                ->selectRaw('SUM(stock * cost_price) as total_value')
-                ->value('total_value');
+            // 3. CORRECT Stock Valuation (Based on actual stock batches and precise unit conversion)
+            $inventoryValuation = StockBatch::where('qty_tablets_remaining', '>', 0)
+                ->join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id')
+                ->selectRaw('
+                    SUM(
+                        CASE 
+                            WHEN medicines.dosage_form IN ("Tablet", "Capsule", "Suppository", "Patch") 
+                            THEN (stock_batches.qty_tablets_remaining / (IFNULL(medicines.tablets_per_strip, 1) * IFNULL(medicines.strips_per_box, 1))) * IFNULL(stock_batches.cost_per_box, 0)
+                            ELSE stock_batches.qty_tablets_remaining * IFNULL(NULLIF(stock_batches.cost_per_unit, 0), stock_batches.cost_per_box / (stock_batches.qty_tablets / IFNULL(NULLIF(stock_batches.qty_boxes, 0), 1)))
+                        END
+                    ) as total_value
+                ')
+                ->value('total_value') ?? 0;
 
             // 4. Optimized Profit Calculation (Excludes items with missing cost price for accuracy)
             $estimatedProfit = SaleItem::join('sales', 'sale_items.sale_id', '=', 'sales.id')
