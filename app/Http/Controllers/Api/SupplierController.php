@@ -19,6 +19,17 @@ class SupplierController extends Controller
         $perPage = $request->get('per_page', 10);
         $search = $request->get('search');
         $status = $request->get('status');
+        $all = $request->boolean('all', false);
+
+        if ($status === 'Active' && $all) {
+            $suppliers = Cache::remember('suppliers.active_list', 3600, function () {
+                return Supplier::where('status', 'Active')
+                    ->select('id', 'name', 'phone')
+                    ->orderBy('name')
+                    ->get();
+            });
+            return SupplierResource::collection($suppliers);
+        }
 
         $query = Supplier::query();
 
@@ -35,18 +46,6 @@ class SupplierController extends Controller
         }
 
         $suppliers = $query->orderBy('name')->simplePaginate($perPage);
-        return SupplierResource::collection($suppliers);
-    }
-
-    public function active(): AnonymousResourceCollection
-    {
-        $suppliers = Cache::remember('suppliers.active_list', 3600, function () {
-            return Supplier::where('status', 'Active')
-                ->select('id', 'name', 'phone') // Optimized select for dropdowns
-                ->orderBy('name')
-                ->get();
-        });
-        
         return SupplierResource::collection($suppliers);
     }
 

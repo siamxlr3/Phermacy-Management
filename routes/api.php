@@ -15,8 +15,6 @@ use Illuminate\Support\Facades\Route;
 */
 
 use App\Http\Controllers\Api\MedicineController;
-use App\Http\Controllers\Api\CategoryController;
-use App\Http\Controllers\Api\ManufacturerController;
 use App\Http\Controllers\Api\SupplierController;
 use App\Http\Controllers\Api\PurchaseOrderController;
 use App\Http\Controllers\Api\TaxController;
@@ -33,20 +31,12 @@ use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\CashRegisterController;
 use App\Http\Controllers\Api\DashboardController;
 
-Route::get('categories/active', [CategoryController::class, 'active']);
-Route::apiResource('categories', CategoryController::class);
-
-Route::get('manufacturers/active', [ManufacturerController::class, 'active']);
-Route::apiResource('manufacturers', ManufacturerController::class);
-
-Route::get('suppliers/active', [SupplierController::class, 'active']);
 Route::apiResource('suppliers', SupplierController::class);
 
 Route::patch('purchase-orders/{purchase_order}/status', [PurchaseOrderController::class, 'updateStatus']);
 Route::apiResource('purchase-orders', PurchaseOrderController::class);
 
 Route::post('medicines/import', [MedicineController::class, 'import']);
-Route::get('medicines/active', [MedicineController::class, 'active']);
 Route::apiResource('medicines', MedicineController::class);
 
 // GRN and Stocks
@@ -85,13 +75,9 @@ Route::post('reports/inventory/refresh', [InventoryReportController::class, 'ref
 // Dashboard Stats
 Route::get('dashboard/stats', [DashboardController::class, 'index']);
 
-Route::get('taxes/active', [TaxController::class, 'active']);
 Route::apiResource('taxes', TaxController::class);
 
-Route::get('addresses/active', [AddressController::class, 'active']);
 Route::apiResource('addresses', AddressController::class);
 
 Route::get('expenses/summary', [ExpenseController::class, 'summary']);
-Route::apiResource('expenses', ExpenseController::class);
-
 Route::apiResource('expenses', ExpenseController::class);

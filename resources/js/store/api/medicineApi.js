@@ -18,7 +18,7 @@ export const medicineApi = createApi({
       providesTags: ['Medicine'],
     }),
     getActiveMedicines: builder.query({
-      query: () => '/medicines/active',
+      query: () => '/medicines?status=1&all=true',
       providesTags: ['Medicine'],
     }),
     addMedicine: builder.mutation({

@@ -285,7 +285,7 @@ const SalesHistoryPage = () => {
 
               {!showDueOnly && (
                 <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
-                  {[['all', translations.sales_history.all], ['Completed', translations.sales_history.completed], ['Returned', translations.sales_history.returned]].map(([val, lbl]) => (
+                  {[['all', translations.sales_history.all], ['Completed', translations.sales_history.completed], ['Returned,Partially Returned', translations.sales_history.returned]].map(([val, lbl]) => (
                     <button
                       key={val}
                       onClick={() => { setStatusFilter(val === 'all' ? '' : val); setPage(1); }}
@@ -417,7 +417,7 @@ const SalesHistoryPage = () => {
                           <td className="px-8 py-5 text-right">
                             <div className="flex flex-col items-end">
                               <span className="text-sm font-black text-slate-900 tracking-tight">
-                                ৳{parseFloat(item.net_total ?? item.grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                ৳{parseFloat(item.grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                               </span>
                               {item.refunded_amount > 0 && (
                                 <span className="text-[9px] font-black text-rose-500 uppercase tracking-tighter">

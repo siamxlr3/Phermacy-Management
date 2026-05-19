@@ -1,31 +1,35 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, CreditCard, Users, DollarSign, RotateCcw } from 'lucide-react';
+import { TrendingUp, Wallet, DollarSign, RotateCcw } from 'lucide-react';
 import { useLanguage } from '../../language/GlobalTranslate.jsx';
+import { useGetRegisterStatusQuery } from '../../store/api/cashRegisterApi';
 
 const ReportStats = ({ summary, returnsCount }) => {
     const { translations } = useLanguage();
+    const { data: registerData } = useGetRegisterStatusQuery();
+    const cashInHand = registerData?.summary?.current_balance ?? 0;
+
     const stats = [
         { 
             label: translations.sales_reports.total_revenue, 
             value: `৳${Number(summary?.total_revenue || 0).toLocaleString()}`, 
             icon: DollarSign, 
             color: 'emerald',
-            change: '+12.5%' // Mock trend for UX
+            change: 'Revenue'
         },
         { 
             label: translations.sales_reports.total_transaction, 
             value: Number(summary?.total_transactions || 0).toLocaleString(), 
             icon: TrendingUp, 
             color: 'indigo',
-            change: '+8.1%'
+            change: 'Invoices'
         },
         { 
-            label: translations.sales_reports.avg_order_value, 
-            value: `৳${Number(summary?.total_transactions > 0 ? summary.total_revenue / summary.total_transactions : 0).toFixed(2)}`, 
-            icon: CreditCard, 
+            label: translations.cash_register?.cash_in_hand || 'Cash in Hand', 
+            value: `৳${Number(cashInHand).toLocaleString()}`, 
+            icon: Wallet, 
             color: 'blue',
-            change: '+2.4%'
+            change: 'Live Balance'
         },
         { 
             label: translations.sales_reports.total_returns, 
@@ -81,3 +85,4 @@ const ReportStats = ({ summary, returnsCount }) => {
 };
 
 export default ReportStats;
+

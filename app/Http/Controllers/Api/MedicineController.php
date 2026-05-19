@@ -21,6 +21,16 @@ class MedicineController extends Controller
         $perPage = $request->integer('per_page', 10);
         $search = $request->get('search');
         $status = $request->get('status');
+        $all = $request->boolean('all', false);
+
+        if ($status === '1' && $all) {
+            $medicines = Cache::remember('medicines.active_list', 3600, function () {
+                return Medicine::active()
+                    ->orderBy('medicine_name')
+                    ->get(['id', 'medicine_name', 'generic_name', 'dosage_form', 'strength']);
+            });
+            return MedicineResource::collection($medicines);
+        }
 
         $query = Medicine::query()->select([
             'id', 'medicine_name', 'generic_name', 'category', 'manufacturer', 
@@ -64,17 +74,6 @@ class MedicineController extends Controller
         }
 
         $medicines = $query->paginate($perPage);
-        return MedicineResource::collection($medicines);
-    }
-
-    public function active(): AnonymousResourceCollection
-    {
-        $medicines = Cache::remember('medicines.active_list', 3600, function () {
-            return Medicine::active()
-                ->orderBy('medicine_name')
-                ->get(['id', 'medicine_name', 'generic_name', 'dosage_form', 'strength']);
-        });
-
         return MedicineResource::collection($medicines);
     }
 

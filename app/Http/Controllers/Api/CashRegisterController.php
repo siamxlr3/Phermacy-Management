@@ -29,9 +29,9 @@ class CashRegisterController extends Controller
             $query->where('created_at', '<=', Carbon::parse($request->to)->endOfDay());
         }
 
-        // Default to showing only Out and Sale Refund if no type is specified
+        // Default to showing only sale_refund and expense if no type is specified
         if (!$request->filled('transaction_type') || $request->transaction_type === 'outflow') {
-            $query->whereIn('transaction_type', ['Out', 'sale_refund']);
+            $query->whereIn('transaction_type', ['sale_refund', 'expense']);
         } elseif ($request->transaction_type !== 'all') {
             $query->where('transaction_type', $request->transaction_type);
         }

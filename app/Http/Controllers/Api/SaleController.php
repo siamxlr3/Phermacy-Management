@@ -49,7 +49,8 @@ class SaleController extends Controller
         }
 
         if ($status) {
-            $query->where('status', $status);
+            $statuses = explode(',', $status);
+            $query->whereIn('status', $statuses);
         }
 
         // Consolidated Summary Stats in ONE query
@@ -61,6 +62,7 @@ class SaleController extends Controller
                 ]);
             })
             ->selectRaw("
+                SUM(grand_total) as total_gross,
                 SUM(CASE WHEN status IN ('Completed', 'Due', 'Partially Returned', 'Returned') THEN (grand_total - COALESCE(refunded_subtotal, 0)) ELSE 0 END) as total_amount,
                 SUM(CASE WHEN status IN ('Completed', 'Partially Returned', 'Returned') THEN (grand_total - COALESCE(refunded_subtotal, 0)) ELSE 0 END) as total_completed,
                 SUM(COALESCE(refunded_subtotal, 0)) as total_returned,
@@ -73,11 +75,12 @@ class SaleController extends Controller
         
         return SaleResource::collection($paginator)->additional([
             'summary' => [
-                'total_amount' => (float) ($stats->total_amount ?? 0),
-                'total_completed' => (float) ($stats->total_completed ?? 0),
-                'total_returned' => (float) ($stats->total_returned ?? 0),
-                'total_due' => (float) ($stats->total_due ?? 0),
-                'total_due_customers' => (int) ($stats->total_due_customers ?? 0)
+                'total_gross'         => (float) ($stats->total_gross ?? 0),
+                'total_amount'        => (float) ($stats->total_amount ?? 0),
+                'total_completed'     => (float) ($stats->total_completed ?? 0),
+                'total_returned'      => (float) ($stats->total_returned ?? 0),
+                'total_due'           => (float) ($stats->total_due ?? 0),
+                'total_due_customers' => (int)   ($stats->total_due_customers ?? 0)
             ]
         ]);
     }

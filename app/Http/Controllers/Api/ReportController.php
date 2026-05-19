@@ -41,11 +41,13 @@ class ReportController extends Controller
             $salesSummary = Sale::whereBetween('sale_date', [$start, $end])
                 ->selectRaw("
                     COUNT(*) as total_transactions,
-                    SUM(CASE WHEN status IN ('Completed','Partially Returned','Returned','Due') THEN grand_total - COALESCE(refunded_subtotal, 0) ELSE 0 END) as total_revenue,
+                    SUM(CASE WHEN status IN ('Completed','Partially Returned','Returned')
+                        THEN grand_total - COALESCE(refunded_subtotal, 0) ELSE 0 END) as total_revenue,
+                    SUM(grand_total) as total_sales,
                     SUM(tax_total) as total_tax,
                     SUM(discount_total) as total_discount,
                     SUM(due_amount) as total_due,
-                    COUNT(CASE WHEN status = 'Returned' THEN 1 END) as returns_count
+                    COUNT(CASE WHEN status IN ('Returned', 'Partially Returned') THEN 1 END) as returns_count
                 ")
                 ->first();
 
@@ -71,14 +73,10 @@ class ReportController extends Controller
                 ')
                 ->value('total_value') ?? 0;
 
-            // 4. Optimized Profit Calculation (Excludes items with missing cost price for accuracy)
-            $estimatedProfit = SaleItem::join('sales', 'sale_items.sale_id', '=', 'sales.id')
-                ->join('medicines', 'sale_items.medicine_id', '=', 'medicines.id')
-                ->whereIn('sales.status', ['Completed', 'Partially Returned'])
-                ->whereBetween('sales.sale_date', [$start, $end])
-                ->where('medicines.cost_price', '>', 0)
-                ->selectRaw('SUM(sale_items.subtotal - (sale_items.qty_tablets * medicines.cost_price)) as profit')
-                ->value('profit');
+            // 4. Corrected Profit Calculation (Net Revenue - Expenses - Stock Valuation)
+            $totalRevenue = (float) ($salesSummary->total_revenue ?? 0);
+            $totalExpenses = (float) \App\Models\Expense::whereBetween('expense_date', [$start, $end])->sum('grand_total');
+            $estimatedProfit = $totalRevenue - $totalExpenses - (float) $inventoryValuation;
 
             // 5. Critical Inventory Alerts
             $lowStock = Medicine::where('is_active', 1)
@@ -115,6 +113,7 @@ class ReportController extends Controller
                 'summary' => [
                     'total_transactions' => (int) ($salesSummary->total_transactions ?? 0),
                     'total_revenue'      => (float) ($salesSummary->total_revenue ?? 0),
+                    'total_sales'        => (float) ($salesSummary->total_sales ?? 0),
                     'total_tax'          => (float) ($salesSummary->total_tax ?? 0),
                     'total_discount'     => (float) ($salesSummary->total_discount ?? 0),
                     'remaining_due'      => (float) ($salesSummary->total_due ?? 0),
@@ -123,6 +122,7 @@ class ReportController extends Controller
                     'total_stock_value'  => (float) ($inventoryValuation ?? 0),
                     'total_purchase_cost'=> (float) ($purchaseSummary->total_purchase_cost ?? 0),
                     'total_supplier_due' => (float) ($purchaseSummary->total_supplier_due ?? 0),
+                    'total_expenses'     => (float) ($totalExpenses ?? 0),
                     'estimated_profit'   => (float) ($estimatedProfit ?? 0),
                 ],
                 'alerts' => [
@@ -146,9 +146,9 @@ class ReportController extends Controller
                     ->groupBy('medicines.category')
                     ->orderByDesc('total_revenue')
                     ->get(),
-                'monthly_revenue' => Sale::whereIn('status', ['Completed', 'Partially Returned'])
+                'monthly_revenue' => Sale::whereIn('status', ['Completed', 'Partially Returned', 'Returned'])
                     ->whereYear('sale_date', now()->year)
-                    ->selectRaw("MONTH(sale_date) as month, SUM(grand_total) as revenue")
+                    ->selectRaw("MONTH(sale_date) as month, SUM(grand_total - COALESCE(refunded_subtotal, 0)) as revenue")
                     ->groupBy('month')
                     ->orderBy('month')
                     ->get(),

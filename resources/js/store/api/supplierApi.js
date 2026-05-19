@@ -11,7 +11,7 @@ export const supplierApi = createApi({
       providesTags: ['Supplier'],
     }),
     getActiveSuppliers: builder.query({
-      query: () => '/suppliers/active',
+      query: () => '/suppliers?status=Active&all=true',
       providesTags: ['Supplier'],
     }),
     addSupplier: builder.mutation({

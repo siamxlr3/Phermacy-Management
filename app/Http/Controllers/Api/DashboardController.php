@@ -36,19 +36,20 @@ class DashboardController extends Controller
             
             // 1. Consolidated Sales Summary (One Optimized Query)
             $salesSummary = Sale::whereBetween('sale_date', [$start, $end])
-                ->whereIn('status', ['Completed', 'Due', 'Partially Returned', 'Returned'])
-                ->selectRaw('
-                    SUM(grand_total - COALESCE(refunded_subtotal, 0)) as net_sales,
-                    SUM(due_amount) as total_due,
-                    COUNT(*) as transaction_count
-                ')
+                ->selectRaw("
+                    COUNT(*) as total_transactions,
+                    SUM(CASE WHEN status IN ('Completed','Partially Returned','Returned')
+                        THEN grand_total - COALESCE(refunded_subtotal, 0) ELSE 0 END) as total_revenue,
+                    SUM(grand_total) as total_sales,
+                    SUM(due_amount) as total_due
+                ")
                 ->first();
 
             // 2. Optimized Best Selling (Using Join instead of whereHas)
             $bestSelling = SaleItem::join('sales', 'sale_items.sale_id', '=', 'sales.id')
                 ->join('medicines', 'sale_items.medicine_id', '=', 'medicines.id')
                 ->whereBetween('sales.sale_date', [$start, $end])
-                ->whereIn('sales.status', ['Completed', 'Partially Returned'])
+                ->whereIn('sales.status', ['Completed', 'Partially Returned', 'Returned'])
                 ->selectRaw('
                     sale_items.medicine_id, 
                     medicines.medicine_name,
@@ -72,18 +73,28 @@ class DashboardController extends Controller
                 ->whereColumn('stock', '<=', 'reorder_level')
                 ->count();
 
-            // 4. Optimized COGS and Profit (Using Direct Join)
-            $cogs = (float) SaleItem::join('sales', 'sale_items.sale_id', '=', 'sales.id')
-                ->join('stock_batches', 'sale_items.stock_batch_id', '=', 'stock_batches.id')
-                ->whereBetween('sales.sale_date', [$start, $end])
-                ->whereIn('sales.status', ['Completed', 'Partially Returned'])
-                ->sum(DB::raw('sale_items.qty_tablets * stock_batches.cost_per_unit'));
-
-            $netSales = (float) ($salesSummary->net_sales ?? 0);
+            // 4. Corrected Profit Calculation (Net Revenue - Expenses - Stock Valuation)
+            $totalRevenue = (float) ($salesSummary->total_revenue ?? 0);
+            $totalSales = (float) ($salesSummary->total_sales ?? 0);
+            $totalPurchaseCost = (float) \App\Models\PurchaseOrder::whereBetween('order_date', [$start, $end])->sum('total_amount');
+            $totalExpenses = (float) \App\Models\Expense::whereBetween('expense_date', [$start, $end])->sum('grand_total');
+            $inventoryValuation = StockBatch::where('qty_tablets_remaining', '>', 0)
+                ->join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id')
+                ->selectRaw('
+                    SUM(
+                        CASE 
+                            WHEN medicines.dosage_form IN ("Tablet", "Capsule", "Suppository", "Patch") 
+                            THEN (stock_batches.qty_tablets_remaining / (IFNULL(medicines.tablets_per_strip, 1) * IFNULL(medicines.strips_per_box, 1))) * IFNULL(stock_batches.cost_per_box, 0)
+                            ELSE stock_batches.qty_tablets_remaining * IFNULL(NULLIF(stock_batches.cost_per_unit, 0), stock_batches.cost_per_box / (stock_batches.qty_tablets / IFNULL(NULLIF(stock_batches.qty_boxes, 0), 1)))
+                        END
+                    ) as total_value
+                ')
+                ->value('total_value') ?? 0;
+            $estimatedProfit = $totalRevenue - $totalExpenses - (float) $inventoryValuation;
 
             // 5. Monthly Revenue Trend (Optimized Year Filter)
             $monthlyRevenue = Sale::whereYear('sale_date', $now->year)
-                ->whereIn('status', ['Completed', 'Partially Returned'])
+                ->whereIn('status', ['Completed', 'Partially Returned', 'Returned'])
                 ->selectRaw('MONTH(sale_date) as month, SUM(grand_total - COALESCE(refunded_subtotal, 0)) as revenue')
                 ->groupBy('month')
                 ->orderBy('month')
@@ -91,13 +102,15 @@ class DashboardController extends Controller
 
             return [
                 'metrics' => [
-                    'total_sales'         => (float) $netSales,
-                    'total_transactions'  => (int) ($salesSummary->transaction_count ?? 0),
+                    'total_sales'         => $totalSales,
+                    'total_revenue'       => $totalRevenue,
+                    'total_transactions'  => (int) ($salesSummary->total_transactions ?? 0),
                     'remaining_due'       => (float) ($salesSummary->total_due ?? 0),
                     'cash_in_hand'        => (float) CashTransaction::getCurrentBalance(),
-                    'stock_value'         => (float) Medicine::where('is_active', 1)->selectRaw('SUM(stock * cost_price) as total')->value('total'),
-                    'purchase_cost'       => (float) GRN::whereBetween('received_date', [$start, $end])->sum('total_amount'),
-                    'estimated_profit'    => (float) ($netSales - $cogs),
+                    'stock_value'         => (float) $inventoryValuation,
+                    'purchase_cost'       => $totalPurchaseCost,
+                    'total_expenses'      => $totalExpenses,
+                    'estimated_profit'    => (float) $estimatedProfit,
                     'low_stock_count'     => (int) $lowStockCount,
                     'expiring_soon_count' => (int) StockBatch::where('qty_tablets_remaining', '>', 0)
                                                 ->whereBetween('expiry_date', [Carbon::now(), Carbon::now()->addDays(90)])

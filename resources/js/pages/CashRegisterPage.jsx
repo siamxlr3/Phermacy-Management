@@ -85,7 +85,7 @@ const CashRegisterPage = () => {
       label: translations.cash_register.total_expenses,
       value: `৳${Number(summary.total_out || 0).toLocaleString()}`,
       icon: TrendingDown, iconBg: 'bg-rose-50', iconText: 'text-rose-600',
-      desc: translations.cash_register.spent_today.replace('{amount}', Number(summary.today_out || 0).toLocaleString()),
+      desc: translations.cash_register.spent_today?.replace('{amount}', Number(summary.today_out || 0).toLocaleString()) || `Spent today: ৳${Number(summary.today_out || 0).toLocaleString()}`,
     },
   ];
 
@@ -150,25 +150,7 @@ const CashRegisterPage = () => {
                 className="bg-transparent text-[11px] font-bold text-slate-600 outline-none w-[110px]" />
             </div>
 
-            {/* Transaction type */}
-            <select value={txTypeFilter} onChange={(e) => { setTxTypeFilter(e.target.value); setPage(1); }}
-              className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-[11px] font-bold text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500/10 shadow-sm">
-              <option value="">Outflows (Cash Out & Refunds)</option>
-              <option value="all">All Transactions</option>
-              <option value="Out">Cash Out Only</option>
-              <option value="sale_refund">Refunds Only</option>
-              <option value="In">Cash In (Sales)</option>
-            </select>
-
-            {/* Payment method */}
-            <select value={paymentFilter} onChange={(e) => { setPaymentFilter(e.target.value); setPage(1); }}
-              className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-[11px] font-bold text-slate-600 outline-none focus:ring-2 focus:ring-indigo-500/10 shadow-sm">
-              <option value="">All Methods</option>
-              <option value="cash">Cash</option>
-              <option value="card">Card</option>
-              <option value="online">Online</option>
-              <option value="due">Due</option>
-            </select>
+            {/* Removed Transaction type and Payment method filters as requested */}
 
             <span className="ml-auto text-[10px] font-black text-slate-400 uppercase tracking-widest">
               {translations.cash_register.showing_records.replace('{n}', transactions.length)}

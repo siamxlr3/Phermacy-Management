@@ -52,6 +52,8 @@ const NewPOSPage = () => {
   const [processSale, { isLoading: isProcessing }] = useProcessSaleMutation();
   const { data: salesData } = useGetSalesQuery({ perPage: 1 });
   const { data: registerStatus } = useGetRegisterStatusQuery();
+  const todayDate = new Date().toLocaleDateString('en-CA');
+  const { data: todaySalesData } = useGetSalesQuery({ from_date: todayDate, to_date: todayDate, perPage: 1 });
 
 
   useEffect(() => {
@@ -151,6 +153,7 @@ const NewPOSPage = () => {
   const medicines = medicinesData?.data || [];
   const summary = registerStatus?.summary || { today_in: 0, today_out: 0 };
   const dueSummary = salesData?.summary || { total_due: 0, total_due_customers: 0 };
+  const todayGross = todaySalesData?.summary?.total_gross ?? 0;
 
   const iconBgs = ['#e8f4fd', '#fef9e7', '#f3e8ff', '#fff7e6', '#e8f5e9', '#e3f2fd', '#fce4ec', '#e0f7fa'];
 
@@ -198,12 +201,7 @@ const NewPOSPage = () => {
           <div className="flex-1 flex flex-col overflow-hidden" style={{ borderRight: `1px solid ${T.border}` }}>
 
             {/* Stats Strip */}
-            <div className="shrink-0 grid grid-cols-2 gap-1.5 p-2.5">
-              <div className="rounded-lg p-2" style={{ background: T.surface, border: `1px solid ${T.border}` }}>
-                <div className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: T.text3, letterSpacing: '0.4px' }}>{translations.pos.today_sales}</div>
-                <div className="pos-mono text-[15px] font-semibold" style={{ color: T.teal }}>৳{summary.today_in}</div>
-                <div className="text-[10px] mt-px" style={{ color: T.text3 }}>{translations.pos.cash_inflow}</div>
-              </div>
+            <div className="shrink-0 grid grid-cols-1 gap-1.5 p-2.5">
               <div 
                 onClick={() => navigate('/sales-history', { state: { showDueOnly: true } })}
                 className="rounded-lg p-2 cursor-pointer transition-all hover:bg-rose-50/30 group" 
