@@ -12,8 +12,8 @@ export const salesApi = createApi({
   tagTypes: ['Sale', 'Stock', 'Medicine', 'Batch'],
   endpoints: (builder) => ({
     getSales: builder.query({
-      query: ({ page = 1, perPage = 10, search = '', status = '' }) => 
-        `/sales?page=${page}&per_page=${perPage}&search=${search}&status=${status}`,
+      query: ({ page = 1, perPage = 10, search = '', status = '', from_date = '', to_date = '' }) => 
+        `/sales?page=${page}&per_page=${perPage}&search=${search}&status=${status}&from_date=${from_date}&to_date=${to_date}`,
       providesTags: ['Sale'],
     }),
     processSale: builder.mutation({

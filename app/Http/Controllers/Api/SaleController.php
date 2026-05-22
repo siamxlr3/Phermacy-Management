@@ -31,6 +31,13 @@ class SaleController extends Controller
         $fromDate = $request->get('from_date');
         $toDate = $request->get('to_date');
 
+        \Illuminate\Support\Facades\Log::info("SALE API CALLED:", [
+            'from_date_original' => $request->get('from_date'),
+            'to_date_original' => $request->get('to_date'),
+            'search' => $search,
+            'status' => $status
+        ]);
+
         $query = Sale::with(['items.medicine:id,medicine_name,dosage_form', 'items.returnItems']);
 
         if ($fromDate && $toDate) {
