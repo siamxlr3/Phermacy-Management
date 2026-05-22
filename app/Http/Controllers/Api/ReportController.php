@@ -28,21 +28,26 @@ class ReportController extends Controller
 
         $fromDate = $request->get('from_date', Carbon::now()->subDays(30)->toDateString());
         $toDate = $request->get('to_date', Carbon::now()->toDateString());
+
+        // Separate trend filter params
+        $trendYear       = (int) $request->get('trend_year', now()->year);
+        $trendFromMonth  = (int) $request->get('trend_from_month', 1);
+        $trendToMonth    = (int) $request->get('trend_to_month', 12);
         
         $start = Carbon::parse($fromDate)->startOfDay();
         $end = Carbon::parse($toDate)->endOfDay();
 
-        // Unique cache key per date range
-        $cacheKey = "dashboard_v2_" . md5($start . $end);
+        // Unique cache key per date range + trend params
+        $cacheKey = "dashboard_v2_" . md5($start . $end . $trendYear . $trendFromMonth . $trendToMonth);
 
-        $data = Cache::tags(['reports', 'dashboard'])->remember($cacheKey, 600, function() use ($start, $end, $fromDate, $toDate) {
+        $data = Cache::tags(['reports', 'dashboard'])->remember($cacheKey, 600, function() use ($start, $end, $fromDate, $toDate, $trendYear, $trendFromMonth, $trendToMonth) {
             
             // 1. Consolidated Sales & Returns Summary (One Query)
             $salesSummary = Sale::whereBetween('sale_date', [$start, $end])
                 ->selectRaw("
                     COUNT(*) as total_transactions,
-                    SUM(CASE WHEN status IN ('Completed','Partially Returned','Returned')
-                        THEN grand_total - COALESCE(refunded_subtotal, 0) ELSE 0 END) as total_revenue,
+                    SUM(CASE WHEN status NOT IN ('Cancelled') THEN grand_total ELSE 0 END) as total_revenue,
+                    SUM(COALESCE(refunded_subtotal, 0)) as total_returns,
                     SUM(grand_total) as total_sales,
                     SUM(tax_total) as total_tax,
                     SUM(discount_total) as total_discount,
@@ -51,13 +56,13 @@ class ReportController extends Controller
                 ")
                 ->first();
 
-            // 2. Consolidated Purchase & Supplier Due Summary (One Query)
-            $purchaseSummary = PurchaseOrder::whereBetween('order_date', [$start, $end])
-                ->selectRaw('
-                    SUM(total_amount) as total_purchase_cost,
-                    SUM(total_amount - paid_amount) as total_supplier_due
-                ')
-                ->first();
+            // 2. Consolidated Purchase Cost (Filtered by date)
+            $purchaseCost = PurchaseOrder::whereBetween('order_date', [$start, $end])
+                ->sum('total_amount');
+
+            // 3. Global Supplier Due (Total outstanding balance regardless of date)
+            $globalSupplierDue = PurchaseOrder::selectRaw('SUM(total_amount - paid_amount) as total_due')
+                ->value('total_due') ?? 0;
 
             // 3. CORRECT Stock Valuation (Based on actual stock batches and precise unit conversion)
             $inventoryValuation = StockBatch::where('qty_tablets_remaining', '>', 0)
@@ -114,14 +119,15 @@ class ReportController extends Controller
                     'total_transactions' => (int) ($salesSummary->total_transactions ?? 0),
                     'total_revenue'      => (float) ($salesSummary->total_revenue ?? 0),
                     'total_sales'        => (float) ($salesSummary->total_sales ?? 0),
+                    'total_returns'      => (float) ($salesSummary->total_returns ?? 0),
                     'total_tax'          => (float) ($salesSummary->total_tax ?? 0),
                     'total_discount'     => (float) ($salesSummary->total_discount ?? 0),
                     'remaining_due'      => (float) ($salesSummary->total_due ?? 0),
                     'returns_count'      => (int) ($salesSummary->returns_count ?? 0),
                     'cash_in_hand'       => (float) CashTransaction::getCurrentBalance(),
                     'total_stock_value'  => (float) ($inventoryValuation ?? 0),
-                    'total_purchase_cost'=> (float) ($purchaseSummary->total_purchase_cost ?? 0),
-                    'total_supplier_due' => (float) ($purchaseSummary->total_supplier_due ?? 0),
+                    'total_purchase_cost'=> (float) ($purchaseCost ?? 0),
+                    'total_supplier_due' => (float) ($globalSupplierDue ?? 0),
                     'total_expenses'     => (float) ($totalExpenses ?? 0),
                     'estimated_profit'   => (float) ($estimatedProfit ?? 0),
                 ],
@@ -130,9 +136,9 @@ class ReportController extends Controller
                     'expiring'  => $expiring,
                 ],
                 'charts' => [
-                    'daily_sales' => Sale::whereIn('status', ['Completed', 'Partially Returned', 'Returned', 'Due'])
+                    'daily_sales' => Sale::whereNotIn('status', ['Cancelled'])
                         ->whereBetween('sale_date', [$start, $end])
-                        ->selectRaw("DATE(sale_date) as date, SUM(grand_total - COALESCE(refunded_subtotal, 0)) as total")
+                        ->selectRaw("DATE(sale_date) as date, SUM(grand_total) as total")
                         ->groupBy('date')
                         ->orderBy('date')
                         ->get(),
@@ -146,9 +152,10 @@ class ReportController extends Controller
                     ->groupBy('medicines.category')
                     ->orderByDesc('total_revenue')
                     ->get(),
-                'monthly_revenue' => Sale::whereIn('status', ['Completed', 'Partially Returned', 'Returned'])
-                    ->whereYear('sale_date', now()->year)
-                    ->selectRaw("MONTH(sale_date) as month, SUM(grand_total - COALESCE(refunded_subtotal, 0)) as revenue")
+                'monthly_revenue' => Sale::whereNotIn('status', ['Cancelled'])
+                    ->whereYear('sale_date', $trendYear)
+                    ->whereRaw('MONTH(sale_date) BETWEEN ? AND ?', [$trendFromMonth, $trendToMonth])
+                    ->selectRaw("MONTH(sale_date) as month, SUM(grand_total) as revenue")
                     ->groupBy('month')
                     ->orderBy('month')
                     ->get(),

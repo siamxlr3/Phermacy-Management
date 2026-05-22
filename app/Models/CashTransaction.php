@@ -11,7 +11,7 @@ use Exception;
  * @property int $id
  * @property string|null $description
  * @property float $amount
- * @property string $transaction_type  In|Out|sale_refund|expense
+ * @property string $transaction_type  In|Out|sale_refund|expense|grn_payment
  * @property float $balance_after
  * @property string|null $reference_type
  * @property int|null $reference_id
@@ -56,7 +56,7 @@ class CashTransaction extends Model
 
     public function scopeOutflow($query)
     {
-        return $query->whereIn('transaction_type', ['Out', 'sale_refund', 'expense']);
+        return $query->whereIn('transaction_type', ['Out', 'sale_refund', 'expense', 'grn_payment']);
     }
 
     protected static function boot()
@@ -104,7 +104,7 @@ class CashTransaction extends Model
             $last = self::lockForUpdate()->latest('id')->first();
             $currentBalance = $last ? (float) $last->balance_after : 0.0;
 
-            $isOut = in_array($transactionType, ['Out', 'sale_refund', 'expense']);
+            $isOut = in_array($transactionType, ['Out', 'sale_refund', 'expense', 'grn_payment']);
             $newBalance = $isOut
                 ? $currentBalance - $amount
                 : $currentBalance + $amount;

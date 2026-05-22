@@ -32,13 +32,24 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const t = translations.dashboard;
 
-  // Date filters
-  const [dateRange, setDateRange] = useState({
+  // Filter 1: Stat Cards & Other Metrics
+  const [statDateRange, setStatDateRange] = useState({
     from_date: format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
     to_date: format(new Date(), 'yyyy-MM-dd')
   });
 
-  const { data: response, isLoading, refetch, isFetching } = useGetReportDashboardQuery(dateRange);
+  // Filter 2: Monthly Revenue Chart
+  const [trendFilter, setTrendFilter] = useState({
+    trend_year: new Date().getFullYear(),
+    trend_from_month: 1,
+    trend_to_month: 12
+  });
+
+  // Fetch dashboard data (Using the same query but passing both filter sets)
+  const { data: response, isLoading, refetch, isFetching } = useGetReportDashboardQuery({
+    ...statDateRange,
+    ...trendFilter
+  });
   const [refreshReports, { isLoading: isRefreshing }] = useRefreshReportsMutation();
 
   const handleRefresh = async () => {
@@ -56,7 +67,7 @@ const Dashboard = () => {
   const charts = dashboardData.charts || {};
 
   const metrics = {
-    total_sales: summary.total_sales || 0,
+    total_sales: summary.total_revenue || 0,       // Gross revenue (no deductions)
     total_transactions: summary.total_transactions || 0,
     remaining_due: summary.remaining_due || 0,
     cash_in_hand: summary.cash_in_hand || 0,
@@ -65,12 +76,12 @@ const Dashboard = () => {
     estimated_profit: summary.estimated_profit || 0,
     low_stock_count: alerts.low_stock?.length || 0,
     expiring_soon_count: alerts.expiring?.length || 0,
-    returns_count: summary.returns_count || 0,
+    returns_count: summary.total_returns || 0,     // Monetary value of returns (separate card)
   };
   
   const low_stock_items = alerts.low_stock || [];
   const expiring_items = alerts.expiring || [];
-  const monthly_revenue = dashboardData.monthly_revenue || []; 
+  const monthly_revenue = dashboardData.monthly_revenue || [];    // Top-level in API response
   const daily_sales = charts.daily_sales || [];
   const best_selling = dashboardData.top_medicines || [];
   const payments = dashboardData.payments || [];
@@ -154,7 +165,7 @@ const Dashboard = () => {
     <DashboardLayout>
       <div className="max-w-[1600px] mx-auto space-y-6 pb-10 px-4">
         
-        {/* Header & Date Filter */}
+        {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-2">
           <div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase">{t?.title || 'Dashboard Overview'}</h1>
@@ -162,24 +173,6 @@ const Dashboard = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {/* Date Range Picker UI */}
-            <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm shadow-slate-100">
-              <Calendar size={14} className="text-indigo-500" />
-              <input 
-                type="date" 
-                value={dateRange.from_date}
-                onChange={(e) => setDateRange(prev => ({ ...prev, from_date: e.target.value }))}
-                className="text-[11px] font-black uppercase text-slate-600 outline-none border-none bg-transparent"
-              />
-              <span className="text-slate-300 mx-1">/</span>
-              <input 
-                type="date" 
-                value={dateRange.to_date}
-                onChange={(e) => setDateRange(prev => ({ ...prev, to_date: e.target.value }))}
-                className="text-[11px] font-black uppercase text-slate-600 outline-none border-none bg-transparent"
-              />
-            </div>
-
             <button 
               onClick={handleRefresh}
               disabled={isRefreshing || isFetching}
@@ -189,6 +182,27 @@ const Dashboard = () => {
               {(isRefreshing || isFetching) ? (t?.refreshing || 'REFRESHING...') : (t?.refresh_data || 'REFRESH DATA')}
             </button>
           </div>
+        </div>
+
+        {/* Stats Date Filter Row */}
+        <div className="flex justify-end mb-2">
+           <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border border-slate-200 shadow-sm shadow-slate-100">
+              <span className="text-[10px] font-black uppercase text-slate-400 mr-2 tracking-widest">Stats Range:</span>
+              <Calendar size={14} className="text-indigo-500" />
+              <input 
+                type="date" 
+                value={statDateRange.from_date}
+                onChange={(e) => setStatDateRange(prev => ({ ...prev, from_date: e.target.value }))}
+                className="text-[11px] font-black uppercase text-slate-600 outline-none border-none bg-transparent"
+              />
+              <span className="text-slate-300 mx-1">/</span>
+              <input 
+                type="date" 
+                value={statDateRange.to_date}
+                onChange={(e) => setStatDateRange(prev => ({ ...prev, to_date: e.target.value }))}
+                className="text-[11px] font-black uppercase text-slate-600 outline-none border-none bg-transparent"
+              />
+            </div>
         </div>
 
         {/* Row 1: Key Metrics */}
@@ -334,17 +348,51 @@ const Dashboard = () => {
                   </p>
                 </div>
               </div>
-              <div className="bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100">
-                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Year: {new Date().getFullYear()}</span>
+              <div className="flex flex-wrap items-center gap-3">
+                  {/* Year Select */}
+                  <select 
+                    value={trendFilter.trend_year}
+                    onChange={(e) => setTrendFilter(prev => ({ ...prev, trend_year: parseInt(e.target.value) }))}
+                    className="bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 text-[10px] font-black text-slate-600 outline-none appearance-none cursor-pointer"
+                  >
+                    {[new Date().getFullYear(), new Date().getFullYear() - 1].map(y => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+
+                  <div className="flex items-center bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100 gap-2">
+                    <select 
+                      value={trendFilter.trend_from_month}
+                      onChange={(e) => setTrendFilter(prev => ({ ...prev, trend_from_month: parseInt(e.target.value) }))}
+                      className="bg-transparent text-[10px] font-black text-slate-600 outline-none cursor-pointer appearance-none"
+                    >
+                      {Array.from({ length: 12 }).map((_, i) => (
+                        <option key={i+1} value={i+1}>{format(new Date(2024, i, 1), 'MMM')}</option>
+                      ))}
+                    </select>
+                    <span className="text-slate-300 text-[10px]">-</span>
+                    <select 
+                      value={trendFilter.trend_to_month}
+                      onChange={(e) => setTrendFilter(prev => ({ ...prev, trend_to_month: parseInt(e.target.value) }))}
+                      className="bg-transparent text-[10px] font-black text-slate-600 outline-none cursor-pointer appearance-none"
+                    >
+                      {Array.from({ length: 12 }).map((_, i) => (
+                        <option key={i+1} value={i+1}>{format(new Date(2024, i, 1), 'MMM')}</option>
+                      ))}
+                    </select>
+                  </div>
               </div>
             </div>
 
             <div className="flex-1 flex items-end justify-between gap-5 px-4 mb-12">
               {Array.from({ length: 12 }).map((_, i) => {
                 const month = i + 1;
-                const match = monthly_revenue.find(m => m.month === month);
+                // Only show months within the selected range
+                if (month < trendFilter.trend_from_month || month > trendFilter.trend_to_month) return null;
+
+                const match = monthly_revenue.find(m => parseInt(m.month) === month);
                 const val = match ? parseFloat(match.revenue) : 0;
-                const maxRevenue = Math.max(...monthly_revenue.map(m => parseFloat(m.revenue)), 1);
+                const maxRevenue = Math.max(...monthly_revenue.map(m => parseFloat(m.revenue) || 0), 1);
                 const h = (val / maxRevenue) * 100;
                 const monthName = format(new Date(2024, i, 1), 'MMM');
 
@@ -505,7 +553,7 @@ const Dashboard = () => {
           {[
             { label: t?.monthly_summary?.estimated_profit || 'Estimated Profit', val: metrics.estimated_profit, trend: `${metrics.total_sales > 0 ? ((metrics.estimated_profit / metrics.total_sales) * 100).toFixed(1) : 0}%`, color: 'emerald' },
             { label: t?.monthly_summary?.stock_valuation || 'Stock Valuation', val: metrics.stock_value, sub: t?.monthly_summary?.total_investment || 'TOTAL INVESTMENT', color: 'indigo' },
-            { label: t?.monthly_summary?.customer_returns || 'Customer Returns', val: metrics.returns_count, sub: t?.monthly_summary?.processed_range || 'PROCESSED IN RANGE', color: 'amber', isNumber: true },
+            { label: t?.monthly_summary?.customer_returns || 'Customer Returns', val: metrics.returns_count, sub: t?.monthly_summary?.processed_range || 'PROCESSED IN RANGE', color: 'amber', isNumber: false },
             { label: t?.monthly_summary?.supplier_dues || 'Supplier Dues', val: summary.total_supplier_due || 0, sub: t?.monthly_summary?.total_outstanding || 'TOTAL OUTSTANDING', color: 'rose' },
           ].map((item, i) => (
             <div key={i} className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-500 group">

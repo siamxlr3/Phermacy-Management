@@ -29,9 +29,9 @@ class CashRegisterController extends Controller
             $query->where('created_at', '<=', Carbon::parse($request->to)->endOfDay());
         }
 
-        // Default to showing only sale_refund and expense if no type is specified
+        // Default to showing only sale_refund, expense, and grn_payment if no type is specified or 'outflow' requested
         if (!$request->filled('transaction_type') || $request->transaction_type === 'outflow') {
-            $query->whereIn('transaction_type', ['sale_refund', 'expense']);
+            $query->whereIn('transaction_type', ['sale_refund', 'expense', 'grn_payment', 'Out']);
         } elseif ($request->transaction_type !== 'all') {
             $query->where('transaction_type', $request->transaction_type);
         }
@@ -57,9 +57,9 @@ class CashRegisterController extends Controller
         $summary = Cache::tags(['cash', 'dashboard'])->remember('cash_register_status', 3600, function() use ($today) {
             return CashTransaction::selectRaw("
                 SUM(CASE WHEN transaction_type IN ('In') THEN amount ELSE 0 END) as total_in,
-                SUM(CASE WHEN transaction_type IN ('Out','sale_refund','expense') THEN amount ELSE 0 END) as total_out,
+                SUM(CASE WHEN transaction_type IN ('Out','sale_refund','expense','grn_payment') THEN amount ELSE 0 END) as total_out,
                 SUM(CASE WHEN transaction_type IN ('In') AND DATE(created_at) = ? THEN amount ELSE 0 END) as today_in,
-                SUM(CASE WHEN transaction_type IN ('Out','sale_refund','expense') AND DATE(created_at) = ? THEN amount ELSE 0 END) as today_out
+                SUM(CASE WHEN transaction_type IN ('Out','sale_refund','expense','grn_payment') AND DATE(created_at) = ? THEN amount ELSE 0 END) as today_out
             ", [$today, $today])->first();
         });
 

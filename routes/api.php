@@ -21,7 +21,7 @@ use App\Http\Controllers\Api\TaxController;
 use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\GRNController;
 use App\Http\Controllers\Api\StockController;
-use App\Http\Controllers\Api\AdjustmentController;
+
 use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\ReturnController;
 use App\Http\Controllers\Api\AlertController;
@@ -43,10 +43,7 @@ Route::apiResource('medicines', MedicineController::class);
 Route::apiResource('grns', GRNController::class);
 Route::get('stocks/overview', [StockController::class, 'overview']);
 Route::get('stocks/batches', [StockController::class, 'batches']);
-Route::get('medicines/{medicine}/batches', [StockController::class, 'batchesByMedicine']);
 
-// Adjustments
-Route::apiResource('adjustments', AdjustmentController::class);
 
 // Sales / POS
 Route::get('cash-registers', [CashRegisterController::class, 'index']);

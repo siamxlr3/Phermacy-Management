@@ -38,8 +38,8 @@ class DashboardController extends Controller
             $salesSummary = Sale::whereBetween('sale_date', [$start, $end])
                 ->selectRaw("
                     COUNT(*) as total_transactions,
-                    SUM(CASE WHEN status IN ('Completed','Partially Returned','Returned')
-                        THEN grand_total - COALESCE(refunded_subtotal, 0) ELSE 0 END) as total_revenue,
+                    SUM(CASE WHEN status NOT IN ('Cancelled') THEN grand_total ELSE 0 END) as total_revenue,
+                    SUM(COALESCE(refunded_subtotal, 0)) as total_returns,
                     SUM(grand_total) as total_sales,
                     SUM(due_amount) as total_due
                 ")
@@ -76,7 +76,9 @@ class DashboardController extends Controller
             // 4. Corrected Profit Calculation (Net Revenue - Expenses - Stock Valuation)
             $totalRevenue = (float) ($salesSummary->total_revenue ?? 0);
             $totalSales = (float) ($salesSummary->total_sales ?? 0);
+            $totalReturns = (float) ($salesSummary->total_returns ?? 0);
             $totalPurchaseCost = (float) \App\Models\PurchaseOrder::whereBetween('order_date', [$start, $end])->sum('total_amount');
+            $totalSupplierDue = (float) \App\Models\PurchaseOrder::selectRaw('SUM(total_amount - paid_amount) as total_due')->value('total_due') ?? 0;
             $totalExpenses = (float) \App\Models\Expense::whereBetween('expense_date', [$start, $end])->sum('grand_total');
             $inventoryValuation = StockBatch::where('qty_tablets_remaining', '>', 0)
                 ->join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id')
@@ -90,12 +92,14 @@ class DashboardController extends Controller
                     ) as total_value
                 ')
                 ->value('total_value') ?? 0;
-            $estimatedProfit = $totalRevenue - $totalExpenses - (float) $inventoryValuation;
+            
+            // Profit = (Revenue - Returns) - Expenses - Stock Valuation (Simplified)
+            $estimatedProfit = ($totalRevenue - $totalReturns) - $totalExpenses - (float) $inventoryValuation;
 
             // 5. Monthly Revenue Trend (Optimized Year Filter)
             $monthlyRevenue = Sale::whereYear('sale_date', $now->year)
-                ->whereIn('status', ['Completed', 'Partially Returned', 'Returned'])
-                ->selectRaw('MONTH(sale_date) as month, SUM(grand_total - COALESCE(refunded_subtotal, 0)) as revenue')
+                ->whereNotIn('status', ['Cancelled'])
+                ->selectRaw('MONTH(sale_date) as month, SUM(grand_total) as revenue')
                 ->groupBy('month')
                 ->orderBy('month')
                 ->get();
@@ -104,11 +108,13 @@ class DashboardController extends Controller
                 'metrics' => [
                     'total_sales'         => $totalSales,
                     'total_revenue'       => $totalRevenue,
+                    'total_returns'       => (float) ($salesSummary->total_returns ?? 0),
                     'total_transactions'  => (int) ($salesSummary->total_transactions ?? 0),
                     'remaining_due'       => (float) ($salesSummary->total_due ?? 0),
                     'cash_in_hand'        => (float) CashTransaction::getCurrentBalance(),
                     'stock_value'         => (float) $inventoryValuation,
                     'purchase_cost'       => $totalPurchaseCost,
+                    'total_supplier_due'  => $totalSupplierDue,
                     'total_expenses'      => $totalExpenses,
                     'estimated_profit'    => (float) $estimatedProfit,
                     'low_stock_count'     => (int) $lowStockCount,

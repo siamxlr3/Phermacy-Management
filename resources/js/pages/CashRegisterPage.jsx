@@ -31,6 +31,7 @@ const TX_TYPE_STYLES = {
   Out:         { bg: 'bg-rose-50',    text: 'text-rose-700',    label: 'Withdrawal',  sign: '-', color: 'text-rose-600'    },
   sale_refund: { bg: 'bg-amber-50',   text: 'text-amber-700',   label: 'Sale Refund', sign: '-', color: 'text-amber-600'   },
   expense:     { bg: 'bg-purple-50',  text: 'text-purple-700',  label: 'Expense',     sign: '-', color: 'text-purple-600'  },
+  grn_payment: { bg: 'bg-indigo-50',  text: 'text-indigo-700',  label: 'GRN Payment', sign: '-', color: 'text-indigo-600'  },
 };
 
 const PARTY_TYPE_STYLES = {
@@ -43,8 +44,8 @@ const CashRegisterPage = () => {
   const { translations } = useLanguage();
   const [page, setPage] = useState(1);
   const [dateRange, setDateRange] = useState({
-    from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    to: new Date().toISOString().split('T')[0],
+    from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-CA'),
+    to: new Date().toLocaleDateString('en-CA'),
   });
   const [txTypeFilter, setTxTypeFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
@@ -196,7 +197,7 @@ const CashRegisterPage = () => {
                 ) : (
                   transactions.map((tx) => {
                     const style = TX_TYPE_STYLES[tx.transaction_type] || TX_TYPE_STYLES.Out;
-                    const isDebit = ['Out', 'sale_refund', 'expense'].includes(tx.transaction_type);
+                    const isDebit = ['Out', 'sale_refund', 'expense', 'grn_payment'].includes(tx.transaction_type);
                     return (
                       <tr key={tx.id} className="group hover:bg-slate-50/60 transition-all duration-150">
 

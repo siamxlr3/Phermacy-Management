@@ -17,6 +17,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use App\Http\Requests\Api\StoreGRNRequest;
 use App\Http\Requests\Api\UpdateGRNRequest;
+use App\Models\CashTransaction;
+use Illuminate\Support\Facades\Auth;
 
 class GRNController extends Controller
 {
@@ -184,6 +186,24 @@ class GRNController extends Controller
                     PurchaseOrder::where('id', $data['purchase_order_id'])->update(['status' => 'Received']);
                 }
 
+                $grn->load('supplier');
+
+                // Record Cash Transaction only if full payment is made (Status: Paid)
+                if (($data['payment_status'] ?? '') === 'Paid') {
+                    CashTransaction::record(
+                        'grn_payment',
+                        $grn->paid_amount,
+                        "Payment for GRN Invoice {$invoiceNumber}",
+                        'grn',
+                        $grn->id,
+                        $invoiceNumber,
+                        'cash',
+                        $grn->supplier?->name,
+                        'supplier',
+                        Auth::id()
+                    );
+                }
+
                 $this->clearCache();
                 return $grn;
             });
@@ -212,6 +232,9 @@ class GRNController extends Controller
 
         try {
             $grn = DB::transaction(function () use ($grn, $data) {
+                $oldPaymentStatus = $grn->payment_status;
+                $oldPaidAmount = $grn->paid_amount;
+
                 // Safety Check: Edit-Lock
                 $this->checkHasSales($grn);
 
@@ -287,6 +310,34 @@ class GRNController extends Controller
                 GRNItem::insert($grnItemsData);
                 StockBatch::insert($stockBatchesData);
 
+                $grn->load('supplier');
+
+                // Re-calculate Cash Transaction on update
+                // If it was Paid, reverse the original amount back to the drawer first
+                if ($oldPaymentStatus === 'Paid') {
+                    CashTransaction::record(
+                        'In',
+                        $oldPaidAmount,
+                        "Reversal of Edited GRN ({$grn->invoice_number})"
+                    );
+                }
+
+                // Apply the new Paid status
+                if ($grn->payment_status === 'Paid') {
+                     CashTransaction::record(
+                        'grn_payment',
+                        $grn->paid_amount,
+                        "Updated GRN Payment ({$grn->invoice_number})",
+                        'grn',
+                        $grn->id,
+                        $grn->invoice_number,
+                        'cash',
+                        $grn->supplier?->name,
+                        'supplier',
+                        Auth::id()
+                    );
+                }
+
                 $this->clearCache();
                 return $grn->fresh(['supplier', 'purchaseOrder', 'items.medicine']);
             });
@@ -307,6 +358,15 @@ class GRNController extends Controller
             DB::transaction(function () use ($grn) {
                 // Safety Check: Edit-Lock
                 $this->checkHasSales($grn);
+
+                // If it was paid, reverse the cash transaction
+                if ($grn->payment_status === 'Paid') {
+                    CashTransaction::record(
+                        'In',
+                        $grn->paid_amount,
+                        "Reversal of Deleted GRN ({$grn->invoice_number})"
+                    );
+                }
 
                 $this->reverseGrnStock($grn);
                 $grn->items()->delete();

@@ -18,7 +18,9 @@
         "vite": "^8.0.8"
     },
     "dependencies": {
+        "@radix-ui/react-select": "^2.2.6",
         "@reduxjs/toolkit": "^2.11.2",
+        "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "date-fns": "^4.1.0",
         "framer-motion": "^12.38.0",

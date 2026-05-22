@@ -14,7 +14,7 @@ import OrdersPage from './pages/OrdersPage';
 
 import SettingPage from './pages/SettingPage';
 import CurrentStockPage from './pages/CurrentStockPage';
-import SuppliersReturnPage from './pages/SuppliersReturnPage';
+
 import NewPOSPage from './pages/NewPOSPage';
 import ReturnsPage from './pages/ReturnsPage';
 import SalesReportsPage from './pages/SalesReportsPage';
@@ -53,10 +53,7 @@ const App = () => {
                     {/* Purchasing */}
                     <Route path="/suppliers" element={<SuppliersPage />} />
                     <Route path="/orders" element={<OrdersPage />} />
-                    <Route path="/returns" element={<SuppliersReturnPage />} />
-                    <Route path="/purchasing/suppliers" element={<SuppliersPage />} />
-                    <Route path="/purchasing/orders" element={<OrdersPage />} />
-                    <Route path="/purchasing/returns" element={<SuppliersReturnPage />} />
+
 
 
 

@@ -137,12 +137,7 @@ const SalesHistoryPage = () => {
         {/* Header */}
         <div className="shrink-0 mb-8 px-2 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
-            <button 
-              onClick={() => navigate('/pos')}
-              className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center border border-slate-200 text-slate-400 hover:text-slate-900 hover:border-slate-400 transition-all shadow-sm group"
-            >
-              <ChevronLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
-            </button>
+
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
                 <History size={24} className="text-white" />

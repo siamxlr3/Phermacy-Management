@@ -18,7 +18,7 @@ class StockController extends Controller
         $search = $request->get('search');
 
         $query = Medicine::query()
-            ->select(['id', 'medicine_name', 'generic_name', 'dosage_form', 'strength', 'category', 'manufacturer', 'is_active', 'reorder_level'])
+            ->select(['id', 'medicine_name', 'generic_name', 'dosage_form', 'strength', 'category', 'manufacturer', 'is_active', 'reorder_level', 'tablets_per_strip', 'strips_per_box'])
             ->withSum('stockBatches as total_stock', 'qty_tablets_remaining');
 
         if ($search) {
@@ -43,7 +43,7 @@ class StockController extends Controller
         $query = StockBatch::query()
             ->select('stock_batches.*')
             ->with([
-                'medicine:id,medicine_name,dosage_form,strength', 
+                'medicine:id,medicine_name,dosage_form,strength,tablets_per_strip,strips_per_box', 
                 'supplier:id,name', 
                 'grn:id,invoice_number'
             ])

@@ -163,7 +163,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       items: [
         { icon: Truck, label: s.suppliers || 'Suppliers', path: '/suppliers' },
         { icon: FileText, label: s.orders || 'Orders', path: '/orders' },
-        { icon: ArrowLeftRight, label: s.returns || 'Returns', path: '/returns' },
       ]
     },
     {
