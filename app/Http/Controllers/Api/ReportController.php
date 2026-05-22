@@ -102,6 +102,8 @@ class ReportController extends Controller
             // 6. Top Performers & Trends
             $topMedicines = SaleItem::selectRaw('
                     medicines.medicine_name,
+                    medicines.generic_name,
+                    medicines.dosage_form,
                     SUM(sale_items.qty_tablets) as total_qty,
                     SUM(sale_items.subtotal) as total_revenue
                 ')
@@ -109,7 +111,7 @@ class ReportController extends Controller
                 ->join('medicines', 'sale_items.medicine_id', '=', 'medicines.id')
                 ->where('sales.status', 'Completed')
                 ->whereBetween('sales.sale_date', [$start, $end])
-                ->groupBy('medicines.id', 'medicines.medicine_name')
+                ->groupBy('medicines.id', 'medicines.medicine_name', 'medicines.generic_name', 'medicines.dosage_form')
                 ->orderByDesc('total_qty')
                 ->limit(5)
                 ->get();

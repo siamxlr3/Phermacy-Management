@@ -286,13 +286,13 @@ const ReturnForm = ({ onComplete }) => {
                         <div className="space-y-4">
                             <div className="flex justify-between items-center px-1">
                                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t?.base_return || 'Base Return'}</span>
-                                <span className="text-base font-black text-slate-200">${totals.subtotal.toFixed(2)}</span>
+                                <span className="text-base font-black text-slate-200">৳{totals.subtotal.toFixed(2)}</span>
                             </div>
                             <div className="h-px bg-slate-800 my-2" />
                             <div className="bg-slate-800/50 p-6 rounded-2xl border border-white/5">
                                 <p className="text-[10px] font-black text-slate-500 uppercase tracking-[2px] mb-2">{t?.total_refund || 'Total Amount to Refund'}</p>
                                 <div className="text-4xl font-black text-white tracking-tighter italic">
-                                    ${totals.total.toFixed(2)}
+                                    ৳{totals.total.toFixed(2)}
                                 </div>
                             </div>
                         </div>

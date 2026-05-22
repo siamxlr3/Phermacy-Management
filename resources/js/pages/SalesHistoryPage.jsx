@@ -340,7 +340,6 @@ const SalesHistoryPage = () => {
                   <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.payment}</th>
                   <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.sales_history.total_amount}</th>
                   <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.status}</th>
-                  <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right pr-12">{translations.sales_history.actions}</th>
                   <th className="w-12"></th>
                 </tr>
               </thead>
@@ -357,7 +356,7 @@ const SalesHistoryPage = () => {
                   ))
                 ) : sales.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="px-8 py-32 text-center">
+                    <td colSpan={6} className="px-8 py-32 text-center">
                       <div className="flex flex-col items-center justify-center grayscale opacity-40">
                         <div className="w-16 h-16 bg-slate-100 rounded-[1.5rem] flex items-center justify-center mb-4 border border-slate-200">
                           <ShoppingBag size={28} className="text-slate-400" />
@@ -432,28 +431,6 @@ const SalesHistoryPage = () => {
                               {item.status === 'Completed' ? translations.sales_history.completed : (item.status === 'Returned' ? translations.sales_history.returned : item.status)}
                             </span>
                           </td>
-                          <td className="px-8 py-5 text-right pr-12" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                              {item.status === 'Due' && (
-                                <button 
-                                  onClick={() => handleUpdatePayment(item.id, item.grand_total)}
-                                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 text-white rounded-xl text-[10px] font-black shadow-lg shadow-emerald-100 hover:bg-emerald-600 transition-all mr-1.5"
-                                >
-                                  <CheckCircle2 size={12} />
-                                  {translations.sales_history.mark_paid}
-                                </button>
-                              )}
-                              <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all shadow-sm" title="View Details">
-                                <Eye size={16} />
-                              </button>
-                              <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all shadow-sm" title="Print Invoice">
-                                <Printer size={16} />
-                              </button>
-                              <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all shadow-sm">
-                                <MoreHorizontal size={16} />
-                              </button>
-                            </div>
-                          </td>
                           <td className="w-12 text-center pr-6">
                             <button
                               className={cn(
@@ -472,7 +449,7 @@ const SalesHistoryPage = () => {
                         <AnimatePresence>
                           {isExpanded && (
                             <tr>
-                              <td colSpan="7" className="p-0 border-b border-indigo-100 bg-indigo-50/30">
+                              <td colSpan="6" className="p-0 border-b border-indigo-100 bg-indigo-50/30">
                                 <motion.div 
                                   initial={{ height: 0, opacity: 0 }}
                                   animate={{ height: 'auto', opacity: 1 }}

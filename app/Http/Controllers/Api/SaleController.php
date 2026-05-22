@@ -38,7 +38,7 @@ class SaleController extends Controller
             'status' => $status
         ]);
 
-        $query = Sale::with(['items.medicine:id,medicine_name,dosage_form', 'items.returnItems']);
+        $query = Sale::with(['items.medicine:id,medicine_name,dosage_form,tablets_per_strip,strips_per_box', 'items.returnItems']);
 
         if ($fromDate && $toDate) {
             $query->whereBetween('sale_date', [
@@ -177,7 +177,14 @@ class SaleController extends Controller
                     \App\Models\CashTransaction::record(
                         'In',
                         $sale->paid_amount,
-                        "Sale Payment - Invoice {$sale->invoice_number}"
+                        "Sale Payment - Invoice {$sale->invoice_number}",
+                        'sale',
+                        $sale->id,
+                        $sale->invoice_number,
+                        ($data['payment_method'] ?? 'Cash') === 'Due' ? 'Cash' : ($data['payment_method'] ?? 'Cash'),
+                        $sale->customer_name,
+                        'customer',
+                        Auth::id()
                     );
                 }
 
@@ -197,7 +204,7 @@ class SaleController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $sale = Sale::with(['items.medicine', 'items.batch', 'items.returnItems'])->find($id);
+        $sale = Sale::with(['items.medicine:id,medicine_name,dosage_form,tablets_per_strip,strips_per_box', 'items.batch', 'items.returnItems'])->find($id);
         if (!$sale) {
             return response()->json(['message' => 'Sale not found'], 404);
         }
@@ -222,7 +229,14 @@ class SaleController extends Controller
                     \App\Models\CashTransaction::record(
                         'In',
                         $newPaidAmount - $oldPaidAmount,
-                        "Due Payment Collected - Invoice {$sale->invoice_number}"
+                        "Due Payment Collected - Invoice {$sale->invoice_number}",
+                        'sale',
+                        $sale->id,
+                        $sale->invoice_number,
+                        $sale->payment_method,
+                        $sale->customer_name,
+                        'customer',
+                        Auth::id()
                     );
                 }
             });

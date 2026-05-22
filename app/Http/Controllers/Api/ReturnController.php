@@ -34,7 +34,7 @@ class ReturnController extends Controller
 
         $query = SalesReturn::with([
             'sale:id,invoice_number,customer_name', 
-            'items.medicine:id,medicine_name,dosage_form', 
+            'items.medicine:id,medicine_name,dosage_form,tablets_per_strip,strips_per_box', 
             'user:id,name'
         ]);
 
@@ -61,7 +61,7 @@ class ReturnController extends Controller
      */
     public function lookup(string $invoiceNumber): JsonResponse
     {
-        $sale = Sale::with(['items.medicine:id,medicine_name,dosage_form', 'items.returnItems'])
+        $sale = Sale::with(['items.medicine:id,medicine_name,dosage_form,tablets_per_strip,strips_per_box', 'items.returnItems'])
             ->where('invoice_number', $invoiceNumber)
             ->firstOrFail();
 

@@ -53,10 +53,12 @@ class DashboardController extends Controller
                 ->selectRaw('
                     sale_items.medicine_id, 
                     medicines.medicine_name,
+                    medicines.generic_name,
+                    medicines.dosage_form,
                     SUM(sale_items.qty_tablets) as total_qty, 
                     SUM(sale_items.subtotal) as total_revenue
                 ')
-                ->groupBy('sale_items.medicine_id', 'medicines.medicine_name')
+                ->groupBy('sale_items.medicine_id', 'medicines.medicine_name', 'medicines.generic_name', 'medicines.dosage_form')
                 ->orderByDesc('total_qty')
                 ->limit(5)
                 ->get();

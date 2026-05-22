@@ -18,7 +18,7 @@ import { printPOSReceipt } from '../utils/printer';
 
 /* ── Design tokens from sample ── */
 const T = {
-  bg: '#f7f8fa', surface: '#fff', s2: '#f0f2f6', s3: '#e6e9f0',
+  bg: '#f7f8fa', surface: '#fff', s2: '#7ea3eeff', s3: '#e6e9f0',
   border: '#dde1ea', border2: '#c8cdd9',
   text: '#0e1117', text2: '#4a5068', text3: '#8890a8',
   teal: '#00897b', tealL: '#e0f2f0', tealD: '#00695c',
@@ -114,7 +114,7 @@ const NewPOSPage = () => {
       };
       const result = await processSale(saleData).unwrap();
       setLastSale(result.data);
-      
+
       // Automate POS Print
       printPOSReceipt(result.data, translations);
 
@@ -202,9 +202,9 @@ const NewPOSPage = () => {
 
             {/* Stats Strip */}
             <div className="shrink-0 grid grid-cols-1 gap-1.5 p-2.5">
-              <div 
+              <div
                 onClick={() => navigate('/sales-history', { state: { showDueOnly: true } })}
-                className="rounded-lg p-2 cursor-pointer transition-all hover:bg-rose-50/30 group" 
+                className="rounded-lg p-2 cursor-pointer transition-all hover:bg-rose-50/30 group"
                 style={{ background: T.surface, border: `1px solid ${T.border}` }}
               >
                 <div className="text-[10px] uppercase tracking-wider mb-0.5" style={{ color: T.text3 }}>{translations.pos.due_pending}</div>
@@ -248,7 +248,7 @@ const NewPOSPage = () => {
                         background: T.surface,
                         border: `1.5px solid ${cartQty > 0 ? T.teal : T.border}`,
                       }}>
-                      
+
                       <div className="flex flex-col min-w-0">
                         {/* Cart quantity bubble */}
                         {cartQty > 0 && (
@@ -292,8 +292,8 @@ const NewPOSPage = () => {
                               const colors = cls === 'piece'
                                 ? { bg: T.tealL, border: T.teal, color: T.tealD }
                                 : cls === 'strip'
-                                ? { bg: T.blueL, border: T.blue, color: T.blue }
-                                : { bg: T.purpleL, border: T.purple, color: T.purple };
+                                  ? { bg: T.blueL, border: T.blue, color: T.blue }
+                                  : { bg: T.purpleL, border: T.purple, color: T.purple };
                               return (
                                 <button key={u}
                                   onClick={() => setMedUnit(med.id, u)}

@@ -89,7 +89,6 @@ const ReturnsTable = () => {
                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t?.headers?.items || 'Returned Items'}</th>
                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t?.headers?.refund || 'Refund Details'}</th>
                             <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px]">{t?.headers?.reason || 'Reason'}</th>
-                            <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-[2px] text-right">{t?.headers?.actions || 'Actions'}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -105,7 +104,7 @@ const ReturnsTable = () => {
                             ))
                         ) : returns.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="px-8 py-32">
+                                <td colSpan={6} className="px-8 py-32">
                                     <div className="flex flex-col items-center justify-center gap-4 grayscale opacity-40">
                                         <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center">
                                             <Search size={32} />
@@ -180,7 +179,7 @@ const ReturnsTable = () => {
                                     </td>
                                     <td className="px-8 py-6">
                                         <div className="flex flex-col gap-1">
-                                            <span className="text-sm font-black text-slate-900">${parseFloat(item.total_returned).toFixed(2)}</span>
+                                            <span className="text-sm font-black text-slate-900">৳{parseFloat(item.total_returned).toFixed(2)}</span>
                                             <span className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
                                                 <CreditCard size={10} /> {item.refund_method}
                                             </span>
@@ -188,16 +187,6 @@ const ReturnsTable = () => {
                                     </td>
                                     <td className="px-8 py-6">
                                         <p className="text-xs font-bold text-slate-500 line-clamp-1 max-w-[200px]">{item.reason}</p>
-                                    </td>
-                                    <td className="px-8 py-6 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            <button className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all">
-                                                <Eye size={18} />
-                                            </button>
-                                            <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-all">
-                                                <MoreHorizontal size={18} />
-                                            </button>
-                                        </div>
                                     </td>
                                 </tr>
                             ))

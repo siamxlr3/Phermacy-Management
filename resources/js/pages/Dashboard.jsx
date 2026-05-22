@@ -288,7 +288,7 @@ const Dashboard = () => {
                         <span className="text-[10px] font-bold text-slate-400 uppercase">{item.generic_name}</span>
                       </div>
                       <div className="text-right">
-                        <span className="block text-[11px] font-black text-slate-900">{item.total_qty} <span className="opacity-40 uppercase">Units</span></span>
+                        <span className="block text-[11px] font-black text-slate-900">{item.total_qty} <span className="opacity-40 uppercase">{item.dosage_form || 'Units'}</span></span>
                         <span className="block text-[9px] font-bold text-emerald-500">৳{Number(item.total_revenue).toLocaleString()}</span>
                       </div>
                     </div>

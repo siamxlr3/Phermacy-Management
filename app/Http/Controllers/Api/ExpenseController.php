@@ -121,7 +121,13 @@ class ExpenseController extends Controller
                     CashTransaction::record(
                         'expense',
                         $expense->grand_total,
-                        "{$itemNames} ({$expense->transaction_id})"
+                        "{$itemNames} ({$expense->transaction_id})",
+                        'expense',
+                        $expense->id,
+                        $expense->transaction_id,
+                        'cash',
+                        $expense->supplier_name,
+                        'supplier'
                     );
                 }
 
@@ -174,7 +180,13 @@ class ExpenseController extends Controller
                     CashTransaction::record(
                         'In',
                         $oldTotal,
-                        "Reversal of Edited Expense ({$expense->transaction_id})"
+                        "Reversal of Edited Expense ({$expense->transaction_id})",
+                        'expense',
+                        $expense->id,
+                        $expense->transaction_id,
+                        'cash',
+                        $expense->supplier_name,
+                        'supplier'
                     );
                 }
 
@@ -199,7 +211,13 @@ class ExpenseController extends Controller
                     CashTransaction::record(
                         'expense',
                         $expense->grand_total,
-                        "Updated Expense ({$expense->transaction_id})"
+                        "Updated Expense ({$expense->transaction_id})",
+                        'expense',
+                        $expense->id,
+                        $expense->transaction_id,
+                        'cash',
+                        $expense->supplier_name,
+                        'supplier'
                     );
                 }
 
@@ -227,7 +245,13 @@ class ExpenseController extends Controller
                     CashTransaction::record(
                         'In',
                         $expense->grand_total,
-                        "Reversal of Deleted Expense ({$expense->transaction_id})"
+                        "Reversal of Deleted Expense ({$expense->transaction_id})",
+                        'expense',
+                        $expense->id,
+                        $expense->transaction_id,
+                        'cash',
+                        $expense->supplier_name,
+                        'supplier'
                     );
                 }
 
