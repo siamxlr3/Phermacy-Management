@@ -21,10 +21,15 @@ export const stockApi = createApi({
         `/stocks/batches?page=${page}&per_page=${perPage}&search=${search}&from_expiry=${from_expiry}&to_expiry=${to_expiry}`,
       providesTags: ['Batch'],
     }),
+    getMedicineBatches: builder.query({
+      query: (medicineId) => `/stocks/batches?medicine_id=${medicineId}&per_page=100`,
+      providesTags: ['Batch'],
+    }),
   }),
 });
 
 export const {
   useGetStockOverviewQuery,
   useGetBatchDetailsQuery,
+  useLazyGetMedicineBatchesQuery,
 } = stockApi;

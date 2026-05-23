@@ -30,7 +30,7 @@ const ReturnForm = ({ onComplete }) => {
         if (saleData?.data) {
             const items = saleData.data.items.map(item => {
                 const tabletsPerSaleUnit = item.qty_tablets / item.sale_qty;
-                const alreadyReturnedTablets = item.return_items_sum_qty_returned || 0;
+                const alreadyReturnedTablets = item.returned_qty_tablets || 0;
                 const alreadyReturnedInSaleUnits = alreadyReturnedTablets / tabletsPerSaleUnit;
                 const maxInSaleUnits = item.sale_qty - alreadyReturnedInSaleUnits;
 
@@ -212,15 +212,22 @@ const ReturnForm = ({ onComplete }) => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-50">
-                                        {returnItems.map(item => (
-                                            <tr key={item.id} className={`transition-colors ${item.qty_to_return > 0 ? 'bg-blue-50/30' : 'hover:bg-slate-50/50'}`}>
+                                        {returnItems.map(item => {
+                                            const isFullyReturned = item.max_returnable === 0;
+                                            return (
+                                            <tr key={item.id} className={`transition-colors ${
+                                                isFullyReturned
+                                                    ? 'bg-slate-50/80 opacity-60'
+                                                    : item.qty_to_return > 0 ? 'bg-blue-50/30' : 'hover:bg-slate-50/50'
+                                            }`}>
                                                 <td className="px-8 py-5">
                                                     <div className="flex items-center gap-3">
                                                         <input 
                                                             type="checkbox"
                                                             checked={item.qty_to_return > 0}
+                                                            disabled={isFullyReturned}
                                                             onChange={(e) => handleQtyChange(item.id, e.target.checked ? item.max_returnable : 0)}
-                                                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                            className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
                                                         />
                                                         <div>
                                                             <p className="text-sm font-bold text-slate-800">{item.medicine_name}</p>
@@ -230,23 +237,36 @@ const ReturnForm = ({ onComplete }) => {
                                                 </td>
                                                 <td className="px-6 py-5 text-center">
                                                     <span className="text-[10px] font-black text-blue-600 bg-blue-100/50 px-2.5 py-1 rounded-full uppercase">
-                                                        {item.sale_qty - (item.alreadyReturnedInSaleUnits || 0)} {item.sale_unit === 'Tablet' ? (item.dosage_form || 'Pc') : item.sale_unit}
+                                                        {item.sale_qty} {item.sale_unit === 'Tablet' ? (item.dosage_form || 'Pc') : item.sale_unit}
                                                     </span>
                                                 </td>
                                                 <td className="px-6 py-5 text-center">
-                                                    <span className="text-sm font-black text-slate-900">{item.sale_qty - (item.alreadyReturnedInSaleUnits || 0)}</span>
+                                                    <span className="text-sm font-black text-slate-900">{item.sale_qty}</span>
                                                 </td>
                                                 <td className="px-6 py-5 text-center">
-                                                    <span className="text-sm font-black text-rose-500">{item.alreadyReturnedInSaleUnits || 0}</span>
+                                                    {isFullyReturned ? (
+                                                        <span className="inline-flex items-center gap-1 text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2.5 py-1 rounded-full uppercase tracking-wide">
+                                                            ✓ Fully Returned
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-sm font-black text-rose-500">
+                                                            {item.alreadyReturnedInSaleUnits || 0}
+                                                        </span>
+                                                    )}
                                                 </td>
                                                 <td className="px-6 py-5">
                                                     <div className="flex items-center justify-center gap-2">
-                                                        <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200">
+                                                        <div className={`flex items-center gap-2 p-1 rounded-xl border ${
+                                                            isFullyReturned
+                                                                ? 'bg-slate-100 border-slate-200 cursor-not-allowed'
+                                                                : 'bg-white border-slate-200'
+                                                        }`}>
                                                             <input 
                                                                 type="number" 
-                                                                value={item.qty_to_return}
+                                                                value={isFullyReturned ? 0 : item.qty_to_return}
+                                                                disabled={isFullyReturned}
                                                                 onChange={(e) => handleQtyChange(item.id, parseFloat(e.target.value) || 0)}
-                                                                className="w-14 bg-transparent border-0 px-1 py-0.5 text-center font-black text-xs outline-none"
+                                                                className="w-14 bg-transparent border-0 px-1 py-0.5 text-center font-black text-xs outline-none disabled:cursor-not-allowed disabled:text-slate-400"
                                                             />
                                                             <span className="text-[9px] font-black text-slate-400 uppercase pr-1">/ {item.max_returnable}</span>
                                                         </div>
@@ -255,8 +275,9 @@ const ReturnForm = ({ onComplete }) => {
                                                 <td className="px-8 py-5 text-center">
                                                     <select
                                                         value={item.return_condition}
+                                                        disabled={isFullyReturned}
                                                         onChange={(e) => handleConditionChange(item.id, e.target.value)}
-                                                        className="text-[10px] font-black uppercase bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm"
+                                                        className="text-[10px] font-black uppercase bg-white border border-slate-200 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-blue-500/20 shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
                                                     >
                                                         <option value="resellable">✅ {t?.conditions?.resellable || 'Resellable'}</option>
                                                         <option value="damaged">⚠️ {t?.conditions?.damaged || 'Damaged'}</option>
@@ -264,7 +285,8 @@ const ReturnForm = ({ onComplete }) => {
                                                     </select>
                                                 </td>
                                             </tr>
-                                        ))}
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             )}

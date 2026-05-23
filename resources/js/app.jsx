@@ -21,6 +21,7 @@ import SalesReportsPage from './pages/SalesReportsPage';
 import InventoryReportsPage from './pages/InventoryReportsPage';
 import ExpensePage from './pages/ExpensePage';
 import CashRegisterPage from './pages/CashRegisterPage';
+import Stock_AdjustmentsPage from './pages/Stock_AdjustmentsPage';
 import { LanguageProvider } from './language/GlobalTranslate.jsx';
 
 const App = () => {
@@ -46,7 +47,7 @@ const App = () => {
                     <Route path="/stock" element={<CurrentStockPage />} />
                     <Route path="/inventory/medicines" element={<MedicinePage />} />
                     <Route path="/inventory/stock" element={<CurrentStockPage />} />
-                    <Route path="/inventory/adjustments" element={<Dashboard />} />
+                    <Route path="/inventory/adjustments" element={<Stock_AdjustmentsPage />} />
                     <Route path="/inventory/reports" element={<InventoryReportsPage />} />
                     <Route path="/inventory/interactions" element={<Dashboard />} />
 

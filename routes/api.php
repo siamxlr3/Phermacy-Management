@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\InventoryReportController;
 use App\Http\Controllers\Api\ExpenseController;
 use App\Http\Controllers\Api\CashRegisterController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\StockAdjustmentController;
 
 Route::apiResource('suppliers', SupplierController::class);
 
@@ -43,6 +44,7 @@ Route::apiResource('medicines', MedicineController::class);
 Route::apiResource('grns', GRNController::class);
 Route::get('stocks/overview', [StockController::class, 'overview']);
 Route::get('stocks/batches', [StockController::class, 'batches']);
+Route::apiResource('stock-adjustments', StockAdjustmentController::class);
 
 
 // Sales / POS

@@ -39,6 +39,7 @@ class StockController extends Controller
         $search = $request->get('search');
         $fromExpiry = $request->get('from_expiry');
         $toExpiry = $request->get('to_expiry');
+        $medicineId = $request->get('medicine_id');
 
         $query = StockBatch::query()
             ->select('stock_batches.*')
@@ -56,6 +57,9 @@ class StockController extends Controller
             });
         }
 
+        if ($medicineId) {
+            $query->where('stock_batches.medicine_id', $medicineId);
+        }
         if ($fromExpiry && $toExpiry) {
             $query->whereBetween('stock_batches.expiry_date', [$fromExpiry, $toExpiry]);
         }

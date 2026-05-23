@@ -97,10 +97,10 @@ class InventoryReportController extends Controller
                         ->limit(50)
                         ->get(),
                     'warning' => StockBatch::where('qty_tablets_remaining', '>', 0)
-                        ->whereBetween('expiry_date', [$fromDate, $toDate])
+                        ->where('expiry_date', '<=', $toDate)
                         ->with(['medicine:id,medicine_name', 'supplier:id,name'])
-                        ->orderBy('expiry_date')
-                        ->limit(50)
+                        ->orderBy('expiry_date', 'asc')
+                        ->limit(100)
                         ->get(),
                 ],
 

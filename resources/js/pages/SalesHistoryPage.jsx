@@ -135,20 +135,15 @@ const SalesHistoryPage = () => {
       <div className="flex flex-col h-full min-h-0 bg-slate-50/50 -m-6 p-6">
         
         {/* Header */}
-        <div className="shrink-0 mb-8 px-2 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-200">
-                <History size={24} className="text-white" />
+        <div className="shrink-0 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center">
+                <History size={16} className="text-indigo-600" />
               </div>
-              <div>
-                <h1 className="text-2xl font-black text-slate-900 tracking-tight leading-none mb-1.5">{translations.sales_history.title}</h1>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                  {translations.sales_history.subtitle}
-                </p>
-              </div>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{translations.sales_history.title}</h1>
             </div>
+            <p className="text-sm text-slate-500 ml-11">{translations.sales_history.subtitle}</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -159,9 +154,9 @@ const SalesHistoryPage = () => {
                  setPage(1);
               }}
               className={cn(
-                "flex items-center gap-2 px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-widest transition-all",
+                "flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all w-full md:w-auto shadow-lg shadow-indigo-200",
                 showDueOnly 
-                  ? "bg-orange-500 text-white shadow-lg shadow-orange-200" 
+                  ? "bg-orange-500 text-white shadow-orange-200" 
                   : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 shadow-sm"
               )}
             >
@@ -172,88 +167,79 @@ const SalesHistoryPage = () => {
         </div>
 
         {/* Summary Stats */}
-        <div className="shrink-0 flex gap-4 mb-6">
+        <div className="shrink-0 grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <AnimatePresence mode="wait">
             {showDueOnly ? (
               <motion.div 
                 key="due-stats"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="flex-1 p-6 bg-orange-500 rounded-[2rem] shadow-xl shadow-orange-200 border border-orange-400/20 relative overflow-hidden group max-w-sm"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-all"
               >
-                <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                  <AlertCircle size={120} />
+                <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 border border-orange-100">
+                  <AlertCircle size={24} />
                 </div>
-                <div className="relative z-10">
-                  <p className="text-[10px] font-black text-orange-100 uppercase tracking-[0.2em] mb-2 opacity-80">{translations.sales_history.total_due}</p>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-orange-200">৳</span>
-                    <h2 className="text-4xl font-black text-white tracking-tighter">
-                      {parseFloat(salesData?.summary?.total_due || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </h2>
-                  </div>
+                <div className="flex-1">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{translations.sales_history.total_due}</p>
+                  <h3 className="text-xl font-black text-slate-900 tracking-tight mt-0.5">
+                    ৳{parseFloat(salesData?.summary?.total_due || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </h3>
                 </div>
               </motion.div>
             ) : (
               <>
                 <motion.div 
                   key="completed-stats"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex-1 p-6 bg-emerald-600 rounded-[2rem] shadow-xl shadow-emerald-100 border border-emerald-500/20 relative overflow-hidden group max-w-sm"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-all"
                 >
-                  <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                    <CheckCircle2 size={120} />
+                  <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 border border-emerald-100">
+                    <CheckCircle2 size={24} />
                   </div>
-                  <div className="relative z-10">
-                    <p className="text-[10px] font-black text-emerald-100 uppercase tracking-[0.2em] mb-2">{translations.sales_history.completed}</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-black text-emerald-200">৳</span>
-                      <h2 className="text-4xl font-black text-white tracking-tighter">
-                        {parseFloat(salesData?.summary?.total_completed || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </h2>
-                    </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{translations.sales_history.completed}</p>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight mt-0.5">
+                      ৳{parseFloat(salesData?.summary?.total_completed || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </h3>
                   </div>
                 </motion.div>
 
                 <motion.div 
                   key="returned-stats"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex-1 p-6 bg-rose-500 rounded-[2rem] shadow-xl shadow-rose-100 border border-rose-400/20 relative overflow-hidden group max-w-sm"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-all"
                 >
-                  <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                    <RotateCcw size={120} />
+                  <div className="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 border border-rose-100">
+                    <RotateCcw size={24} />
                   </div>
-                  <div className="relative z-10">
-                    <p className="text-[10px] font-black text-rose-100 uppercase tracking-[0.2em] mb-2">{translations.sales_history.returned}</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-black text-rose-200">৳</span>
-                      <h2 className="text-4xl font-black text-white tracking-tighter">
-                        {parseFloat(salesData?.summary?.total_returned || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </h2>
-                    </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{translations.sales_history.returned}</p>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight mt-0.5">
+                      ৳{parseFloat(salesData?.summary?.total_returned || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </h3>
                   </div>
                 </motion.div>
 
                 <motion.div 
                   key="due-stats-all"
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="flex-1 p-6 bg-orange-500 rounded-[2rem] shadow-xl shadow-orange-100 border border-orange-400/20 relative overflow-hidden group max-w-sm"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-all"
                 >
-                  <div className="absolute -right-4 -top-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                    <AlertCircle size={120} />
+                  <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 border border-orange-100">
+                    <AlertCircle size={24} />
                   </div>
-                  <div className="relative z-10">
-                    <p className="text-[10px] font-black text-orange-100 uppercase tracking-[0.2em] mb-2">{translations.sales_history.total_due}</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-black text-orange-200">৳</span>
-                      <h2 className="text-4xl font-black text-white tracking-tighter">
-                        {parseFloat(salesData?.summary?.total_due || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </h2>
-                    </div>
+                  <div className="flex-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{translations.sales_history.total_due}</p>
+                    <h3 className="text-xl font-black text-slate-900 tracking-tight mt-0.5">
+                      ৳{parseFloat(salesData?.summary?.total_due || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </h3>
                   </div>
                 </motion.div>
               </>
@@ -262,7 +248,7 @@ const SalesHistoryPage = () => {
         </div>
 
         {/* Main Table Card */}
-        <div className="flex-1 flex flex-col bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden min-h-0">
+        <div className="flex-1 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden min-h-0">
           
           {/* Filters Row */}
           <div className="shrink-0 p-6 border-b border-slate-100 flex flex-wrap items-center justify-between gap-6 bg-slate-50/30">
@@ -274,7 +260,7 @@ const SalesHistoryPage = () => {
                   placeholder={translations.sales_history.search_placeholder}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none transition-all placeholder:text-slate-400 font-medium text-slate-600"
+                  className="w-full pl-10 pr-4 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400 outline-none transition-all placeholder:text-slate-400 font-medium text-slate-600"
                 />
               </div>
 
@@ -297,7 +283,7 @@ const SalesHistoryPage = () => {
                 </div>
               )}
 
-              <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-sm">
+              <div className="flex items-center gap-2 bg-white px-4 py-1.5 rounded-lg border border-slate-200 shadow-sm">
                 <Calendar size={14} className="text-slate-400" />
                 <input 
                   type="date"
@@ -315,7 +301,7 @@ const SalesHistoryPage = () => {
               </div>
             </div>
 
-            {(searchTerm || statusFilter || dateRange.from || dateRange.to !== format(new Date(), 'yyyy-MM-dd')) && (
+            {(searchTerm || statusFilter || dateRange.from || (dateRange.to && dateRange.to !== format(new Date(), 'yyyy-MM-dd'))) && (
               <button 
                 onClick={() => {
                   setSearchTerm('');
@@ -323,7 +309,7 @@ const SalesHistoryPage = () => {
                   setDateRange({ from: '', to: format(new Date(), 'yyyy-MM-dd') });
                   setPage(1);
                 }}
-                className="text-[10px] font-black text-rose-500 hover:text-rose-700 uppercase tracking-[0.2em] px-2 transition-colors"
+                className="text-[10px] font-black text-rose-500 hover:text-rose-700 uppercase tracking-widest px-2 transition-colors"
               >
                 {translations.expense.reset || 'RESET'}
               </button>
@@ -335,12 +321,12 @@ const SalesHistoryPage = () => {
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead className="sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10 border-b border-slate-200">
                 <tr>
-                  <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{translations.sales_history.invoice} & {translations.sales_history.date}</th>
-                  <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{translations.sales_history.customer}</th>
-                  <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.payment}</th>
-                  <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.sales_history.total_amount}</th>
-                  <th className="px-8 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.status}</th>
-                  <th className="w-12"></th>
+                  <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{translations.sales_history.invoice} & {translations.sales_history.date}</th>
+                  <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{translations.sales_history.customer}</th>
+                  <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.payment}</th>
+                  <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.sales_history.total_amount}</th>
+                  <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.status}</th>
+                  <th className="w-10"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -375,10 +361,10 @@ const SalesHistoryPage = () => {
                           onClick={() => toggleRow(item.id)}
                           className={cn(
                             "group transition-all duration-150 cursor-pointer",
-                            isExpanded ? "bg-indigo-50/40" : "hover:bg-slate-50/80"
+                            isExpanded ? "bg-indigo-50/30" : "hover:bg-slate-50/50"
                           )}
                         >
-                          <td className="px-8 py-5">
+                          <td className="px-6 py-4">
                             <div className="flex flex-col gap-1">
                               <span className="text-sm font-black text-indigo-600 tracking-tight font-mono">
                                 {item.invoice_number || `INV-${item.id.toString().padStart(6, '0')}`}
@@ -389,7 +375,7 @@ const SalesHistoryPage = () => {
                               </span>
                             </div>
                           </td>
-                          <td className="px-8 py-5">
+                          <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 text-[10px] font-black shadow-sm group-hover:border-indigo-200 group-hover:text-indigo-500 transition-colors">
                                 {(item.customer_name || 'WI').substring(0, 2).toUpperCase()}
@@ -400,7 +386,7 @@ const SalesHistoryPage = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="px-8 py-5 text-center">
+                          <td className="px-6 py-4 text-center">
                             <span className={cn(
                               "px-3 py-1.5 rounded-lg text-[10px] font-black border uppercase tracking-widest shadow-sm",
                               paymentStyle[item.payment_method] || 'bg-slate-50 text-slate-400 border-slate-100'
@@ -408,7 +394,7 @@ const SalesHistoryPage = () => {
                               {item.payment_method}
                             </span>
                           </td>
-                          <td className="px-8 py-5 text-right">
+                          <td className="px-6 py-4 text-right">
                             <div className="flex flex-col items-end">
                               <span className="text-sm font-black text-slate-900 tracking-tight">
                                 ৳{parseFloat(item.grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
@@ -423,7 +409,7 @@ const SalesHistoryPage = () => {
                               )}
                             </div>
                           </td>
-                          <td className="px-8 py-5 text-center">
+                          <td className="px-6 py-4 text-center">
                             <span className={cn(
                               "px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-widest shadow-sm",
                               statusStyle[item.status] || 'bg-slate-50 text-slate-400 border-slate-100'
@@ -431,10 +417,10 @@ const SalesHistoryPage = () => {
                               {item.status === 'Completed' ? translations.sales_history.completed : (item.status === 'Returned' ? translations.sales_history.returned : item.status)}
                             </span>
                           </td>
-                          <td className="w-12 text-center pr-6">
+                          <td className="w-10 text-center pr-2">
                             <button
                               className={cn(
-                                "p-2 rounded-xl transition-all shadow-sm",
+                                "p-1.5 rounded-lg transition-all shadow-sm",
                                 isExpanded 
                                   ? "bg-indigo-600 text-white shadow-indigo-200" 
                                   : "text-slate-300 hover:text-indigo-600 hover:bg-white opacity-0 group-hover:opacity-100"
@@ -449,21 +435,21 @@ const SalesHistoryPage = () => {
                         <AnimatePresence>
                           {isExpanded && (
                             <tr>
-                              <td colSpan="6" className="p-0 border-b border-indigo-100 bg-indigo-50/30">
+                              <td colSpan="6" className="p-0 border-b border-indigo-100">
                                 <motion.div 
                                   initial={{ height: 0, opacity: 0 }}
                                   animate={{ height: 'auto', opacity: 1 }}
                                   exit={{ height: 0, opacity: 0 }}
                                   className="overflow-hidden"
                                 >
-                                  <div className="px-12 py-8">
+                                  <div className="bg-indigo-50/40 px-8 py-6">
                                     <div className="flex items-center justify-between mb-4">
-                                      <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                                      <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
                                         <ShoppingBag size={12} />
                                         {translations.sales_history.sold_items || 'Sold Items'} ({item.items?.length || 0})
                                       </h4>
                                     </div>
-                                    <div className="bg-white rounded-3xl border border-indigo-100 shadow-xl shadow-indigo-900/5 overflow-hidden">
+                                    <div className="bg-white rounded-xl border border-indigo-100 shadow-sm overflow-hidden">
                                       <table className="w-full text-left">
                                         <thead className="bg-slate-50 border-b border-slate-100">
                                           <tr>
@@ -485,7 +471,7 @@ const SalesHistoryPage = () => {
                                               </td>
                                               <td className="px-6 py-4 text-center">
                                                 <span className="px-2.5 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black uppercase tracking-tighter border border-slate-200">
-                                                  {ritem.sale_unit === 'Tablet' ? 'Unit' : (ritem.sale_unit === 'Strip' ? 'Strip' : 'Box')}
+                                                  {ritem.sale_unit === 'Tablet' ? (ritem.dosage_form || 'Unit') : (ritem.sale_unit === 'Strip' ? 'Stripe' : 'Box')}
                                                 </span>
                                               </td>
                                               <td className="px-6 py-4 text-center">
@@ -505,9 +491,9 @@ const SalesHistoryPage = () => {
                                             </tr>
                                           ))}
                                         </tbody>
-                                        <tfoot className="bg-slate-50/80 border-t border-slate-200">
+                                        <tfoot className="bg-slate-50 border-t border-slate-200">
                                           <tr>
-                                            <td colSpan="3" className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">
+                                            <td colSpan="4" className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">
                                               {translations.sales_history.total_amount || 'Grand Total'}
                                             </td>
                                             <td className="px-6 py-4 text-right">
@@ -532,13 +518,13 @@ const SalesHistoryPage = () => {
           </div>
 
           {/* Pagination Footer */}
-          <div className="shrink-0 flex items-center justify-between px-8 py-5 border-t border-slate-100 bg-slate-50/30">
-            <div className="flex items-center gap-3">
-              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{translations.sales_history.per_page.replace('{n}', '') || 'Rows per page'}:</span>
+          <div className="shrink-0 flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/30">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{translations.expense.rows_per_page || 'Rows per page'}</span>
               <select
                 value={perPage}
                 onChange={(e) => { setPerPage(Number(e.target.value)); setPage(1); }}
-                className="bg-white border border-slate-200 text-xs font-black text-slate-600 rounded-xl px-3 py-1.5 outline-none focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 cursor-pointer shadow-sm transition-all"
+                className="bg-white border border-slate-200 text-xs font-bold text-slate-600 rounded-lg px-2 py-1.5 outline-none focus:ring-2 focus:ring-indigo-500/10 focus:border-indigo-400 cursor-pointer shadow-sm shadow-indigo-100/20 transition-all"
               >
                 {[10, 20, 50, 100].map(v => (
                   <option key={v} value={v}>{v}</option>
@@ -546,55 +532,30 @@ const SalesHistoryPage = () => {
               </select>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               {!isLoading && meta.total > 0 && (
-                <div className="px-4 py-2 bg-white rounded-xl border border-slate-200 shadow-sm">
-                  <span className="text-xs font-black text-slate-500 uppercase tracking-tighter">
-                    {translations.sales_history.showing_meta
-                      .replace('{from}', meta.from)
-                      .replace('{to}', meta.to)
-                      .replace('{total}', meta.total)}
-                  </span>
-                </div>
+                <span className="text-xs font-bold text-slate-500 px-3 py-1.5 bg-white rounded-lg border border-slate-200 shadow-sm shadow-indigo-100/20">
+                  {translations.sales_history.showing_meta
+                    .replace('{from}', meta.from)
+                    .replace('{to}', meta.to)
+                    .replace('{total}', meta.total)}
+                </span>
               )}
               
               <div className="flex items-center gap-1.5">
                 <button 
                   disabled={page === 1}
                   onClick={() => setPage(page - 1)}
-                  className="p-2.5 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-indigo-600 disabled:opacity-30 transition-all shadow-sm active:scale-95"
+                  className="p-2 ml-4 rounded-xl border border-slate-200 hover:bg-white text-slate-400 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm shadow-indigo-100/20"
                 >
-                  <ChevronLeft size={18} />
+                  <ChevronLeft size={16} />
                 </button>
-                <div className="flex items-center gap-1.5 px-1">
-                  {/* Simplified pagination for many pages */}
-                  {meta.last_page <= 5 ? (
-                    Array.from({ length: meta.last_page }).map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setPage(i + 1)}
-                        className={cn(
-                          "w-9 h-9 rounded-xl text-xs font-black transition-all",
-                          page === i + 1 
-                            ? "bg-indigo-600 text-white shadow-lg shadow-indigo-100" 
-                            : "bg-white border border-slate-200 text-slate-400 hover:bg-slate-50"
-                        )}
-                      >
-                        {i + 1}
-                      </button>
-                    ))
-                  ) : (
-                    <span className="text-xs font-bold text-slate-400 px-2 uppercase tracking-widest">
-                      {translations.expense.page_meta?.replace('{current}', page).replace('{total}', meta.last_page) || `Page ${page} of ${meta.last_page}`}
-                    </span>
-                  )}
-                </div>
                 <button 
                   disabled={page === meta.last_page}
                   onClick={() => setPage(page + 1)}
-                  className="p-2.5 bg-white border border-slate-200 rounded-2xl text-slate-400 hover:text-indigo-600 disabled:opacity-30 transition-all shadow-sm active:scale-95"
+                  className="p-2 rounded-xl border border-slate-200 hover:bg-white text-slate-400 hover:text-indigo-600 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-sm shadow-indigo-100/20"
                 >
-                  <ChevronRight size={18} />
+                  <ChevronRight size={16} />
                 </button>
               </div>
             </div>

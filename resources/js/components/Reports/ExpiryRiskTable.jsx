@@ -18,43 +18,67 @@ const ExpiryRiskTable = ({ risks }) => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100/60">
-                        {risks?.map((risk, idx) => (
-                            <tr key={idx} className="group hover:bg-white/60 transition-all duration-200">
-                                <td className="px-6 py-5">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                            <Package size={16} className="text-slate-400" />
+                        {risks?.map((risk, idx) => {
+                            const isExpired = new Date(risk.expiry_date) <= new Date();
+                            return (
+                                <tr key={idx} className={`group transition-all duration-200 ${isExpired ? 'bg-rose-50/30 hover:bg-rose-50/50' : 'hover:bg-white/60'}`}>
+                                    <td className="px-6 py-5">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-9 h-9 rounded-xl border flex items-center justify-center group-hover:scale-110 transition-transform ${
+                                                isExpired ? 'bg-rose-100 border-rose-200' : 'bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200'
+                                            }`}>
+                                                <Package size={16} className={isExpired ? 'text-rose-500' : 'text-slate-400'} />
+                                            </div>
+                                            <span className={`text-[13px] font-extrabold tracking-tight transition-colors ${
+                                                isExpired ? 'text-rose-700' : 'text-[#0f1923] group-hover:text-blue-600'
+                                            }`}>
+                                                {risk.medicine?.medicine_name || risk.medicine?.name || 'Unknown Medicine'}
+                                            </span>
+                                            {isExpired && (
+                                                <span className="px-2 py-0.5 bg-rose-500 text-white text-[9px] font-black uppercase rounded-full tracking-tighter">
+                                                    {translations.reports.expired_tag || 'Expired'}
+                                                </span>
+                                            )}
                                         </div>
-                                        <span className="text-[13px] font-extrabold text-[#0f1923] tracking-tight group-hover:text-blue-600 transition-colors">
-                                            {risk.medicine?.medicine_name || risk.medicine?.name || 'Unknown Medicine'}
+                                    </td>
+                                    <td className="px-6 py-5">
+                                        <span className={`text-[11px] font-extrabold uppercase tracking-wider px-2 py-1 rounded-md border ${
+                                            isExpired ? 'bg-rose-100 text-rose-600 border-rose-200/50' : 'bg-slate-100 text-slate-500 border-slate-200/50'
+                                        }`}>
+                                            {risk.batch_number}
                                         </span>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-5">
-                                    <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider bg-slate-100 px-2 py-1 rounded-md border border-slate-200/50">{risk.batch_number}</span>
-                                </td>
-                                <td className="px-6 py-5">
-                                    <div className="flex flex-col">
-                                        <span className="text-[12px] font-extrabold text-rose-500 jetbrains-mono">
-                                            {risk.expiry_date?.split('T')[0]}
-                                        </span>
-                                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{translations.reports.expiry_risk.expiring_risk}</span>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-5">
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-5 h-5 rounded-full bg-blue-50 flex items-center justify-center">
-                                            <Truck size={10} className="text-blue-500" />
+                                    </td>
+                                    <td className="px-6 py-5">
+                                        <div className="flex flex-col">
+                                            <span className={`text-[12px] font-extrabold jetbrains-mono ${isExpired ? 'text-rose-600' : 'text-amber-500'}`}>
+                                                {risk.expiry_date?.split('T')[0]}
+                                            </span>
+                                            <span className={`text-[9px] font-bold uppercase tracking-widest mt-0.5 ${isExpired ? 'text-rose-400' : 'text-slate-400'}`}>
+                                                {isExpired ? (translations.reports.expired_status || 'Expired') : (translations.reports.expiring_soon_status || 'Expiring Soon')}
+                                            </span>
                                         </div>
-                                        <span className="text-[11px] font-bold text-slate-600 tracking-tight">{risk.supplier.name}</span>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-5 text-right">
-                                    <span className="text-[13px] font-extrabold text-[#0f1923] jetbrains-mono">{risk.qty_tablets_remaining}</span>
-                                    <span className="text-[10px] text-slate-400 font-bold uppercase ml-1.5">{translations.reports.expiry_risk.units}</span>
-                                </td>
-                            </tr>
-                        ))}
+                                    </td>
+                                    <td className="px-6 py-5">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isExpired ? 'bg-rose-100' : 'bg-blue-50'}`}>
+                                                <Truck size={10} className={isExpired ? 'text-rose-500' : 'text-blue-500'} />
+                                            </div>
+                                            <span className={`text-[11px] font-bold tracking-tight ${isExpired ? 'text-rose-700' : 'text-slate-600'}`}>
+                                                {risk.supplier?.name || 'Unknown'}
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-5 text-right">
+                                        <span className={`text-[13px] font-extrabold jetbrains-mono ${isExpired ? 'text-rose-700' : 'text-[#0f1923]'}`}>
+                                            {risk.qty_tablets_remaining}
+                                        </span>
+                                        <span className={`text-[10px] font-bold uppercase ml-1.5 ${isExpired ? 'text-rose-400' : 'text-slate-400'}`}>
+                                            {translations.reports.expiry_risk.units}
+                                        </span>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>

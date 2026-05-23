@@ -18,6 +18,7 @@ import { reportsApi } from './api/reportsApi';
 import { inventoryReportsApi } from './api/inventoryReportsApi';
 import { expenseApi } from './api/expenseApi';
 import { cashRegisterApi } from './api/cashRegisterApi';
+import { stockAdjustmentsApi } from './api/stockAdjustmentsApi';
 
 const saveStateMiddleware = (store) => (next) => (action) => {
   const result = next(action);
@@ -67,6 +68,7 @@ export const store = configureStore({
     [inventoryReportsApi.reducerPath]: inventoryReportsApi.reducer,
     [expenseApi.reducerPath]: expenseApi.reducer,
     [cashRegisterApi.reducerPath]: cashRegisterApi.reducer,
+    [stockAdjustmentsApi.reducerPath]: stockAdjustmentsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -86,5 +88,6 @@ export const store = configureStore({
       .concat(reportsApi.middleware)
       .concat(inventoryReportsApi.middleware)
       .concat(expenseApi.middleware)
-      .concat(cashRegisterApi.middleware),
+      .concat(cashRegisterApi.middleware)
+      .concat(stockAdjustmentsApi.middleware),
 });

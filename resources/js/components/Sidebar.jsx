@@ -15,7 +15,10 @@ import {
   ArrowLeftRight,
   Wallet,
   Users,
-  Calculator
+  Calculator,
+  LayoutGrid,
+  Package,
+  RotateCcw
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useGetAddressesQuery } from '../store/api/settingApi';
@@ -174,9 +177,10 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     {
       title: s.inventory || 'Inventory',
       items: [
-        { icon: Pill, label: s.medicine_list || 'Medicine List', path: '/medicines' },
-        { icon: BarChart3, label: s.stock_levels || 'Stock Levels', path: '/stock' },
-        { icon: FileText, label: s.reports || 'Reports', path: '/inventory/reports' },
+        { icon: Package, label: s.medicines || 'Medicines', path: '/medicines' },
+        { icon: LayoutGrid, label: s.stock_overview || 'Stock Overview', path: '/stock' },
+        { icon: RotateCcw, label: 'Stock Adjustments', path: '/inventory/adjustments' },
+        { icon: BarChart3, label: s.inventory_reports || 'Inventory Reports', path: '/inventory/reports' },
       ]
     },
     {

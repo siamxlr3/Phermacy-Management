@@ -84,11 +84,10 @@ class ReportController extends Controller
             $estimatedProfit = $totalRevenue - $totalExpenses - (float) $inventoryValuation;
 
             // 5. Critical Inventory Alerts
-            $lowStock = Medicine::where('is_active', 1)
+            $lowStock = Medicine::active()
                 ->whereColumn('stock', '<=', 'reorder_level')
-                ->select('medicine_name', 'stock as qty')
+                ->select('id', 'medicine_name', 'stock as qty', 'reorder_level')
                 ->orderBy('stock', 'asc')
-                ->limit(50)
                 ->get();
 
             $expiring = StockBatch::join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id')

@@ -140,7 +140,8 @@ class SaleController extends Controller
                     $medicineBatches = $batches->get($medicineId, collect());
 
                     if ($medicineBatches->sum('qty_tablets_remaining') < $remainingToDeduct) {
-                        throw new Exception("Insufficient stock for medicine ID: {$medicineId}");
+                        $medicineName = Medicine::where('id', $medicineId)->value('medicine_name') ?? "ID: {$medicineId}";
+                        throw new Exception("Insufficient stock for {$medicineName}");
                     }
 
                     // 3. FIFO Batch Deduction with Multi-Row Tracking (Crucial for Audit)
