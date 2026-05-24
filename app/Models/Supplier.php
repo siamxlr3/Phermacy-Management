@@ -48,7 +48,11 @@ class Supplier extends Model
 
     protected static function booted()
     {
-        static::saved(fn () => Cache::forget('suppliers.active_list'));
-        static::deleted(fn () => Cache::forget('suppliers.active_list'));
+        $clearCache = fn () => Cache::forget('suppliers.active_list');
+        
+        static::saved($clearCache);
+        static::deleted($clearCache);
+        static::restored($clearCache);
+        static::forceDeleted($clearCache);
     }
 }

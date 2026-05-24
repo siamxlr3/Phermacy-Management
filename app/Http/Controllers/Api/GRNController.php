@@ -132,12 +132,13 @@ class GRNController extends Controller
 
                 foreach ($data['items'] as $item) {
                     $medicine = $medicines->get($item['medicine_id']);
+                    $batchNumber = $item['batch_number'] ?? 'BAT-' . strtoupper(substr(uniqid(), -6));
                     
                     $grnItemsData[] = [
                         'grn_id' => $grn->id,
                         'medicine_id' => $item['medicine_id'],
                         'dosage_form_snapshot' => $item['dosage_form_snapshot'],
-                        'batch_number' => $item['batch_number'],
+                        'batch_number' => $batchNumber,
                         'expiry_date' => $item['expiry_date'],
                         'qty_boxes_received' => $item['qty_boxes_received'],
                         'qty_units_received' => $item['qty_units_received'] ?? null,
@@ -160,7 +161,7 @@ class GRNController extends Controller
                         'supplier_id' => $data['supplier_id'],
                         'grn_id' => $grn->id,
                         'dosage_form_snapshot' => $item['dosage_form_snapshot'],
-                        'batch_number' => $item['batch_number'],
+                        'batch_number' => $batchNumber,
                         'expiry_date' => $item['expiry_date'],
                         'qty_tablets' => $totalTablets,
                         'qty_tablets_remaining' => $totalTablets,
@@ -261,6 +262,7 @@ class GRNController extends Controller
 
                 foreach ($data['items'] as $item) {
                     $medicine = $medicines->get($item['medicine_id']);
+                    $batchNumber = $item['batch_number'] ?? 'BAT-' . strtoupper(substr(uniqid(), -6));
                     $isGroupA = in_array($item['dosage_form_snapshot'], ['Tablet', 'Capsule', 'Suppository', 'Sachet']);
                     $totalTablets = $isGroupA 
                         ? $item['qty_boxes_received'] * (($medicine?->tablets_per_strip ?? 1) * ($medicine?->strips_per_box ?? 1))
@@ -270,7 +272,7 @@ class GRNController extends Controller
                         'grn_id' => $grn->id,
                         'medicine_id' => $item['medicine_id'],
                         'dosage_form_snapshot' => $item['dosage_form_snapshot'],
-                        'batch_number' => $item['batch_number'],
+                        'batch_number' => $batchNumber,
                         'expiry_date' => $item['expiry_date'],
                         'qty_boxes_received' => $item['qty_boxes_received'],
                         'qty_units_received' => $item['qty_units_received'] ?? null,
@@ -288,7 +290,7 @@ class GRNController extends Controller
                         'supplier_id' => $grn->supplier_id,
                         'grn_id' => $grn->id,
                         'dosage_form_snapshot' => $item['dosage_form_snapshot'],
-                        'batch_number' => $item['batch_number'],
+                        'batch_number' => $batchNumber,
                         'expiry_date' => $item['expiry_date'],
                         'qty_tablets' => $totalTablets,
                         'qty_tablets_remaining' => $totalTablets,

@@ -13,11 +13,18 @@ return new class extends Migration
     {
         Schema::create('taxes', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->unique()->index();
+            $table->string('name');
             $table->decimal('rate', 8, 4)->index();
             $table->enum('status', ['Active', 'Inactive'])->default('Active')->index();
+            
+            // Scalable Uniqueness: Ensures name is unique ONLY for non-deleted records
+            // This allows multiple deleted records with the same name, but only one active.
+            $table->string('name_unique_active')->virtualAs('IF(deleted_at IS NULL, name, NULL)')->unique();
+
             $table->softDeletes();
             $table->timestamps();
+
+            $table->index('name'); // Regular index for searches
         });
     }
 

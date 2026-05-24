@@ -4,8 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Supplier;
-use App\Http\Requests\Api\StoreSupplierRequest;
-use App\Http\Requests\Api\UpdateSupplierRequest;
+use App\Http\Requests\Api\SupplierRequest;
 use App\Http\Resources\Api\SupplierResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -34,10 +33,11 @@ class SupplierController extends Controller
         $query = Supplier::query();
 
         if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "{$search}%")
-                  ->orWhere('email', 'like', "{$search}%")
-                  ->orWhere('phone', 'like', "{$search}%");
+            $query->where(function ($q) use ($search) {
+                // Prefix search is index-friendly
+                $q->where('name', 'like', $search . '%')
+                  ->orWhere('phone', 'like', $search . '%')
+                  ->orWhere('email', 'like', $search . '%');
             });
         }
 
@@ -49,7 +49,7 @@ class SupplierController extends Controller
         return SupplierResource::collection($suppliers);
     }
 
-    public function store(StoreSupplierRequest $request): SupplierResource
+    public function store(SupplierRequest $request): SupplierResource
     {
         $supplier = Supplier::create($request->validated());
         return new SupplierResource($supplier);
@@ -60,7 +60,7 @@ class SupplierController extends Controller
         return new SupplierResource($supplier);
     }
 
-    public function update(UpdateSupplierRequest $request, Supplier $supplier): SupplierResource
+    public function update(SupplierRequest $request, Supplier $supplier): SupplierResource
     {
         $supplier->update($request->validated());
         return new SupplierResource($supplier);

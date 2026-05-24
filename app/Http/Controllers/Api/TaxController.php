@@ -36,11 +36,15 @@ class TaxController extends Controller
 
     /**
      * For internal lookups (e.g., POS), use the cached retrieval directly.
+     * Includes a safety limit to prevent memory exhaustion at 1M+ records.
      */
     public function listActive(): AnonymousResourceCollection
     {
-        $taxes = \Illuminate\Support\Facades\Cache::remember('taxes.active_list', 3600, function () {
-            return Tax::active()->orderBy('name')->get(['id', 'name', 'rate']);
+        $taxes = \Illuminate\Support\Facades\Cache::remember(Tax::CACHE_KEY_ACTIVE, 3600, function () {
+            return Tax::active()
+                ->orderBy('name')
+                ->take(1000) // Safety limit for large datasets
+                ->get(['id', 'name', 'rate']);
         });
 
         return TaxResource::collection($taxes);

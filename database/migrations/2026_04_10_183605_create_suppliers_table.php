@@ -15,10 +15,10 @@ return new class extends Migration
             $table->id();
             $table->string('name')->index();
             $table->string('contact_person')->nullable();
-            $table->string('phone');
-            $table->string('email')->nullable();
+            $table->string('phone')->unique();
+            $table->string('email')->unique()->nullable();
             $table->text('address')->nullable();
-            $table->integer('credit_days')->default(0);
+            $table->integer('credit_days')->default(0)->index();
             $table->enum('status', ['Active', 'Inactive'])->default('Active')->index();
             $table->softDeletes();
             $table->timestamps();

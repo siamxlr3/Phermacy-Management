@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Api;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateTaxRequest extends FormRequest
 {
@@ -31,7 +32,9 @@ class UpdateTaxRequest extends FormRequest
                 'required', 
                 'string', 
                 'max:255', 
-                \Illuminate\Validation\Rule::unique('taxes', 'name')->ignore($taxId)
+                Rule::unique('taxes', 'name')
+                    ->ignore($taxId)
+                    ->whereNull('deleted_at')
             ],
             'rate' => 'sometimes|required|numeric|min:0|max:100',
             'status' => 'sometimes|required|in:Active,Inactive',

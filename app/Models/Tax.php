@@ -18,6 +18,8 @@ class Tax extends Model
 {
     use HasFactory, SoftDeletes;
 
+    const CACHE_KEY_ACTIVE = 'taxes.active_list';
+
     protected $fillable = ['name', 'rate', 'status'];
 
     protected $casts = [
@@ -34,7 +36,7 @@ class Tax extends Model
 
     protected static function booted()
     {
-        $clearCache = fn () => \Illuminate\Support\Facades\Cache::forget('taxes.active_list');
+        $clearCache = fn () => Cache::forget(self::CACHE_KEY_ACTIVE);
 
         static::saved($clearCache);
         static::deleted($clearCache);

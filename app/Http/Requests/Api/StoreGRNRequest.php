@@ -26,7 +26,7 @@ class StoreGRNRequest extends FormRequest
             'items' => 'required|array|min:1',
             'items.*.medicine_id' => 'required|exists:medicines,id',
             'items.*.dosage_form_snapshot' => 'required|string',
-            'items.*.batch_number' => 'required|string|max:255',
+            'items.*.batch_number' => 'nullable|string|max:255',
             'items.*.expiry_date' => 'required|date',
             'items.*.qty_boxes_received' => 'required|integer|min:1',
             'items.*.qty_units_received' => 'nullable|integer|min:0',

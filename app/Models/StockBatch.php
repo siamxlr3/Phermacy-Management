@@ -27,6 +27,15 @@ class StockBatch extends Model
 {
     use HasFactory, SoftDeletes;
 
+    protected static function booted()
+    {
+        static::creating(function ($batch) {
+            if ($batch->medicine_id && !$batch->dosage_form_snapshot) {
+                $batch->dosage_form_snapshot = $batch->medicine->dosage_form;
+            }
+        });
+    }
+
     protected $fillable = [
         'medicine_id',
         'supplier_id',

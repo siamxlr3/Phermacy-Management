@@ -150,8 +150,8 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
     if (!supplierId) { toast.error(translations.grn.supplier_required); return; }
     if (items.length === 0) { toast.error(translations.grn.add_one_item); return; }
     
-    if (!isPO && items.some(i => !i.batch_number || !i.expiry_date)) {
-      toast.error(translations.grn.complete_batch_exp);
+    if (!isPO && items.some(i => !i.expiry_date)) {
+      toast.error(translations.grn?.complete_exp || 'Please complete expiry date for all items');
       return;
     }
 
@@ -407,10 +407,10 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
                   {!isPO && (
                     <>
                       <div className="form-group">
-                        <label>Batch #</label>
+                        <label>Batch # <span className="auto-tag">auto if empty</span></label>
                         <input 
                           type="text" 
-                          placeholder="BATCH-001" 
+                          placeholder="Auto-generated" 
                           value={item.batch_number}
                           onChange={(e) => handleItemChange(index, 'batch_number', e.target.value)}
                         />
