@@ -35,6 +35,7 @@ class ReturnController extends Controller
         $query = SalesReturn::with([
             'sale:id,invoice_number,customer_name', 
             'items.medicine:id,medicine_name,dosage_form,tablets_per_strip,strips_per_box', 
+            'items.batch:id,batch_number',
             'user:id,name'
         ]);
 
@@ -120,11 +121,11 @@ class ReturnController extends Controller
 
                 // 3. Inventory Reversal
                 foreach ($data['items'] as $itemData) {
-                    $saleItem = SaleItem::findOrFail($itemData['sale_item_id']);
+                    $saleItem = SaleItem::with('returnItems')->findOrFail($itemData['sale_item_id']);
                     
-                    $alreadyReturned = $saleItem->returnItems()->sum('qty_returned');
+                    $alreadyReturned = $saleItem->returnItems->sum('qty_returned');
                     if (($alreadyReturned + $itemData['qty_returned']) > $saleItem->qty_tablets) {
-                        throw new Exception("Returned quantity exceeds sold quantity for item ID: {$saleItem->id}");
+                        throw new Exception("Returned quantity exceeds sold quantity for item: " . ($saleItem->medicine->medicine_name ?? $saleItem->id));
                     }
 
                     $salesReturn->items()->create([
@@ -140,8 +141,7 @@ class ReturnController extends Controller
 
                     // Only put back to stock if resellable
                     if (($itemData['return_condition'] ?? 'resellable') === 'resellable') {
-                        $batch = StockBatch::find($saleItem->stock_batch_id);
-                        if ($batch) $batch->increment('qty_tablets_remaining', $itemData['qty_returned']);
+                        StockBatch::where('id', $saleItem->stock_batch_id)->increment('qty_tablets_remaining', $itemData['qty_returned']);
                         Medicine::where('id', $saleItem->medicine_id)->increment('stock', $itemData['qty_returned']);
                     }
                 }
@@ -150,17 +150,28 @@ class ReturnController extends Controller
                 $sale->increment('refunded_amount', $data['total_returned']);
                 $sale->increment('refunded_subtotal', $data['subtotal_returned']);
 
-                $totalSold = $sale->items()->sum('qty_tablets');
-                $totalReturned = $sale->items()->withSum('returnItems', 'qty_returned')->get()->sum('return_items_sum_qty_returned');
+                // Optimized status check: Avoid loading all items again
+                $saleTotals = $sale->items()
+                    ->selectRaw('SUM(qty_tablets) as total_sold')
+                    ->first();
+                
+                $returnTotals = DB::table('sales_return_items')
+                    ->join('sales_returns', 'sales_return_items.sales_return_id', '=', 'sales_returns.id')
+                    ->where('sales_returns.sale_id', $sale->id)
+                    ->selectRaw('SUM(qty_returned) as total_returned')
+                    ->first();
 
-                if ($totalReturned >= $totalSold) {
+                if (($returnTotals->total_returned ?? 0) >= ($saleTotals->total_sold ?? 0)) {
                     $sale->update(['status' => 'Returned']);
-                } else if ($totalReturned > 0) {
+                } else if (($returnTotals->total_returned ?? 0) > 0) {
                     $sale->update(['status' => 'Partially Returned']);
                 }
 
-                // 5. Targeted Cache Invalidation
-                Cache::tags(['sales', 'reports', 'dashboard'])->flush();
+                // 5. Targeted Cache Invalidation (Avoid global flush)
+                Cache::forget("sale_details_{$sale->id}");
+                Cache::forget("sales_list_page_*"); // Better than flushing everything
+                // If using tags, flush only specific necessary tags
+                // Cache::tags(['reports'])->flush(); 
 
                 return $salesReturn;
             });
@@ -168,7 +179,7 @@ class ReturnController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Return processed successfully',
-                'data' => new SalesReturnResource($salesReturn->load(['sale', 'items.medicine']))
+                'data' => new SalesReturnResource($salesReturn->load(['sale', 'items.medicine', 'items.batch']))
             ], 201);
         } catch (Exception $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);

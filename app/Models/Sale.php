@@ -18,11 +18,16 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property float $tax_total
  * @property float $discount_total
  * @property float $grand_total
+ * @property float $refunded_amount
+ * @property float $refunded_subtotal
  * @property float $paid_amount
  * @property float $due_amount
  * @property string $payment_method
  * @property string $status
  * @property string|null $notes
+ * @property-read float $net_total
+ * @property-read bool $is_paid
+ * @property-read bool $is_due
  */
 class Sale extends Model
 {
@@ -84,5 +89,29 @@ class Sale extends Model
         $this->tax_total = $this->items()->sum('tax_amount');
         $this->grand_total = ($this->subtotal + $this->tax_total) - $this->discount_total;
         $this->save();
+    }
+
+    /**
+     * Get the net total (grand total minus refunds).
+     */
+    public function getNetTotalAttribute(): float
+    {
+        return (float) ($this->grand_total - ($this->refunded_subtotal ?? 0));
+    }
+
+    /**
+     * Check if the sale is fully paid.
+     */
+    public function getIsPaidAttribute(): bool
+    {
+        return $this->status === 'Completed' && $this->due_amount <= 0;
+    }
+
+    /**
+     * Check if the sale has an outstanding balance.
+     */
+    public function getIsDueAttribute(): bool
+    {
+        return $this->due_amount > 0;
     }
 }

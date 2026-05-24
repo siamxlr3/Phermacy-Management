@@ -26,13 +26,29 @@ class StoreSaleRequest extends FormRequest
             'payment_method' => 'nullable|string',
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.medicine_id' => 'required|exists:medicines,id',
+            'items.*.medicine_id' => 'required|exists:medicines,id,deleted_at,NULL',
             'items.*.sale_unit' => 'required|string',
-            'items.*.quantity' => 'required|numeric|min:1',
+            'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.qty_tablets' => 'required|integer|min:1',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.tax_amount' => 'nullable|numeric|min:0',
             'items.*.subtotal' => 'required|numeric|min:0',
         ];
+    }
+
+    /**
+     * Custom validation to ensure all medicine IDs are active and exist in one go.
+     */
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+            $medicineIds = collect($this->items)->pluck('medicine_id')->unique()->filter();
+            if ($medicineIds->isNotEmpty()) {
+                $count = \App\Models\Medicine::whereIn('id', $medicineIds)->count();
+                if ($count !== $medicineIds->count()) {
+                    $validator->errors()->add('items', 'One or more selected medicines are invalid or no longer available.');
+                }
+            }
+        });
     }
 }

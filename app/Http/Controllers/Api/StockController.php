@@ -10,6 +10,7 @@ use App\Models\Medicine;
 use App\Http\Resources\Api\StockResource;
 use App\Http\Resources\Api\BatchResource;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Cache;
 
 class StockController extends Controller
 {
@@ -17,19 +18,28 @@ class StockController extends Controller
     {
         $perPage = $request->integer('per_page', 10);
         $search = $request->get('search');
+        
+        $cacheKey = 'stock' . md5(serialize([
+            $perPage,
+            $search,
+            $request->get('page', 1)
+        ]));
 
-        $query = Medicine::query()
-            ->select(['id', 'medicine_name', 'generic_name', 'dosage_form', 'strength', 'category', 'manufacturer', 'is_active', 'reorder_level', 'tablets_per_strip', 'strips_per_box'])
-            ->withSum('stockBatches as total_stock', 'qty_tablets_remaining');
+        $medicines = Cache::tags(['stock'])->remember($cacheKey, 3600, function () use ($perPage, $search) {
+            $query = Medicine::query()
+                ->select(['id', 'medicine_name', 'generic_name', 'dosage_form', 'strength', 'category', 'manufacturer', 'is_active', 'reorder_level', 'tablets_per_strip', 'strips_per_box'])
+                ->withSum('stockBatches as total_stock', 'qty_tablets_remaining');
 
-        if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('medicine_name', 'like', "{$search}%")
-                  ->orWhere('generic_name', 'like', "{$search}%");
-            });
-        }
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('medicine_name', 'like', "{$search}%")
+                      ->orWhere('generic_name', 'like', "{$search}%");
+                });
+            }
 
-        $medicines = $query->orderBy('medicine_name')->simplePaginate($perPage);
+            return $query->orderBy('medicine_name')->simplePaginate($perPage);
+        });
+
         return StockResource::collection($medicines);
     }
 

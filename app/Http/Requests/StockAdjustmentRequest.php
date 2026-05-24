@@ -2,7 +2,8 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
+use App\Models\StockAdjustment;
+use Illuminate\Validation\Rule;
 
 class StockAdjustmentRequest extends FormRequest
 {
@@ -11,7 +12,8 @@ class StockAdjustmentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        // Add actual permission check here, e.g. return $this->user()->can('manage-inventory');
+        return true; 
     }
 
     /**
@@ -22,8 +24,16 @@ class StockAdjustmentRequest extends FormRequest
         return [
             'medicine_id' => 'required|exists:medicines,id',
             'stock_batch_id' => 'required|exists:stock_batches,id',
-            'adjustment_type' => 'required|string|in:damage,expired,opening_balance,correction,theft,lost',
-            'adjustment_unit' => 'required|string|in:piece,strip,box,bottle,tube,vial,inhaler,pack',
+            'adjustment_type' => [
+                'required',
+                'string',
+                Rule::in(StockAdjustment::getAdjustmentTypes()),
+            ],
+            'adjustment_unit' => [
+                'required',
+                'string',
+                Rule::in(StockAdjustment::getAdjustmentUnits()),
+            ],
             'qty_in_units' => 'required|integer|min:1',
             'note' => 'nullable|string|max:500',
         ];

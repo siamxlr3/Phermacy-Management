@@ -64,16 +64,15 @@ class StockAdjustmentController extends Controller
 
         try {
             $adjustment = DB::transaction(function () use ($data) {
-                $medicine = Medicine::findOrFail($data['medicine_id']);
-                $batch = StockBatch::findOrFail($data['stock_batch_id']);
+                // Use lockForUpdate to prevent race conditions on stock updates
+                $medicine = Medicine::lockForUpdate()->findOrFail($data['medicine_id']);
+                $batch = StockBatch::lockForUpdate()->findOrFail($data['stock_batch_id']);
 
                 // Calculate tablet conversion
                 $qtyChangeTablets = $this->calculateTabletEquivalent($medicine, $data['adjustment_unit'], $data['qty_in_units']);
 
                 // Determine if it's an increase or decrease
-                // damage, expired, theft, lost, correction (assuming decrease for correction) are subtractions
-                // opening_balance is an addition
-                $isAddition = ($data['adjustment_type'] === 'opening_balance');
+                $isAddition = ($data['adjustment_type'] === StockAdjustment::TYPE_OPENING_BALANCE);
                 
                 $qtyBefore = $batch->qty_tablets_remaining;
                 $qtyAfter = $isAddition ? ($qtyBefore + $qtyChangeTablets) : ($qtyBefore - $qtyChangeTablets);
@@ -97,13 +96,9 @@ class StockAdjustmentController extends Controller
 
                 // Update Batch Stock
                 $batch->qty_tablets_remaining = $qtyAfter;
-                
-                // Also update other units if possible (this is a bit complex depending on the system design, 
-                // but usually qty_tablets_remaining is the source of truth for group A)
-                // For simplicity, we just update the tablet count as that's what the system relies on for sales.
                 $batch->save();
 
-                // Update Medicine Stock (total)
+                // Update Medicine Total Stock
                 if ($isAddition) {
                     $medicine->increment('stock', $qtyChangeTablets);
                 } else {
@@ -157,15 +152,15 @@ class StockAdjustmentController extends Controller
     private function calculateTabletEquivalent(Medicine $medicine, string $unit, int $qty): int
     {
         switch (strtolower($unit)) {
-            case 'piece':
+            case StockAdjustment::UNIT_PIECE:
                 return $qty;
-            case 'strip':
+            case StockAdjustment::UNIT_STRIP:
                 return $qty * ($medicine->tablets_per_strip ?? 1);
-            case 'box':
+            case StockAdjustment::UNIT_BOX:
                 $perBox = ($medicine->strips_per_box ?? 1) * ($medicine->tablets_per_strip ?? 1);
                 return $qty * $perBox;
             default:
-                return $qty; // Default to 1:1 if unit not recognized
+                return $qty;
         }
     }
 

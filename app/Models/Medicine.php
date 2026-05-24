@@ -99,4 +99,40 @@ class Medicine extends Model
     {
         return $this->hasMany(SaleItem::class);
     }
+
+    /**
+     * Convert a quantity from a specific sale unit to the base unit (tablets).
+     */
+    public function convertToTablets(float $quantity, string $unit): int
+    {
+        if ($unit === 'Box') {
+            $tabletsPerBox = (int) (($this->tablets_per_strip ?? 1) * ($this->strips_per_box ?? 1));
+            return (int) round($quantity * ($tabletsPerBox > 0 ? $tabletsPerBox : 1));
+        } 
+        
+        if ($unit === 'Strip') {
+            $tabletsPerStrip = (int) ($this->tablets_per_strip ?? 1);
+            return (int) round($quantity * ($tabletsPerStrip > 0 ? $tabletsPerStrip : 1));
+        }
+
+        return (int) round($quantity);
+    }
+
+    /**
+     * Convert a quantity from the base unit (tablets) back to a display unit.
+     */
+    public function convertFromTablets(int $tablets, string $unit): float
+    {
+        if ($unit === 'Box') {
+            $tabletsPerBox = (int) (($this->tablets_per_strip ?? 1) * ($this->strips_per_box ?? 1));
+            return $tablets / ($tabletsPerBox > 0 ? $tabletsPerBox : 1);
+        }
+
+        if ($unit === 'Strip') {
+            $tabletsPerStrip = (int) ($this->tablets_per_strip ?? 1);
+            return $tablets / ($tabletsPerStrip > 0 ? $tabletsPerStrip : 1);
+        }
+
+        return (float) $tablets;
+    }
 }

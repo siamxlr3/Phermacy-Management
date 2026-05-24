@@ -40,35 +40,35 @@ class SaleController extends Controller
 
         $query = Sale::with(['items.medicine:id,medicine_name,dosage_form,tablets_per_strip,strips_per_box', 'items.returnItems']);
 
-        if ($fromDate && $toDate) {
-            $query->whereBetween('sale_date', [
-                \Carbon\Carbon::parse($fromDate)->startOfDay(),
-                \Carbon\Carbon::parse($toDate)->endOfDay()
-            ]);
-        }
-
-        if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('invoice_number', 'like', "{$search}%")
-                  ->orWhere('customer_name', 'like', "{$search}%")
-                  ->orWhere('customer_phone', 'like', "{$search}%");
-            });
-        }
-
-        if ($status) {
-            $statuses = explode(',', $status);
-            $query->whereIn('status', $statuses);
-        }
-
-        // Consolidated Summary Stats in ONE query
-        $stats = Sale::query()
-            ->when($fromDate && $toDate, function($q) use ($fromDate, $toDate) {
+        $applyFilters = function($q) use ($fromDate, $toDate, $search, $status) {
+            if ($fromDate && $toDate) {
                 $q->whereBetween('sale_date', [
                     \Carbon\Carbon::parse($fromDate)->startOfDay(),
                     \Carbon\Carbon::parse($toDate)->endOfDay()
                 ]);
-            })
-            ->selectRaw("
+            }
+
+            if ($search) {
+                $q->where(function($sub) use ($search) {
+                    $sub->where('invoice_number', 'like', "{$search}%")
+                        ->orWhere('customer_name', 'like', "{$search}%")
+                        ->orWhere('customer_phone', 'like', "{$search}%");
+                });
+            }
+
+            if ($status) {
+                $statuses = explode(',', $status);
+                $q->whereIn('status', $statuses);
+            }
+        };
+
+        $applyFilters($query);
+
+        // Consolidated Summary Stats in ONE query using the same filters
+        $stats = Sale::query();
+        $applyFilters($stats);
+        
+        $stats = $stats->selectRaw("
                 SUM(grand_total) as total_gross,
                 SUM(CASE WHEN status IN ('Completed', 'Due', 'Partially Returned', 'Returned') THEN (grand_total - COALESCE(refunded_subtotal, 0)) ELSE 0 END) as total_amount,
                 SUM(CASE WHEN status IN ('Completed', 'Partially Returned', 'Returned') THEN (grand_total - COALESCE(refunded_subtotal, 0)) ELSE 0 END) as total_completed,
@@ -123,16 +123,18 @@ class SaleController extends Controller
                     'due_amount' => ($data['payment_method'] ?? null) === 'Due' ? $data['grand_total'] : 0,
                 ]);
 
-                // 2. Preload batches for optimized processing
+                // 2. Preload batches with Row-Level Locking
                 $medicineIds = collect($data['items'])->pluck('medicine_id');
                 $batches = StockBatch::whereIn('medicine_id', $medicineIds)
                     ->where('qty_tablets_remaining', '>', 0)
                     ->where('expiry_date', '>', now())
                     ->orderBy('expiry_date', 'asc')
+                    ->lockForUpdate() // CRITICAL: Concurrency protection
                     ->get()
                     ->groupBy('medicine_id');
 
                 $saleItemsData = [];
+                $medicineAdjustments = [];
 
                 foreach ($data['items'] as $item) {
                     $medicineId = $item['medicine_id'];
@@ -144,18 +146,17 @@ class SaleController extends Controller
                         throw new Exception("Insufficient stock for {$medicineName}");
                     }
 
-                    // 3. FIFO Batch Deduction with Multi-Row Tracking (Crucial for Audit)
+                    // 3. FIFO Batch Deduction
                     foreach ($medicineBatches as $batch) {
                         if ($remainingToDeduct <= 0) break;
 
                         $deduct = min($batch->qty_tablets_remaining, $remainingToDeduct);
                         
-                        // Create a separate SaleItem for EACH batch used
                         $saleItemsData[] = [
                             'sale_id' => $sale->id,
                             'medicine_id' => $medicineId,
                             'sale_unit' => $item['sale_unit'],
-                            'sale_qty' => (float) ($deduct / ($item['qty_tablets'] / $item['quantity'])), // Weighted qty
+                            'sale_qty' => (float) ($deduct / ($item['qty_tablets'] / $item['quantity'])),
                             'stock_batch_id' => $batch->id,
                             'qty_tablets' => $deduct,
                             'unit_price' => $item['unit_price'],
@@ -166,14 +167,19 @@ class SaleController extends Controller
                         ];
 
                         $batch->decrement('qty_tablets_remaining', $deduct);
-                        Medicine::where('id', $medicineId)->decrement('stock', $deduct);
+                        $medicineAdjustments[$medicineId] = ($medicineAdjustments[$medicineId] ?? 0) + $deduct;
                         $remainingToDeduct -= $deduct;
                     }
                 }
 
                 SaleItem::insert($saleItemsData);
 
-                // 4. Update Ledger
+                // 4. Batch update Medicine stock levels (Performance optimization)
+                foreach ($medicineAdjustments as $medicineId => $totalDeduct) {
+                    Medicine::where('id', $medicineId)->decrement('stock', $totalDeduct);
+                }
+
+                // 5. Update Ledger
                 if ($sale->paid_amount > 0) {
                     \App\Models\CashTransaction::record(
                         'In',

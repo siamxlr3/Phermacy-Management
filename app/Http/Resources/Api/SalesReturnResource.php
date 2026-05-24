@@ -29,8 +29,9 @@ class SalesReturnResource extends JsonResource
             'refund_method' => (string) $this->refund_method,
             'original_payment_method' => (string) $this->original_payment_method,
             'return_type' => (string) $this->return_type,
-            'cash_transaction_id' => (int) $this->cash_transaction_id,
+            'cash_transaction_id' => $this->when($this->cash_transaction_id, (int) $this->cash_transaction_id),
             'items' => SalesReturnItemResource::collection($this->whenLoaded('items')),
+            'sale' => new SaleResource($this->whenLoaded('sale')),
         ];
     }
 }

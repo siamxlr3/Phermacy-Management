@@ -26,7 +26,16 @@ class StoreReturnRequest extends FormRequest
             'original_payment_method' => 'required|in:cash,card,online,due',
             'return_type' => 'required|in:full,partial',
             'items' => 'required|array|min:1',
-            'items.*.sale_item_id' => 'required|exists:sale_items,id',
+            'items.*.sale_item_id' => [
+                'required',
+                'exists:sale_items,id',
+                function ($attribute, $value, $fail) {
+                    $item = \App\Models\SaleItem::find($value);
+                    if ($item && $item->sale_id != $this->sale_id) {
+                        $fail("The selected sale item does not belong to this sale.");
+                    }
+                },
+            ],
             'items.*.qty_returned' => 'required|integer|min:1',
             'items.*.return_condition' => 'nullable|in:resellable,damaged,expired',
         ];

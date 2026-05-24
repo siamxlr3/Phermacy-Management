@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -34,6 +34,9 @@ class StockBatch extends Model
                 $batch->dosage_form_snapshot = $batch->medicine->dosage_form;
             }
         });
+
+        static::saved(fn () => Cache::tags(['stock'])->flush());
+        static::deleted(fn () => Cache::tags(['stock'])->flush());
     }
 
     protected $fillable = [
