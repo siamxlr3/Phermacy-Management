@@ -17,8 +17,13 @@ export const stockApi = createApi({
       providesTags: ['Stock'],
     }),
     getBatchDetails: builder.query({
-      query: ({ page = 1, perPage = 10, search = '', from_expiry = '', to_expiry = '' }) => 
-        `/stocks/batches?page=${page}&per_page=${perPage}&search=${search}&from_expiry=${from_expiry}&to_expiry=${to_expiry}`,
+      query: ({ page = 1, perPage = 10, search = '', from_expiry = '', to_expiry = '' }) => {
+        let params = new URLSearchParams({ page, per_page: perPage });
+        if (search) params.append('search', search);
+        if (from_expiry) params.append('from_expiry', from_expiry);
+        if (to_expiry) params.append('to_expiry', to_expiry);
+        return `/stocks/batches?${params.toString()}`;
+      },
       providesTags: ['Batch'],
     }),
     getMedicineBatches: builder.query({
