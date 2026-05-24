@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('expense_items', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('expense_id')->constrained('expenses')->onDelete('cascade');
+            $table->foreignId('expense_id')->constrained('expenses')->onDelete('cascade')->index();
             $table->string('items_name');
             $table->enum('category', ['Piece', 'Packet', 'Box']);
             $table->integer('qty');

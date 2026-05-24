@@ -19,28 +19,30 @@ class PurgeResolvedAlerts extends Command
         $purged = 0;
 
         // 1. Dismiss Low Stock alerts where stock is now above reorder_level
-        Alert::where('type', 'Low Stock')
-            ->where('status', 'Active')
+        Alert::where('type', Alert::TYPE_LOW_STOCK)
+            ->where('status', Alert::STATUS_ACTIVE)
             ->with('medicine')
-            ->get()
-            ->each(function (Alert $alert) use (&$purged) {
-                $medicine = $alert->medicine;
-                if ($medicine && $medicine->stock > $medicine->reorder_level) {
-                    $alert->update(['status' => 'Dismissed']);
-                    $purged++;
+            ->chunk(100, function ($alerts) use (&$purged) {
+                foreach ($alerts as $alert) {
+                    $medicine = $alert->medicine;
+                    if ($medicine && $medicine->stock > $medicine->reorder_level) {
+                        $alert->update(['status' => Alert::STATUS_DISMISSED]);
+                        $purged++;
+                    }
                 }
             });
 
         // 2. Dismiss Expiry alerts where the batch no longer has remaining stock
-        Alert::where('type', 'Expiry')
-            ->where('status', 'Active')
+        Alert::where('type', Alert::TYPE_EXPIRY)
+            ->where('status', Alert::STATUS_ACTIVE)
             ->with('stockBatch')
-            ->get()
-            ->each(function (Alert $alert) use (&$purged) {
-                $batch = $alert->stockBatch;
-                if ($batch && $batch->qty_tablets_remaining <= 0) {
-                    $alert->update(['status' => 'Dismissed']);
-                    $purged++;
+            ->chunk(100, function ($alerts) use (&$purged) {
+                foreach ($alerts as $alert) {
+                    $batch = $alert->stockBatch;
+                    if ($batch && $batch->qty_tablets_remaining <= 0) {
+                        $alert->update(['status' => Alert::STATUS_DISMISSED]);
+                        $purged++;
+                    }
                 }
             });
 

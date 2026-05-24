@@ -15,9 +15,11 @@ use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use App\Http\Resources\Api\GRNResource;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
-use App\Http\Requests\Api\StoreGRNRequest;
-use App\Http\Requests\Api\UpdateGRNRequest;
+use App\Http\Requests\Api\GRNRequest;
 use App\Models\CashTransaction;
+use App\Models\SaleItem;
+use App\Models\SalesReturnItem;
+use App\Models\StockAdjustment;
 use Illuminate\Support\Facades\Auth;
 
 class GRNController extends Controller
@@ -48,14 +50,14 @@ class GRNController extends Controller
             $query->whereBetween('received_date', [$fromDate, $toDate]);
         }
 
-        $grns = $query->orderBy('received_date', 'desc')->simplePaginate($perPage);
+        $grns = $query->distinct()->orderBy('received_date', 'desc')->simplePaginate($perPage);
         return GRNResource::collection($grns);
     }
 
     /**
      * Store a new GRN and update inventory.
      */
-    public function store(StoreGRNRequest $request): JsonResponse
+    public function store(GRNRequest $request): JsonResponse
     {
         $data = $request->validated();
 
@@ -74,7 +76,7 @@ class GRNController extends Controller
                         'supplier_id' => $data['supplier_id'],
                         'order_date' => $data['received_date'],
                         'status' => 'Received',
-                        'payment_status' => $data['payment_status'] ?? 'Due',
+                        'payment_status' => $data['payment_status'] ?? GRN::STATUS_DUE,
                         'total_amount' => $data['total_amount'],
                         'paid_amount' => $data['paid_amount'] ?? 0,
                         'notes' => 'Auto-generated from GRN',
@@ -99,10 +101,16 @@ class GRNController extends Controller
                     $data['purchase_order_id'] = $po->id;
                 }
 
-                // 2. Generate Invoice Number safely
+                // 2. Generate Invoice Number safely with Lock
                 $invoiceNumber = $data['invoice_number'];
                 if (empty($invoiceNumber)) {
-                    $lastGRN = DB::table('grns')->lockForUpdate()->latest('id')->first();
+                    // Optimized lock-scan for invoice generation
+                    $lastGRN = DB::table('grns')
+                        ->where('invoice_number', 'LIKE', 'GRN-%')
+                        ->lockForUpdate()
+                        ->latest('id')
+                        ->first(['invoice_number']);
+
                     $number = 1;
                     if ($lastGRN && $lastGRN->invoice_number) {
                         preg_match('/(\d+)/', $lastGRN->invoice_number, $matches);
@@ -122,7 +130,7 @@ class GRNController extends Controller
                     'received_by' => $data['received_by'] ?? null,
                     'total_amount' => $data['total_amount'],
                     'paid_amount' => $data['paid_amount'] ?? 0,
-                    'payment_status' => $data['payment_status'] ?? 'Due',
+                    'payment_status' => $data['payment_status'] ?? GRN::STATUS_DUE,
                     'notes' => $data['notes'] ?? null,
                 ]);
 
@@ -189,8 +197,8 @@ class GRNController extends Controller
 
                 $grn->load('supplier');
 
-                // Record Cash Transaction only if full payment is made (Status: Paid)
-                if (($data['payment_status'] ?? '') === 'Paid') {
+                // Record Cash Transaction for any payment made (Regardless of full/partial)
+                if ($grn->paid_amount > 0) {
                     CashTransaction::record(
                         'grn_payment',
                         $grn->paid_amount,
@@ -227,7 +235,7 @@ class GRNController extends Controller
     /**
      * Update an existing GRN. Implements safety checks against active sales.
      */
-    public function update(UpdateGRNRequest $request, GRN $grn): JsonResponse
+    public function update(GRNRequest $request, GRN $grn): JsonResponse
     {
         $data = $request->validated();
 
@@ -236,8 +244,8 @@ class GRNController extends Controller
                 $oldPaymentStatus = $grn->payment_status;
                 $oldPaidAmount = $grn->paid_amount;
 
-                // Safety Check: Edit-Lock
-                $this->checkHasSales($grn);
+                // Safety Check: Edit-Lock (Check for any movements)
+                $this->checkHasMovements($grn);
 
                 $this->reverseGrnStock($grn);
                 $grn->items()->delete();
@@ -250,7 +258,7 @@ class GRNController extends Controller
                     'received_by' => $data['received_by'] ?? $grn->received_by,
                     'total_amount' => $data['total_amount'],
                     'paid_amount' => $data['paid_amount'] ?? 0,
-                    'payment_status' => $data['payment_status'] ?? 'Due',
+                    'payment_status' => $data['payment_status'] ?? GRN::STATUS_DUE,
                     'notes' => $data['notes'] ?? null,
                 ]);
 
@@ -315,8 +323,8 @@ class GRNController extends Controller
                 $grn->load('supplier');
 
                 // Re-calculate Cash Transaction on update
-                // If it was Paid, reverse the original amount back to the drawer first
-                if ($oldPaymentStatus === 'Paid') {
+                // Reverse the original payment if any
+                if ($oldPaidAmount > 0) {
                     CashTransaction::record(
                         'In',
                         $oldPaidAmount,
@@ -324,8 +332,8 @@ class GRNController extends Controller
                     );
                 }
 
-                // Apply the new Paid status
-                if ($grn->payment_status === 'Paid') {
+                // Apply the new payment if any
+                if ($grn->paid_amount > 0) {
                      CashTransaction::record(
                         'grn_payment',
                         $grn->paid_amount,
@@ -359,10 +367,10 @@ class GRNController extends Controller
         try {
             DB::transaction(function () use ($grn) {
                 // Safety Check: Edit-Lock
-                $this->checkHasSales($grn);
+                $this->checkHasMovements($grn);
 
                 // If it was paid, reverse the cash transaction
-                if ($grn->payment_status === 'Paid') {
+                if ($grn->paid_amount > 0) {
                     CashTransaction::record(
                         'In',
                         $grn->paid_amount,
@@ -384,15 +392,18 @@ class GRNController extends Controller
     }
 
     /**
-     * Internal helper to verify if any batch in the GRN has existing sales.
+     * Internal helper to verify if any batch in the GRN has existing movements.
      */
-    private function checkHasSales(GRN $grn): void
+    private function checkHasMovements(GRN $grn): void
     {
         $batchIds = StockBatch::where('grn_id', $grn->id)->pluck('id');
-        $hasSales = DB::table('sale_items')->whereIn('stock_batch_id', $batchIds)->exists();
+        
+        $hasSales = SaleItem::whereIn('stock_batch_id', $batchIds)->exists();
+        $hasReturns = SalesReturnItem::whereIn('stock_batch_id', $batchIds)->exists();
+        $hasAdjustments = StockAdjustment::whereIn('stock_batch_id', $batchIds)->exists();
 
-        if ($hasSales) {
-            throw new \Exception('Action Denied — one or more batches in this GRN already have active sales records.');
+        if ($hasSales || $hasReturns || $hasAdjustments) {
+            throw new \Exception('Action Denied — one or more batches in this GRN already have active sales, returns, or adjustments.');
         }
     }
 

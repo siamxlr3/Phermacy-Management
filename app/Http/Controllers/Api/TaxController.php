@@ -4,8 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Tax;
-use App\Http\Requests\Api\StoreTaxRequest;
-use App\Http\Requests\Api\UpdateTaxRequest;
+use App\Http\Requests\Api\TaxRequest;
 use App\Http\Resources\Api\TaxResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -50,7 +49,7 @@ class TaxController extends Controller
         return TaxResource::collection($taxes);
     }
 
-    public function store(StoreTaxRequest $request): TaxResource
+    public function store(TaxRequest $request): TaxResource
     {
         $tax = Tax::create($request->validated());
         return new TaxResource($tax);
@@ -61,7 +60,7 @@ class TaxController extends Controller
         return new TaxResource($tax);
     }
 
-    public function update(UpdateTaxRequest $request, Tax $tax): TaxResource
+    public function update(TaxRequest $request, Tax $tax): TaxResource
     {
         $tax->update($request->validated());
         return new TaxResource($tax);

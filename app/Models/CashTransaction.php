@@ -24,6 +24,26 @@ class CashTransaction extends Model
 {
     use HasFactory;
 
+    // Transaction Types
+    public const TYPE_IN           = 'In';
+    public const TYPE_OUT          = 'Out';
+    public const TYPE_SALE_REFUND  = 'sale_refund';
+    public const TYPE_EXPENSE      = 'expense';
+    public const TYPE_GRN_PAYMENT  = 'grn_payment';
+
+    // Grouping Types
+    public const TYPES_OUTFLOW = [
+        self::TYPE_OUT,
+        self::TYPE_SALE_REFUND,
+        self::TYPE_EXPENSE,
+        self::TYPE_GRN_PAYMENT
+    ];
+
+    // Party Types
+    public const PARTY_CUSTOMER = 'customer';
+    public const PARTY_SUPPLIER = 'supplier';
+    public const PARTY_OTHER    = 'other';
+
     protected $fillable = [
         'user_id',
         'description',
@@ -51,12 +71,12 @@ class CashTransaction extends Model
 
     public function scopeInflow($query)
     {
-        return $query->where('transaction_type', 'In');
+        return $query->where('transaction_type', self::TYPE_IN);
     }
 
     public function scopeOutflow($query)
     {
-        return $query->whereIn('transaction_type', ['Out', 'sale_refund', 'expense', 'grn_payment']);
+        return $query->whereIn('transaction_type', self::TYPES_OUTFLOW);
     }
 
     protected static function boot()
@@ -104,7 +124,7 @@ class CashTransaction extends Model
             $last = self::lockForUpdate()->latest('id')->first();
             $currentBalance = $last ? (float) $last->balance_after : 0.0;
 
-            $isOut = in_array($transactionType, ['Out', 'sale_refund', 'expense', 'grn_payment']);
+            $isOut = in_array($transactionType, self::TYPES_OUTFLOW);
             $newBalance = $isOut
                 ? $currentBalance - $amount
                 : $currentBalance + $amount;

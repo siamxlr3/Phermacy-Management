@@ -17,6 +17,7 @@ return new class extends Migration
 
         Schema::create('cash_transactions', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('description')->nullable();
             $table->decimal('amount', 15, 2);
             $table->enum('transaction_type', ['In', 'Out', 'sale_refund', 'expense', 'grn_payment'])->default('In');
@@ -28,6 +29,12 @@ return new class extends Migration
             $table->string('party_name')->nullable();
             $table->enum('party_type', ['customer', 'supplier', 'other'])->default('other');
             $table->timestamps();
+
+            // Indexes for performance
+            $table->index('transaction_type');
+            $table->index('payment_method');
+            $table->index('created_at');
+            $table->index(['reference_type', 'reference_id']);
         });
     }
 

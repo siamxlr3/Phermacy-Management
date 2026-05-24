@@ -7,7 +7,7 @@ use App\Models\StockAdjustment;
 use App\Models\Medicine;
 use App\Models\StockBatch;
 use Illuminate\Http\Request;
-use App\Http\Requests\StockAdjustmentRequest;
+use App\Http\Requests\Api\StockAdjustmentRequest;
 use App\Http\Resources\Api\StockAdjustmentResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;

@@ -23,6 +23,9 @@ return new class extends Migration
             $table->enum('status', ['Paid', 'Unpaid'])->default('Unpaid')->index();
             $table->softDeletes();
             $table->timestamps();
+
+            // Optimization for summary queries
+            $table->index(['status', 'expense_date']);
         });
     }
 

@@ -12,7 +12,7 @@ class CashTransactionResource extends JsonResource
         return [
             'id' => (int) $this->id,
             'user_id' => (int) $this->user_id,
-            'user_name' => (string) ($this->user->name ?? 'System'),
+            'user_name' => $this->whenLoaded('user', fn() => $this->user->name, 'System'),
             'transaction_type' => (string) $this->transaction_type,
             'amount' => (float) $this->amount,
             'balance_after' => (float) $this->balance_after,

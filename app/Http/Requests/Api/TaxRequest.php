@@ -5,7 +5,7 @@ namespace App\Http\Requests\Api;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class UpdateTaxRequest extends FormRequest
+class TaxRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -22,22 +22,22 @@ class UpdateTaxRequest extends FormRequest
      */
     public function rules(): array
     {
-        $taxId = $this->route('tax') instanceof \App\Models\Tax 
-            ? $this->route('tax')->id 
-            : $this->route('tax');
+        $isUpdate = $this->isMethod('PUT') || $this->isMethod('PATCH');
+        $taxId = $isUpdate 
+            ? ($this->route('tax') instanceof \App\Models\Tax ? $this->route('tax')->id : $this->route('tax')) 
+            : null;
 
         return [
             'name' => [
-                'sometimes', 
-                'required', 
-                'string', 
-                'max:255', 
+                $isUpdate ? 'sometimes' : 'required',
+                'string',
+                'max:255',
                 Rule::unique('taxes', 'name')
                     ->ignore($taxId)
                     ->whereNull('deleted_at')
             ],
-            'rate' => 'sometimes|required|numeric|min:0|max:100',
-            'status' => 'sometimes|required|in:Active,Inactive',
+            'rate' => ($isUpdate ? 'sometimes|' : '') . 'required|numeric|min:0|max:100',
+            'status' => ($isUpdate ? 'sometimes|' : '') . 'required|in:Active,Inactive',
         ];
     }
 }

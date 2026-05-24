@@ -23,6 +23,10 @@ class GRN extends Model
 {
     use HasFactory, SoftDeletes;
 
+    const STATUS_PAID = 'Paid';
+    const STATUS_DUE = 'Due';
+    const STATUS_PARTIAL = 'Partially Paid';
+
     protected $table = 'grns';
 
     protected $fillable = [

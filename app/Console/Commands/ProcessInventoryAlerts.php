@@ -45,20 +45,24 @@ class ProcessInventoryAlerts extends Command
     private function bulkStockCheck(): int
     {
         $count = 0;
-        $medicines = Medicine::whereRaw('stock <= reorder_level')->get();
-
-        foreach ($medicines as $medicine) {
-            $severity = $medicine->stock <= 0 ? 'Critical' : 'Warning';
-            Alert::updateOrCreate(
-                ['medicine_id' => $medicine->id, 'type' => 'Low Stock', 'status' => 'Active'],
-                [
-                    'severity' => $severity,
-                    'message' => "Stock level for {$medicine->name} is low ({$medicine->stock} remaining).",
-                    'created_at' => now()
-                ]
-            );
-            $count++;
-        }
+        Medicine::whereRaw('stock <= reorder_level')->chunk(100, function ($medicines) use (&$count) {
+            foreach ($medicines as $medicine) {
+                $severity = $medicine->stock <= 0 ? Alert::SEVERITY_CRITICAL : Alert::SEVERITY_WARNING;
+                Alert::updateOrCreate(
+                    [
+                        'medicine_id' => $medicine->id, 
+                        'type' => Alert::TYPE_LOW_STOCK, 
+                        'status' => Alert::STATUS_ACTIVE
+                    ],
+                    [
+                        'severity' => $severity,
+                        'message' => "Stock level for {$medicine->medicine_name} is low ({$medicine->stock} remaining).",
+                        'created_at' => now()
+                    ]
+                );
+                $count++;
+            }
+        });
         return $count;
     }
 
@@ -66,30 +70,34 @@ class ProcessInventoryAlerts extends Command
     {
         $count = 0;
         $today = Carbon::today();
-        $batches = StockBatch::where('expiry_date', '<=', $today->copy()->addDays(90))
+        StockBatch::where('expiry_date', '<=', $today->copy()->addDays(90))
             ->where('qty_tablets_remaining', '>', 0)
             ->with('medicine')
-            ->get();
+            ->chunk(100, function ($batches) use ($today, &$count) {
+                foreach ($batches as $batch) {
+                    $expiryDate = Carbon::parse($batch->expiry_date);
+                    $daysRemaining = $today->diffInDays($expiryDate, false);
+                    
+                    $severity = Alert::SEVERITY_INFO;
+                    if ($daysRemaining <= 30) $severity = Alert::SEVERITY_CRITICAL;
+                    elseif ($daysRemaining <= 60) $severity = Alert::SEVERITY_WARNING;
 
-        foreach ($batches as $batch) {
-            $expiryDate = Carbon::parse($batch->expiry_date);
-            $daysRemaining = $today->diffInDays($expiryDate, false);
-            
-            $severity = 'Info';
-            if ($daysRemaining <= 0) $severity = 'Critical';
-            elseif ($daysRemaining <= 30) $severity = 'Critical';
-            elseif ($daysRemaining <= 60) $severity = 'Warning';
-
-            Alert::updateOrCreate(
-                ['medicine_id' => $batch->medicine_id, 'stock_batch_id' => $batch->id, 'type' => 'Expiry', 'status' => 'Active'],
-                [
-                    'severity' => $severity,
-                    'message' => "Batch {$batch->batch_number} of {$batch->medicine->name} expires in {$daysRemaining} days.",
-                    'created_at' => now()
-                ]
-            );
-            $count++;
-        }
+                    Alert::updateOrCreate(
+                        [
+                            'medicine_id' => $batch->medicine_id, 
+                            'stock_batch_id' => $batch->id, 
+                            'type' => Alert::TYPE_EXPIRY, 
+                            'status' => Alert::STATUS_ACTIVE
+                        ],
+                        [
+                            'severity' => $severity,
+                            'message' => "Batch {$batch->batch_number} of {$batch->medicine->medicine_name} expires in {$daysRemaining} days.",
+                            'created_at' => now()
+                        ]
+                    );
+                    $count++;
+                }
+            });
         return $count;
     }
 }

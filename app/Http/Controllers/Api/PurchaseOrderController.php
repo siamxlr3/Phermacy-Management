@@ -7,7 +7,7 @@ use App\Models\PurchaseOrder;
 use App\Models\Medicine;
 use App\Models\PurchaseOrderItem;
 use Illuminate\Http\Request;
-use App\Http\Requests\Api\StorePurchaseOrderRequest;
+use App\Http\Requests\Api\PurchaseOrderRequest;
 use App\Http\Resources\Api\PurchaseOrderResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -27,7 +27,10 @@ class PurchaseOrderController extends Controller
         $toDate = $request->get('to_date');
         $hasNoGrn = $request->get('has_no_grn') === 'true';
 
-        $query = PurchaseOrder::with(['supplier:id,name', 'items.medicine:id,medicine_name']);
+        $query = PurchaseOrder::with([
+            'supplier:id,name', 
+            'items.medicine:id,medicine_name,dosage_form'
+        ]);
 
         if ($search) {
             // Optimized join to utilize supplier index
@@ -61,41 +64,22 @@ class PurchaseOrderController extends Controller
     /**
      * Store a new Purchase Order and its items.
      */
-    public function store(StorePurchaseOrderRequest $request): JsonResponse
+    public function store(PurchaseOrderRequest $request): JsonResponse
     {
         $data = $request->validated();
 
         try {
             $po = DB::transaction(function () use ($data) {
-                // Calculate total in-memory for speed
-                $totalAmount = collect($data['items'])->sum(fn($item) => (float) ($item['qty_boxes'] * $item['cost_per_box']));
-
                 $po = PurchaseOrder::create([
-                    'supplier_id' => $data['supplier_id'],
-                    'order_date' => $data['order_date'],
-                    'notes' => $data['notes'] ?? null,
-                    'total_amount' => $totalAmount,
-                    'status' => 'Pending',
-                    'payment_status' => 'Due',
+                    'supplier_id'    => $data['supplier_id'],
+                    'order_date'     => $data['order_date'],
+                    'notes'          => $data['notes'] ?? null,
+                    'total_amount'   => 0, // Will be synced
+                    'status'         => PurchaseOrder::STATUS_PENDING,
+                    'payment_status' => PurchaseOrder::PAYMENT_STATUS_DUE,
                 ]);
 
-                $itemsData = [];
-                foreach ($data['items'] as $item) {
-                    $itemsData[] = [
-                        'purchase_order_id' => $po->id,
-                        'medicine_id' => $item['medicine_id'],
-                        'dosage_form_snapshot' => $item['dosage_form_snapshot'],
-                        'qty_boxes' => $item['qty_boxes'],
-                        'cost_per_box' => $item['cost_per_box'],
-                        'cost_per_stripe' => $item['cost_per_stripe'] ?? null,
-                        'cost_per_unit' => $item['cost_per_unit'],
-                        'subtotal' => (float) ($item['qty_boxes'] * $item['cost_per_box']),
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
-                }
-
-                PurchaseOrderItem::insert($itemsData);
+                $po->syncItems($data['items']);
                 return $po;
             });
 
@@ -117,10 +101,10 @@ class PurchaseOrderController extends Controller
     /**
      * Update an existing Purchase Order. Implements transition guards.
      */
-    public function update(UpdatePurchaseOrderRequest $request, PurchaseOrder $po): JsonResponse
+    public function update(PurchaseOrderRequest $request, PurchaseOrder $po): JsonResponse
     {
         // Guard: Prevent modification of Received orders
-        if ($po->status === 'Received') {
+        if ($po->status === PurchaseOrder::STATUS_RECEIVED) {
             return response()->json(['success' => false, 'message' => 'Cannot modify a received purchase order.'], 403);
         }
 
@@ -128,34 +112,16 @@ class PurchaseOrderController extends Controller
             $data = $request->validated();
 
             $po = DB::transaction(function () use ($po, $data) {
-                $totalAmount = collect($data['items'])->sum(fn($item) => (float) ($item['qty_boxes'] * $item['cost_per_box']));
+                // Row-level lock for concurrency safety
+                $po = PurchaseOrder::where('id', $po->id)->lockForUpdate()->first();
 
                 $po->update([
                     'supplier_id' => $data['supplier_id'],
-                    'order_date' => $data['order_date'],
-                    'notes' => $data['notes'] ?? null,
-                    'total_amount' => $totalAmount,
+                    'order_date'  => $data['order_date'],
+                    'notes'       => $data['notes'] ?? null,
                 ]);
 
-                // Delete existing and bulk-reinsert for consistency
-                $po->items()->delete();
-
-                $itemsData = [];
-                foreach ($data['items'] as $item) {
-                    $itemsData[] = [
-                        'purchase_order_id' => $po->id,
-                        'medicine_id' => $item['medicine_id'],
-                        'dosage_form_snapshot' => $item['dosage_form_snapshot'],
-                        'qty_boxes' => $item['qty_boxes'],
-                        'cost_per_box' => $item['cost_per_box'],
-                        'cost_per_stripe' => $item['cost_per_stripe'] ?? null,
-                        'cost_per_unit' => $item['cost_per_unit'],
-                        'subtotal' => (float) ($item['qty_boxes'] * $item['cost_per_box']),
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ];
-                }
-                PurchaseOrderItem::insert($itemsData);
+                $po->syncItems($data['items']);
 
                 return $po;
             });
@@ -172,8 +138,14 @@ class PurchaseOrderController extends Controller
 
     public function updateStatus(Request $request, PurchaseOrder $po): JsonResponse
     {
+        $statuses = implode(',', [
+            PurchaseOrder::STATUS_PENDING, 
+            PurchaseOrder::STATUS_RECEIVED, 
+            PurchaseOrder::STATUS_CANCELLED
+        ]);
+
         $data = $request->validate([
-            'status' => 'required|string|in:Pending,Received,Cancelled',
+            'status' => "required|string|in:{$statuses}",
         ]);
 
         $po->update(['status' => $data['status']]);
@@ -188,7 +160,7 @@ class PurchaseOrderController extends Controller
     public function destroy(PurchaseOrder $po): JsonResponse
     {
         // Guard: Prevent deletion of Received orders
-        if ($po->status === 'Received') {
+        if ($po->status === PurchaseOrder::STATUS_RECEIVED) {
             return response()->json(['success' => false, 'message' => 'Cannot delete a received purchase order.'], 403);
         }
 

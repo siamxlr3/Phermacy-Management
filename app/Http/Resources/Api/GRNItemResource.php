@@ -12,8 +12,8 @@ class GRNItemResource extends JsonResource
         return [
             'id' => $this->id,
             'medicine_id' => $this->medicine_id,
-            'medicine_name' => $this->medicine?->medicine_name,
-            'medicine_dosage_form' => $this->medicine?->dosage_form,
+            'medicine_name' => $this->whenLoaded('medicine', fn() => $this->medicine->medicine_name),
+            'medicine_dosage_form' => $this->whenLoaded('medicine', fn() => $this->medicine->dosage_form),
             'dosage_form_snapshot' => $this->dosage_form_snapshot,
             'batch_number' => $this->batch_number,
             'expiry_date' => $this->expiry_date->format('Y-m-d'),

@@ -4,24 +4,34 @@ namespace App\Http\Requests\Api;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class UpdateGRNRequest extends FormRequest
+class GRNRequest extends FormRequest
 {
+    /**
+     * Determine if the user is authorized to make this request.
+     */
     public function authorize(): bool
     {
         return true;
     }
 
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
+        $isUpdate = $this->isMethod('PUT') || $this->isMethod('PATCH');
+
         return [
             'purchase_order_id' => 'nullable|exists:purchase_orders,id',
-            'supplier_id' => 'nullable|exists:suppliers,id',
+            'supplier_id' => ($isUpdate ? 'nullable|' : 'required|') . 'exists:suppliers,id',
             'received_date' => 'required|date',
             'invoice_number' => 'nullable|string|max:255',
             'received_by' => 'nullable|string|max:255',
             'total_amount' => 'required|numeric|min:0',
             'paid_amount' => 'required|numeric|min:0',
-            'payment_status' => 'required|in:Paid,Due,Partially Paid',
+            'payment_status' => 'required|in:' . implode(',', [\App\Models\GRN::STATUS_PAID, \App\Models\GRN::STATUS_DUE, \App\Models\GRN::STATUS_PARTIAL]),
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.medicine_id' => 'required|exists:medicines,id',

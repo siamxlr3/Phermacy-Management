@@ -12,46 +12,47 @@ use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use App\Http\Requests\Api\AlertFilterRequest;
 
 class AlertController extends Controller
 {
     /**
      * List active alerts with optimized joins and background-ready scanning.
-     * Note: Scanning is now handled by 'alerts:scan-daily' console command.
      */
-    public function index(Request $request): AnonymousResourceCollection
+    public function index(AlertFilterRequest $request): AnonymousResourceCollection
     {
-        $perPage = min($request->integer('per_page', 10), 100);
-        $type = $request->get('type');
-        $severity = $request->get('severity');
-        $fromDate = $request->get('from_date');
-        $toDate = $request->get('to_date');
-        $search = $request->get('search');
-
+        $validated = $request->validated();
+        $perPage = $validated['per_page'] ?? 10;
+        
         $query = Alert::with(['medicine:id,medicine_name', 'stockBatch:id,batch_number'])
             ->where('status', Alert::STATUS_ACTIVE);
 
-        if ($type) $query->where('type', $type);
-        if ($severity) $query->where('severity', $severity);
+        if ($request->filled('type')) {
+            $query->where('type', $validated['type']);
+        }
         
-        if ($fromDate && $toDate) {
-            $query->whereBetween('alerts.created_at', [
-                Carbon::parse($fromDate)->startOfDay(), 
-                Carbon::parse($toDate)->endOfDay()
+        if ($request->filled('severity')) {
+            $query->where('severity', $validated['severity']);
+        }
+        
+        if ($request->filled('from_date') && $request->filled('to_date')) {
+            $query->whereBetween('created_at', [
+                Carbon::parse($validated['from_date'])->startOfDay(), 
+                Carbon::parse($validated['to_date'])->endOfDay()
             ]);
         }
         
-        if ($search) {
-            // Optimized join for high-performance text searching
-            $query->join('medicines', 'alerts.medicine_id', '=', 'medicines.id')
-                  ->where(function($q) use ($search) {
-                      $q->where('medicines.medicine_name', 'like', "{$search}%")
-                        ->orWhere('alerts.message', 'like', "%{$search}%");
-                  })
-                  ->select('alerts.*');
+        if ($request->filled('search')) {
+            $search = $validated['search'];
+            $query->where(function($q) use ($search) {
+                $q->where('message', 'like', "%{$search}%")
+                  ->orWhereHas('medicine', function($mq) use ($search) {
+                      $mq->where('medicine_name', 'like', "{$search}%");
+                  });
+            });
         }
 
-        $alerts = $query->latest('alerts.created_at')->simplePaginate($perPage);
+        $alerts = $query->latest('created_at')->simplePaginate($perPage);
         return AlertResource::collection($alerts);
     }
 
@@ -63,8 +64,13 @@ class AlertController extends Controller
         $alert = Alert::findOrFail($id);
         $alert->update(['status' => Alert::STATUS_DISMISSED]);
         
+        // Surgical cache invalidation is preferred, but following project pattern:
         Cache::tags(['inventory', 'dashboard'])->flush();
-        return response()->json(['success' => true, 'message' => 'Alert dismissed']);
+        
+        return response()->json([
+            'success' => true, 
+            'message' => 'Alert dismissed'
+        ]);
     }
 
     /**
@@ -75,9 +81,9 @@ class AlertController extends Controller
         $summary = Alert::active()
             ->selectRaw("
                 COUNT(*) as total,
-                SUM(CASE WHEN type = 'Expiry' THEN 1 ELSE 0 END) as expiry_alerts,
-                SUM(CASE WHEN type = 'Low Stock' THEN 1 ELSE 0 END) as low_stock_alerts
-            ")->first();
+                SUM(CASE WHEN type = ? THEN 1 ELSE 0 END) as expiry_alerts,
+                SUM(CASE WHEN type = ? THEN 1 ELSE 0 END) as low_stock_alerts
+            ", [Alert::TYPE_EXPIRY, Alert::TYPE_LOW_STOCK])->first();
 
         return response()->json([
             'success' => true, 

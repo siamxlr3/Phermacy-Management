@@ -33,6 +33,18 @@ class Sale extends Model
 {
     use HasFactory, SoftDeletes;
 
+    // Status Constants
+    const STATUS_COMPLETED          = 'Completed';
+    const STATUS_PARTIALLY_RETURNED = 'Partially Returned';
+    const STATUS_RETURNED           = 'Returned';
+    const STATUS_CANCELLED          = 'Cancelled';
+
+    const SUCCESS_STATUSES = [
+        self::STATUS_COMPLETED,
+        self::STATUS_PARTIALLY_RETURNED,
+        self::STATUS_RETURNED
+    ];
+
     protected $fillable = [
         'user_id',
         'invoice_number',
@@ -81,6 +93,14 @@ class Sale extends Model
     }
 
     /**
+     * Scope for successful sales that contribute to revenue.
+     */
+    public function scopeSuccessful($query)
+    {
+        return $query->whereIn('status', self::SUCCESS_STATUSES);
+    }
+
+    /**
      * Recalculate and save the totals based on items
      */
     public function syncTotal(): void
@@ -113,5 +133,51 @@ class Sale extends Model
     public function getIsDueAttribute(): bool
     {
         return $this->due_amount > 0;
+    }
+
+    /**
+     * Get consolidated sales summary for the dashboard.
+     */
+    public static function getDashboardSummary($start, $end)
+    {
+        return self::whereBetween('sale_date', [$start, $end])
+            ->selectRaw("
+                COUNT(*) as total_transactions,
+                SUM(CASE WHEN status != 'Cancelled' THEN grand_total ELSE 0 END) as total_revenue,
+                SUM(COALESCE(refunded_subtotal, 0)) as total_returns,
+                SUM(grand_total) as total_sales,
+                SUM(tax_total) as total_tax,
+                SUM(discount_total) as total_discount,
+                SUM(due_amount) as total_due,
+                COUNT(CASE WHEN status IN ('Returned', 'Partially Returned') THEN 1 END) as returns_count,
+                (SELECT SUM(cost_price * qty_tablets) 
+                 FROM sale_items 
+                 JOIN sales ON sale_items.sale_id = sales.id 
+                 WHERE sales.sale_date BETWEEN ? AND ? 
+                 AND sales.status != 'Cancelled') as total_cogs
+            ", [$start, $end])
+            ->first();
+    }
+
+    /**
+     * Get top performing medicines.
+     */
+    public static function getTopPerformers($start, $end, $limit = 5)
+    {
+        return SaleItem::selectRaw('
+                medicines.medicine_name,
+                medicines.generic_name,
+                medicines.dosage_form,
+                SUM(sale_items.qty_tablets) as total_qty,
+                SUM(sale_items.subtotal) as total_revenue
+            ')
+            ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+            ->join('medicines', 'sale_items.medicine_id', '=', 'medicines.id')
+            ->where('sales.status', self::STATUS_COMPLETED)
+            ->whereBetween('sales.sale_date', [$start, $end])
+            ->groupBy('medicines.id', 'medicines.medicine_name', 'medicines.generic_name', 'medicines.dosage_form')
+            ->orderByDesc('total_qty')
+            ->limit($limit)
+            ->get();
     }
 }

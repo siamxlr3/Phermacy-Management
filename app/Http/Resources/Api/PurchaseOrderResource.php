@@ -18,7 +18,7 @@ class PurchaseOrderResource extends JsonResource
             'id' => (int) $this->id,
             'supplier_id' => (int) $this->supplier_id,
             'supplier' => new SupplierResource($this->whenLoaded('supplier')),
-            'order_date' => $this->order_date?->toISOString(),
+            'order_date' => $this->order_date?->format('Y-m-d'),
             'status' => (string) $this->status,
             'payment_status' => (string) $this->payment_status,
             'total_amount' => (float) $this->total_amount,

@@ -3,8 +3,11 @@
 namespace App\Http\Requests\Api;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Contracts\Validation\Validator;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Support\Facades\Log;
 
-class UpdatePurchaseOrderRequest extends FormRequest
+class PurchaseOrderRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -14,6 +17,9 @@ class UpdatePurchaseOrderRequest extends FormRequest
         return true;
     }
 
+    /**
+     * Get the validation rules that apply to the request.
+     */
     public function rules(): array
     {
         return [
@@ -28,5 +34,17 @@ class UpdatePurchaseOrderRequest extends FormRequest
             'items.*.cost_per_unit' => 'required|numeric|min:0',
             'items.*.cost_per_stripe' => 'nullable|numeric|min:0',
         ];
+    }
+
+    /**
+     * Handle a failed validation attempt.
+     */
+    protected function failedValidation(Validator $validator)
+    {
+        Log::error('Purchase Order Validation Failed', $validator->errors()->toArray());
+        throw new HttpResponseException(response()->json([
+            'message' => 'The given data was invalid.',
+            'errors' => $validator->errors(),
+        ], 422));
     }
 }

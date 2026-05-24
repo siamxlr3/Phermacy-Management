@@ -29,9 +29,9 @@ class CashRegisterController extends Controller
             $query->where('created_at', '<=', Carbon::parse($request->to)->endOfDay());
         }
 
-        // Default to showing only sale_refund, expense, and grn_payment if no type is specified or 'outflow' requested
+        // Default to showing only outflows if no type is specified or 'outflow' requested
         if (!$request->filled('transaction_type') || $request->transaction_type === 'outflow') {
-            $query->whereIn('transaction_type', ['sale_refund', 'expense', 'grn_payment', 'Out']);
+            $query->whereIn('transaction_type', CashTransaction::TYPES_OUTFLOW);
         } elseif ($request->transaction_type !== 'all') {
             $query->where('transaction_type', $request->transaction_type);
         }
@@ -52,27 +52,35 @@ class CashRegisterController extends Controller
      */
     public function status(): JsonResponse
     {
-        $today = Carbon::today()->toDateString();
+        $todayStart = Carbon::today()->toDateTimeString();
+        $todayEnd   = Carbon::today()->endOfDay()->toDateTimeString();
 
-        $summary = Cache::tags(['cash', 'dashboard'])->remember('cash_register_status', 3600, function() use ($today) {
-            return CashTransaction::selectRaw("
-                SUM(CASE WHEN transaction_type IN ('In') THEN amount ELSE 0 END) as total_in,
-                SUM(CASE WHEN transaction_type IN ('Out','sale_refund','expense','grn_payment') THEN amount ELSE 0 END) as total_out,
-                SUM(CASE WHEN transaction_type IN ('In') AND DATE(created_at) = ? THEN amount ELSE 0 END) as today_in,
-                SUM(CASE WHEN transaction_type IN ('Out','sale_refund','expense','grn_payment') AND DATE(created_at) = ? THEN amount ELSE 0 END) as today_out
-            ", [$today, $today])->first();
+        $summary = Cache::tags(['cash', 'dashboard'])->remember('cash_register_status', 3600, function() use ($todayStart, $todayEnd) {
+            $stats = CashTransaction::selectRaw("
+                SUM(CASE WHEN transaction_type = ? THEN amount ELSE 0 END) as total_in,
+                SUM(CASE WHEN transaction_type IN (?,?,?,?) THEN amount ELSE 0 END) as total_out,
+                SUM(CASE WHEN transaction_type = ? AND created_at >= ? AND created_at <= ? THEN amount ELSE 0 END) as today_in,
+                SUM(CASE WHEN transaction_type IN (?,?,?,?) AND created_at >= ? AND created_at <= ? THEN amount ELSE 0 END) as today_out
+            ", [
+                CashTransaction::TYPE_IN,
+                ...CashTransaction::TYPES_OUTFLOW,
+                CashTransaction::TYPE_IN, $todayStart, $todayEnd,
+                ...CashTransaction::TYPES_OUTFLOW, $todayStart, $todayEnd
+            ])->first();
+
+            return [
+                'current_balance' => (float) CashTransaction::getCurrentBalance(),
+                'total_in'        => (float) ($stats->total_in ?? 0),
+                'total_out'       => (float) ($stats->total_out ?? 0),
+                'today_in'        => (float) ($stats->today_in ?? 0),
+                'today_out'       => (float) ($stats->today_out ?? 0),
+            ];
         });
 
         return response()->json([
             'success' => true,
             'is_open' => true,
-            'summary' => [
-                'current_balance' => (float) CashTransaction::getCurrentBalance(),
-                'total_in'        => (float) ($summary->total_in ?? 0),
-                'total_out'       => (float) ($summary->total_out ?? 0),
-                'today_in'        => (float) ($summary->today_in ?? 0),
-                'today_out'       => (float) ($summary->today_out ?? 0),
-            ]
+            'summary' => $summary
         ]);
     }
 
@@ -81,8 +89,16 @@ class CashRegisterController extends Controller
      */
     public function store(Request $request): JsonResponse
     {
+        $types = implode(',', [
+            CashTransaction::TYPE_IN,
+            CashTransaction::TYPE_OUT,
+            CashTransaction::TYPE_SALE_REFUND,
+            CashTransaction::TYPE_EXPENSE,
+            CashTransaction::TYPE_GRN_PAYMENT
+        ]);
+
         $data = $request->validate([
-            'transaction_type' => 'required|in:In,Out,sale_refund,expense',
+            'transaction_type' => "required|in:{$types}",
             'amount'           => 'required|numeric|min:0.01',
             'description'      => 'required|string|max:255',
             'payment_method'   => 'nullable|in:cash,card,online,due',

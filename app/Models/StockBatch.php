@@ -35,8 +35,30 @@ class StockBatch extends Model
             }
         });
 
-        static::saved(fn () => Cache::tags(['stock'])->flush());
-        static::deleted(fn () => Cache::tags(['stock'])->flush());
+        static::saving(function ($batch) {
+            $batch->calculateValuation();
+        });
+
+        static::saved(fn () => Cache::tags(['stock', 'reports'])->flush());
+        static::deleted(fn () => Cache::tags(['stock', 'reports'])->flush());
+    }
+
+    /**
+     * Calculate and store the total valuation of this batch at cost.
+     */
+    public function calculateValuation(): void
+    {
+        $medicine = $this->medicine;
+        if (!$medicine) return;
+
+        $qty = $this->qty_tablets_remaining;
+        
+        if (in_array($medicine->dosage_form, ["Tablet", "Capsule", "Suppository", "Patch"])) {
+            $tabletsPerBox = ($medicine->tablets_per_strip ?? 1) * ($medicine->strips_per_box ?? 1);
+            $this->total_cost_value = ($qty / ($tabletsPerBox ?: 1)) * ($this->cost_per_box ?? 0);
+        } else {
+            $this->total_cost_value = $qty * ($this->cost_per_unit ?? 0);
+        }
     }
 
     protected $fillable = [
@@ -56,6 +78,7 @@ class StockBatch extends Model
         'cost_per_stripe',
         'cost_per_box',
         'received_date',
+        'total_cost_value', // Denormalized value
     ];
 
     protected $casts = [
@@ -64,6 +87,7 @@ class StockBatch extends Model
         'cost_per_unit' => 'decimal:4',
         'cost_per_stripe' => 'decimal:4',
         'cost_per_box' => 'decimal:4',
+        'total_cost_value' => 'decimal:2',
     ];
 
     public function medicine()

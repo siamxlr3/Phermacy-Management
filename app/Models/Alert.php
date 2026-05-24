@@ -23,6 +23,13 @@ class Alert extends Model
     public const STATUS_ACTIVE = 'Active';
     public const STATUS_DISMISSED = 'Dismissed';
 
+    public const TYPE_LOW_STOCK = 'Low Stock';
+    public const TYPE_EXPIRY = 'Expiry';
+
+    public const SEVERITY_INFO = 'Info';
+    public const SEVERITY_WARNING = 'Warning';
+    public const SEVERITY_CRITICAL = 'Critical';
+
     protected $fillable = [
         'medicine_id',
         'stock_batch_id',
@@ -30,6 +37,11 @@ class Alert extends Model
         'severity',
         'message',
         'status',
+    ];
+
+    protected $casts = [
+        'medicine_id' => 'integer',
+        'stock_batch_id' => 'integer',
     ];
 
     public function medicine()

@@ -14,11 +14,21 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $payment_status
  * @property float $total_amount
  * @property float $paid_amount
- * @property string|null $notes
+ * @property string $notes
  */
 class PurchaseOrder extends Model
 {
     use HasFactory, SoftDeletes;
+
+    // Status Constants
+    const STATUS_PENDING   = 'Pending';
+    const STATUS_RECEIVED  = 'Received';
+    const STATUS_CANCELLED = 'Cancelled';
+
+    // Payment Status Constants
+    const PAYMENT_STATUS_DUE     = 'Due';
+    const PAYMENT_STATUS_PAID    = 'Paid';
+    const PAYMENT_STATUS_PARTIAL = 'Partial';
 
     protected $fillable = [
         'supplier_id',
@@ -56,8 +66,42 @@ class PurchaseOrder extends Model
      */
     public function syncTotal(): void
     {
-        $this->total_amount = (float) $this->items()->sum('subtotal');
+        $this->total_amount = $this->items()->sum('subtotal');
         $this->save();
+    }
+
+    /**
+     * Atomically sync items and update total.
+     * Prevents event bypass issues by centralizing logic.
+     */
+    public function syncItems(array $items): void
+    {
+        $this->items()->delete();
+
+        $itemsData = [];
+        $totalAmount = 0;
+
+        foreach ($items as $item) {
+            $subtotal = (float) ($item['qty_boxes'] * $item['cost_per_box']);
+            $totalAmount += $subtotal;
+
+            $itemsData[] = [
+                'purchase_order_id' => $this->id,
+                'medicine_id'       => $item['medicine_id'],
+                'dosage_form_snapshot' => $item['dosage_form_snapshot'],
+                'qty_boxes'         => $item['qty_boxes'],
+                'cost_per_box'      => $item['cost_per_box'],
+                'cost_per_stripe'   => $item['cost_per_stripe'] ?? null,
+                'cost_per_unit'     => $item['cost_per_unit'],
+                'subtotal'          => $subtotal,
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ];
+        }
+
+        PurchaseOrderItem::insert($itemsData);
+        
+        $this->update(['total_amount' => $totalAmount]);
     }
 
     /**
@@ -65,6 +109,6 @@ class PurchaseOrder extends Model
      */
     public function scopePending($query)
     {
-        return $query->where('status', 'Pending');
+        return $query->where('status', self::STATUS_PENDING);
     }
 }

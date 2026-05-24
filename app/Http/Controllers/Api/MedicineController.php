@@ -9,8 +9,7 @@ use App\Http\Resources\Api\MedicineResource;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
-use App\Http\Requests\Api\StoreMedicineRequest;
-use App\Http\Requests\Api\UpdateMedicineRequest;
+use App\Http\Requests\Api\MedicineRequest;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\MedicineImport;
 
@@ -45,23 +44,18 @@ class MedicineController extends Controller
         }
 
         if ($search) {
-            // Find categories of medicines that match the search term to include "category peers"
-            $matchedCategories = Medicine::where('medicine_name', 'like', "{$search}%")
-                ->orWhere('generic_name', 'like', "{$search}%")
-                ->pluck('category')
-                ->unique()
-                ->filter()
-                ->toArray();
-
-            $query->where(function($q) use ($search, $matchedCategories) {
+            $query->where(function($q) use ($search) {
                 $q->where('medicine_name', 'like', "{$search}%")
                   ->orWhere('generic_name', 'like', "{$search}%")
                   ->orWhere('category', 'like', "{$search}%")
-                  ->orWhere('manufacturer', 'like', "{$search}%");
-                
-                if (!empty($matchedCategories)) {
-                    $q->orWhereIn('category', $matchedCategories);
-                }
+                  ->orWhere('manufacturer', 'like', "{$search}%")
+                  // Use subquery for category-based matches to avoid double scan in PHP
+                  ->orWhereIn('category', function($sub) use ($search) {
+                      $sub->select('category')
+                          ->from('medicines')
+                          ->where('medicine_name', 'like', "{$search}%")
+                          ->orWhere('generic_name', 'like', "{$search}%");
+                  });
             });
 
             // Priority: Direct matches first, then others in the same category
@@ -77,7 +71,7 @@ class MedicineController extends Controller
         return MedicineResource::collection($medicines);
     }
 
-    public function store(StoreMedicineRequest $request): MedicineResource
+    public function store(MedicineRequest $request): MedicineResource
     {
         $medicine = Medicine::create($request->validated());
         return new MedicineResource($medicine);
@@ -88,7 +82,7 @@ class MedicineController extends Controller
         return new MedicineResource($medicine);
     }
 
-    public function update(UpdateMedicineRequest $request, Medicine $medicine): MedicineResource
+    public function update(MedicineRequest $request, Medicine $medicine): MedicineResource
     {
         $medicine->update($request->validated());
         return new MedicineResource($medicine);
@@ -96,6 +90,12 @@ class MedicineController extends Controller
 
     public function destroy(Medicine $medicine): JsonResponse
     {
+        if ($medicine->hasDependencies()) {
+            return response()->json([
+                'message' => 'Cannot delete medicine with existing stock, sales, or adjustments.'
+            ], 422);
+        }
+
         $medicine->delete();
         return response()->json(null, 204);
     }

@@ -4,7 +4,7 @@ namespace App\Http\Requests\Api;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class StoreAddressRequest extends FormRequest
+class AlertFilterRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -22,12 +22,12 @@ class StoreAddressRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => 'required|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'email' => 'nullable|email|max:255',
-            'address' => 'nullable|string',
-            'google_maps_embed' => 'nullable|string',
-            'status' => 'required|in:Active,Inactive',
+            'per_page' => 'nullable|integer|min:1|max:100',
+            'type' => 'nullable|string|in:Low Stock,Expiry',
+            'severity' => 'nullable|string|in:Info,Warning,Critical',
+            'from_date' => 'nullable|date',
+            'to_date' => 'nullable|date|after_or_equal:from_date',
+            'search' => 'nullable|string|max:255',
         ];
     }
 }

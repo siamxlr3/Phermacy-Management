@@ -17,9 +17,13 @@ class AlertResource extends JsonResource
         return [
             'id' => (int) $this->id,
             'medicine_id' => (int) $this->medicine_id,
-            'medicine_name' => (string) ($this->medicine->medicine_name ?? 'N/A'),
+            'medicine_name' => $this->whenLoaded('medicine', function() {
+                return (string) ($this->medicine->medicine_name ?? 'N/A');
+            }, 'N/A'),
             'stock_batch_id' => (int) $this->stock_batch_id,
-            'batch_number' => (string) ($this->stockBatch->batch_number ?? 'N/A'),
+            'batch_number' => $this->whenLoaded('stockBatch', function() {
+                return (string) ($this->stockBatch->batch_number ?? 'N/A');
+            }, 'N/A'),
             'type' => (string) $this->type,
             'severity' => (string) $this->severity,
             'message' => (string) $this->message,

@@ -33,15 +33,26 @@ class SaleItem extends Model
         'unit_price',
         'tax_amount',
         'subtotal',
+        'cost_price', // Added for COGS
     ];
 
     protected $casts = [
         'unit_price' => 'decimal:2',
         'tax_amount' => 'decimal:2',
         'subtotal' => 'decimal:2',
+        'cost_price' => 'decimal:4',
         'qty_tablets' => 'integer',
         'sale_qty' => 'decimal:2',
     ];
+
+    protected static function booted()
+    {
+        static::creating(function ($item) {
+            if ($item->stock_batch_id) {
+                $item->cost_price = $item->batch->cost_per_unit;
+            }
+        });
+    }
 
     public function sale()
     {
@@ -61,5 +72,20 @@ class SaleItem extends Model
     public function returnItems()
     {
         return $this->hasMany(SalesReturnItem::class);
+    }
+
+    /**
+     * Get top categories by revenue.
+     */
+    public static function getTopCategories($start, $end)
+    {
+        return self::join('sales', 'sale_items.sale_id', '=', 'sales.id')
+            ->join('medicines', 'sale_items.medicine_id', '=', 'medicines.id')
+            ->whereIn('sales.status', [Sale::STATUS_COMPLETED, Sale::STATUS_PARTIALLY_RETURNED])
+            ->whereBetween('sales.sale_date', [$start, $end])
+            ->selectRaw('medicines.category as category_name, SUM(sale_items.subtotal) as total_revenue, COUNT(sale_items.id) as total_items')
+            ->groupBy('medicines.category')
+            ->orderByDesc('total_revenue')
+            ->get();
     }
 }

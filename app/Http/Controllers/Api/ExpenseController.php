@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Expense;
 use App\Models\ExpenseItem;
 use Illuminate\Http\Request;
+use App\Http\Requests\Api\ExpenseRequest;
 use App\Http\Resources\Api\ExpenseResource;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -31,8 +32,9 @@ class ExpenseController extends Controller
 
         if ($search) {
             $query->where(function($q) use ($search) {
-                $q->where('transaction_id', 'like', "%{$search}%")
-                  ->orWhere('supplier_name', 'like', "%{$search}%");
+                // Optimized: trailing wildcard only for better index usage
+                $q->where('transaction_id', 'like', "{$search}%")
+                  ->orWhere('supplier_name', 'like', "{$search}%");
             });
         }
 
@@ -51,43 +53,35 @@ class ExpenseController extends Controller
 
     public function summary(): JsonResponse
     {
-        // FIX 1: Convert 4 separate queries into a single SQL aggregation query
-        // This is significantly faster on large datasets.
-        $summary = Expense::selectRaw("
-            SUM(grand_total) as total_expenses,
-            SUM(CASE WHEN status = 'Paid' THEN grand_total ELSE 0 END) as total_paid,
-            SUM(CASE WHEN status = 'Unpaid' THEN grand_total ELSE 0 END) as total_unpaid,
-            SUM(CASE WHEN DATE(expense_date) = ? THEN grand_total ELSE 0 END) as today_expenses
-        ", [now()->toDateString()])->first();
+        $today = now()->toDateString();
 
-        return response()->json([
-            'success' => true,
-            'data' => [
+        $data = Cache::tags(['expenses', 'reports'])->remember('expense_summary_' . $today, 3600, function() use ($today) {
+            // FIX 1: Convert 4 separate queries into a single aggregation query
+            // Optimized: Direct date comparison instead of DATE() function for index usage
+            $summary = Expense::selectRaw("
+                SUM(grand_total) as total_expenses,
+                SUM(CASE WHEN status = 'Paid' THEN grand_total ELSE 0 END) as total_paid,
+                SUM(CASE WHEN status = 'Unpaid' THEN grand_total ELSE 0 END) as total_unpaid,
+                SUM(CASE WHEN expense_date = ? THEN grand_total ELSE 0 END) as today_expenses
+            ", [$today])->first();
+
+            return [
                 'total_expenses' => (float) ($summary->total_expenses ?? 0),
                 'total_paid' => (float) ($summary->total_paid ?? 0),
                 'total_unpaid' => (float) ($summary->total_unpaid ?? 0),
                 'today_expenses' => (float) ($summary->today_expenses ?? 0),
-            ]
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $data
         ]);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(ExpenseRequest $request): JsonResponse
     {
-        $data = $request->validate([
-            'supplier_name' => 'required|string|max:255',
-            'contact_person' => 'nullable|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'address' => 'nullable|string',
-            'expense_date' => 'required|date',
-            'status' => 'required|string|in:Paid,Unpaid',
-            'grand_total' => 'required|numeric|min:0',
-            'items' => 'required|array|min:1',
-            'items.*.items_name' => 'required|string|max:255',
-            'items.*.category' => 'required|string|in:Piece,Packet,Box',
-            'items.*.qty' => 'required|integer|min:1',
-            'items.*.price' => 'required|numeric|min:0',
-            'items.*.total_price' => 'required|numeric|min:0',
-        ]);
+        $data = $request->validated();
 
         try {
             $expense = DB::transaction(function () use ($data) {
@@ -98,6 +92,21 @@ class ExpenseController extends Controller
                     : 1;
                 $transactionId = 'EXP-' . str_pad($number, 6, '0', STR_PAD_LEFT);
 
+                // FIX 7: Server-side calculation to prevent price manipulation
+                $items = collect($data['items'])->map(function ($item) {
+                    $qty = (int) $item['qty'];
+                    $price = (float) $item['price'];
+                    return [
+                        'items_name' => $item['items_name'],
+                        'category' => $item['category'],
+                        'qty' => $qty,
+                        'price' => $price,
+                        'total_price' => $qty * $price,
+                    ];
+                });
+
+                $grandTotal = $items->sum('total_price');
+
                 $expense = Expense::create([
                     'transaction_id' => $transactionId,
                     'supplier_name' => $data['supplier_name'],
@@ -106,11 +115,11 @@ class ExpenseController extends Controller
                     'address' => $data['address'] ?? null,
                     'expense_date' => $data['expense_date'],
                     'status' => $data['status'],
-                    'grand_total' => $data['grand_total'],
+                    'grand_total' => $grandTotal,
                 ]);
 
                 // FIX 3: Bulk Insertion for items (replaces N+1 loop)
-                $expense->items()->createMany($data['items']);
+                $expense->items()->createMany($items->toArray());
 
                 // FIX 4: Only clear expense and report caches, not the whole system
                 Cache::tags(['expenses', 'reports'])->flush();
@@ -150,24 +159,10 @@ class ExpenseController extends Controller
         return new ExpenseResource($expense);
     }
 
-    public function update(Request $request, int $id): JsonResponse
+    public function update(ExpenseRequest $request, int $id): JsonResponse
     {
         $expense = Expense::findOrFail($id);
-        $data = $request->validate([
-            'supplier_name' => 'required|string|max:255',
-            'contact_person' => 'nullable|string|max:255',
-            'phone' => 'nullable|string|max:20',
-            'address' => 'nullable|string',
-            'expense_date' => 'required|date',
-            'status' => 'required|string|in:Paid,Unpaid',
-            'grand_total' => 'required|numeric|min:0',
-            'items' => 'required|array|min:1',
-            'items.*.items_name' => 'required|string|max:255',
-            'items.*.category' => 'required|string|in:Piece,Packet,Box',
-            'items.*.qty' => 'required|integer|min:1',
-            'items.*.price' => 'required|numeric|min:0',
-            'items.*.total_price' => 'required|numeric|min:0',
-        ]);
+        $data = $request->validated();
 
         try {
             $expense = DB::transaction(function () use ($expense, $data) {
@@ -190,6 +185,21 @@ class ExpenseController extends Controller
                     );
                 }
 
+                // FIX 7: Server-side calculation
+                $items = collect($data['items'])->map(function ($item) {
+                    $qty = (int) $item['qty'];
+                    $price = (float) $item['price'];
+                    return [
+                        'items_name' => $item['items_name'],
+                        'category' => $item['category'],
+                        'qty' => $qty,
+                        'price' => $price,
+                        'total_price' => $qty * $price,
+                    ];
+                });
+
+                $grandTotal = $items->sum('total_price');
+
                 $expense->update([
                     'supplier_name' => $data['supplier_name'],
                     'contact_person' => $data['contact_person'] ?? null,
@@ -197,11 +207,12 @@ class ExpenseController extends Controller
                     'address' => $data['address'] ?? null,
                     'expense_date' => $data['expense_date'],
                     'status' => $data['status'],
-                    'grand_total' => $data['grand_total'],
+                    'grand_total' => $grandTotal,
                 ]);
 
-                $expense->items()->delete();
-                $expense->items()->createMany($data['items']);
+                // FIX 8: Force delete old items to prevent SoftDelete bloat
+                $expense->items()->forceDelete();
+                $expense->items()->createMany($items->toArray());
 
                 Cache::tags(['expenses', 'reports'])->flush();
 

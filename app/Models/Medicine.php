@@ -50,6 +50,7 @@ class Medicine extends Model
         'cost_price',
         'reorder_level',
         'stock',
+        'last_sold_at',
         'is_active',
     ];
 
@@ -63,6 +64,7 @@ class Medicine extends Model
         'cost_price' => 'decimal:4',
         'reorder_level' => 'integer',
         'stock' => 'integer',
+        'last_sold_at' => 'datetime',
         'is_active' => 'boolean',
     ];
 
@@ -81,6 +83,18 @@ class Medicine extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Scope for slow moving items (not sold in X days).
+     */
+    public function scopeSlowMoving($query, $days = 90)
+    {
+        return $query->where('stock', '>', 0)
+            ->where(function($q) use ($days) {
+                $q->whereNull('last_sold_at')
+                  ->orWhere('last_sold_at', '<', now()->subDays($days));
+            });
     }
 
     // Removed category() and manufacturer() relationships as they are now plain strings
@@ -106,13 +120,19 @@ class Medicine extends Model
     public function convertToTablets(float $quantity, string $unit): int
     {
         if ($unit === 'Box') {
-            $tabletsPerBox = (int) (($this->tablets_per_strip ?? 1) * ($this->strips_per_box ?? 1));
-            return (int) round($quantity * ($tabletsPerBox > 0 ? $tabletsPerBox : 1));
-        } 
-        
+            $tabletsPerBox = (int) (($this->tablets_per_strip ?? 0) * ($this->strips_per_box ?? 0));
+            if ($tabletsPerBox <= 0) {
+                return (int) round($quantity); // Fallback to 1:1 if factors are missing
+            }
+            return (int) round($quantity * $tabletsPerBox);
+        }
+
         if ($unit === 'Strip') {
-            $tabletsPerStrip = (int) ($this->tablets_per_strip ?? 1);
-            return (int) round($quantity * ($tabletsPerStrip > 0 ? $tabletsPerStrip : 1));
+            $tabletsPerStrip = (int) ($this->tablets_per_strip ?? 0);
+            if ($tabletsPerStrip <= 0) {
+                return (int) round($quantity);
+            }
+            return (int) round($quantity * $tabletsPerStrip);
         }
 
         return (int) round($quantity);
@@ -124,15 +144,37 @@ class Medicine extends Model
     public function convertFromTablets(int $tablets, string $unit): float
     {
         if ($unit === 'Box') {
-            $tabletsPerBox = (int) (($this->tablets_per_strip ?? 1) * ($this->strips_per_box ?? 1));
-            return $tablets / ($tabletsPerBox > 0 ? $tabletsPerBox : 1);
+            $tabletsPerBox = (int) (($this->tablets_per_strip ?? 0) * ($this->strips_per_box ?? 0));
+            return $tabletsPerBox > 0 ? $tablets / $tabletsPerBox : (float) $tablets;
         }
 
         if ($unit === 'Strip') {
-            $tabletsPerStrip = (int) ($this->tablets_per_strip ?? 1);
-            return $tablets / ($tabletsPerStrip > 0 ? $tabletsPerStrip : 1);
+            $tabletsPerStrip = (int) ($this->tablets_per_strip ?? 0);
+            return $tabletsPerStrip > 0 ? $tablets / $tabletsPerStrip : (float) $tablets;
         }
 
         return (float) $tablets;
+    }
+
+    /**
+     * Check if the medicine has any associated stock or sales.
+     */
+    public function hasDependencies(): bool
+    {
+        return $this->stockBatches()->exists() || 
+               $this->saleItems()->exists() || 
+               $this->stockAdjustments()->exists();
+    }
+
+    /**
+     * Get low stock medicines.
+     */
+    public static function getLowStockAlerts()
+    {
+        return self::active()
+            ->whereColumn('stock', '<=', 'reorder_level')
+            ->select('id', 'medicine_name', 'stock as qty', 'reorder_level')
+            ->orderBy('stock', 'asc')
+            ->get();
     }
 }

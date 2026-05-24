@@ -38,7 +38,7 @@ class MedicineResource extends JsonResource
             'mrp' => (float) $this->mrp,
             
             // Sensitive data: only visible to admins/authorized users
-            'cost_price' => (float) $this->cost_price,
+            'cost_price' => $this->when($request->user()?->isAdmin(), (float) $this->cost_price),
             
             'reorder_level' => (int) $this->reorder_level,
             'stock' => (int) ($this->stock ?? 0),

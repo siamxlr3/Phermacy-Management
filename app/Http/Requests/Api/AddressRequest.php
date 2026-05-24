@@ -4,7 +4,7 @@ namespace App\Http\Requests\Api;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class UpdateAddressRequest extends FormRequest
+class AddressRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -21,13 +21,15 @@ class UpdateAddressRequest extends FormRequest
      */
     public function rules(): array
     {
+        $isUpdate = $this->isMethod('PUT') || $this->isMethod('PATCH');
+
         return [
-            'name' => 'nullable|string|max:255',
+            'name' => ($isUpdate ? 'nullable|' : 'required|') . 'string|max:255',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'address' => 'nullable|string',
             'google_maps_embed' => 'nullable|string',
-            'status' => 'sometimes|required|in:Active,Inactive',
+            'status' => ($isUpdate ? 'sometimes|' : '') . 'required|in:Active,Inactive',
         ];
     }
 }

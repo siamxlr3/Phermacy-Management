@@ -5,8 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Address;
-use App\Http\Requests\Api\StoreAddressRequest;
-use App\Http\Requests\Api\UpdateAddressRequest;
+use App\Http\Requests\Api\AddressRequest;
 use App\Http\Resources\Api\AddressResource;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\JsonResponse;
@@ -51,7 +50,7 @@ class AddressController extends Controller
     /**
      * Store a new address.
      */
-    public function store(StoreAddressRequest $request): AddressResource
+    public function store(AddressRequest $request): AddressResource
     {
         $address = Address::create($request->validated());
         return new AddressResource($address);
@@ -68,7 +67,7 @@ class AddressController extends Controller
     /**
      * Update an address.
      */
-    public function update(UpdateAddressRequest $request, Address $address): AddressResource
+    public function update(AddressRequest $request, Address $address): AddressResource
     {
         $address->update($request->validated());
         return new AddressResource($address);
