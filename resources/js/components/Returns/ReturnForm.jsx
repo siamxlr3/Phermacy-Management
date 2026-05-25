@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '../../language/GlobalTranslate.jsx';
 import { useLookupSaleQuery, useProcessReturnMutation } from '../../store/api/returnsApi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Loader2, AlertCircle, ShoppingBag, ArrowLeftRight, CreditCard, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Search, Loader2, AlertCircle, ShoppingBag, ArrowLeftRight, CreditCard, CheckCircle2, RotateCcw, MessageSquare } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
@@ -14,6 +14,7 @@ const ReturnForm = ({ onComplete }) => {
     const [returnItems, setReturnItems] = useState([]);
     const [reason, setReason] = useState('');
     const [refundMethod, setRefundMethod] = useState('cash');
+    const [errors, setErrors] = useState({});
 
     const { data: saleData, isLoading: isSearching, isError } = useLookupSaleQuery(debouncedInvoice, {
         skip: !debouncedInvoice
@@ -296,79 +297,94 @@ const ReturnForm = ({ onComplete }) => {
 
                 {/* Right Side: Return Summary & Submission */}
                 <div className="flex-1 flex flex-col gap-6 h-fit sticky top-0">
-                    <div className="bg-slate-900 rounded-[32px] p-8 text-white shadow-2xl shadow-slate-900/40 border border-slate-800 flex flex-col gap-8">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 bg-rose-500/20 border border-rose-500/30 rounded-2xl flex items-center justify-center text-rose-400">
-                                <RotateCcw size={22} />
-                            </div>
-                            <h3 className="text-xl font-black tracking-tight uppercase tracking-widest text-[14px]">{t?.summary_title || 'Refund Summary'}</h3>
-                        </div>
-
-                        {/* Refund Totals */}
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-center px-1">
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t?.base_return || 'Base Return'}</span>
-                                <span className="text-base font-black text-slate-200">৳{totals.subtotal.toFixed(2)}</span>
-                            </div>
-                            <div className="h-px bg-slate-800 my-2" />
-                            <div className="bg-slate-800/50 p-6 rounded-2xl border border-white/5">
-                                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[2px] mb-2">{t?.total_refund || 'Total Amount to Refund'}</p>
-                                <div className="text-4xl font-black text-white tracking-tighter italic">
-                                    ৳{totals.total.toFixed(2)}
+                    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                                    <RotateCcw size={15} className="text-blue-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-tight">
+                                        {t?.summary_title || 'Refund Summary'}
+                                    </h3>
+                                    <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
+                                        {t?.summary_subtitle || 'Review returned items and totals'}
+                                    </p>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Additional Info */}
-                        <div className="space-y-6 pt-2">
-                            <div className="flex flex-col gap-2">
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t?.refund_method || 'Refund Method'}</label>
-                                <div className="relative">
-                                    <select
-                                        value={refundMethod}
-                                        onChange={(e) => setRefundMethod(e.target.value)}
-                                        className="w-full bg-slate-800/40 border border-slate-700 rounded-2xl p-4 text-sm font-bold text-slate-200 outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-400 appearance-none"
-                                    >
-                                        <option value="cash">{t?.methods?.cash || 'Cash'}</option>
-                                        <option value="card">{t?.methods?.card || 'Card'}</option>
-                                        <option value="online">{t?.methods?.online || 'Online'}</option>
-                                        <option value="store_credit">{t?.methods?.store_credit || 'Store Credit'}</option>
-                                    </select>
-                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
-                                        <CreditCard size={16} />
+                        <div className="p-6 space-y-5">
+                            {/* Refund Totals */}
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center px-1">
+                                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">{t?.base_return || 'Base Return'}</span>
+                                    <span className="text-sm font-bold text-slate-700">৳{totals.subtotal.toFixed(2)}</span>
+                                </div>
+                                <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">{t?.total_refund || 'Total Amount to Refund'}</p>
+                                    <div className="text-3xl font-black text-slate-900 tracking-tight">
+                                        ৳{totals.total.toFixed(2)}
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="flex flex-col gap-2">
-                                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">{t?.reason_label || 'Return Reason'}</label>
-                                <textarea
-                                    value={reason}
-                                    onChange={(e) => setReason(e.target.value)}
-                                    placeholder={t?.reason_placeholder || "Enter reason for return..."}
-                                    className="w-full bg-slate-800/40 border border-slate-700 rounded-2xl p-4 text-sm font-bold text-slate-200 outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-400 transition-all min-h-[100px]"
-                                />
-                            </div>
+                            {/* Additional Info */}
+                            <div className="space-y-4 pt-2">
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t?.refund_method || 'Refund Method'}</label>
+                                    <div className="relative">
+                                        <CreditCard size={14} className="absolute left-3.5 top-3.5 text-slate-400" />
+                                        <select
+                                            value={refundMethod}
+                                            onChange={(e) => setRefundMethod(e.target.value)}
+                                            className="w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 appearance-none text-slate-700 font-semibold"
+                                        >
+                                            <option value="cash">{t?.methods?.cash || 'Cash'}</option>
+                                            <option value="card">{t?.methods?.card || 'Card'}</option>
+                                            <option value="online">{t?.methods?.online || 'Online'}</option>
+                                            <option value="store_credit">{t?.methods?.store_credit || 'Store Credit'}</option>
+                                        </select>
+                                    </div>
+                                </div>
 
-                            <button
-                                onClick={handleSubmit}
-                                disabled={isProcessing || totals.total === 0}
-                                className="w-full group relative overflow-hidden bg-rose-600 hover:bg-rose-500 disabled:bg-slate-800 py-5 px-6 rounded-2xl transition-all shadow-xl shadow-rose-900/20 flex items-center justify-center gap-3 active:scale-[0.98]"
-                            >
-                                <AnimatePresence mode="wait">
-                                    {isProcessing ? (
-                                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3">
-                                            <Loader2 className="animate-spin" size={20} />
-                                            <span className="font-black text-sm uppercase tracking-widest">{t?.processing || 'Processing Refund...'}</span>
-                                        </motion.div>
-                                    ) : (
-                                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3">
-                                            <CheckCircle2 size={20} />
-                                            <span className="font-black text-sm uppercase tracking-widest">{t?.submit || 'Submit Reversal'}</span>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </button>
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider ml-1">{t?.reason_label || 'Return Reason'}</label>
+                                    <div className="relative">
+                                        <MessageSquare size={14} className="absolute left-3.5 top-3.5 text-slate-400" />
+                                        <textarea
+                                            value={reason}
+                                            onChange={(e) => setReason(e.target.value)}
+                                            placeholder={t?.reason_placeholder || "Enter reason for return..."}
+                                            rows={3}
+                                            className="w-full pl-10 pr-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 placeholder:text-slate-300 resize-none font-semibold text-slate-700"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="border-t border-slate-100 pt-4">
+                                    <button
+                                        onClick={handleSubmit}
+                                        disabled={isProcessing || totals.total === 0}
+                                        className="w-full relative overflow-hidden bg-blue-600 hover:bg-blue-700 disabled:bg-slate-100 disabled:text-slate-400 py-3 px-6 rounded-xl transition-all shadow-sm shadow-blue-200/80 flex items-center justify-center gap-3 active:scale-[0.98] text-white"
+                                    >
+                                        <AnimatePresence mode="wait">
+                                            {isProcessing ? (
+                                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3">
+                                                    <Loader2 className="animate-spin" size={18} />
+                                                    <span className="font-bold text-xs uppercase tracking-wider">{t?.processing || 'Processing Refund...'}</span>
+                                                </motion.div>
+                                            ) : (
+                                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3">
+                                                    <CheckCircle2 size={18} />
+                                                    <span className="font-bold text-xs uppercase tracking-wider">{t?.submit || 'Submit Reversal'}</span>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
