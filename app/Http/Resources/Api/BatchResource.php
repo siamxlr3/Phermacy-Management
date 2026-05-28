@@ -30,8 +30,9 @@ class BatchResource extends JsonResource
             'cost_per_stripe' => $this->cost_per_stripe,
             'cost_per_box' => $this->cost_per_box,
             'received_date' => $this->received_date->format('Y-m-d'),
-            'tablets_per_strip' => $this->medicine?->tablets_per_strip ?? 10,
-            'strips_per_box' => $this->medicine?->strips_per_box ?? 10,
+            'tablets_per_strip' => (int) $this->medicine?->tablets_per_strip,
+            'strips_per_box' => (int) $this->medicine?->strips_per_box,
+            'sale_unit_label' => (string) $this->medicine?->sale_unit_label,
         ];
     }
 }

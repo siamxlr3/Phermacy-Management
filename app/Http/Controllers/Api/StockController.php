@@ -27,7 +27,7 @@ class StockController extends Controller
 
         $medicines = Cache::tags(['stock'])->remember($cacheKey, 3600, function () use ($perPage, $search) {
             $query = Medicine::query()
-                ->select(['id', 'medicine_name', 'generic_name', 'dosage_form', 'strength', 'category', 'manufacturer', 'is_active', 'reorder_level', 'tablets_per_strip', 'strips_per_box'])
+                ->select(['id', 'medicine_name', 'generic_name', 'dosage_form', 'strength', 'category', 'manufacturer', 'is_active', 'reorder_level', 'tablets_per_strip', 'strips_per_box', 'sale_unit_label'])
                 ->withSum('stockBatches as total_stock', 'qty_tablets_remaining');
 
             if ($search) {
@@ -54,7 +54,7 @@ class StockController extends Controller
         $query = StockBatch::query()
             ->select('stock_batches.*')
             ->with([
-                'medicine:id,medicine_name,dosage_form,strength,tablets_per_strip,strips_per_box', 
+                'medicine:id,medicine_name,dosage_form,strength,tablets_per_strip,strips_per_box,sale_unit_label', 
                 'supplier:id,name', 
                 'grn:id,invoice_number'
             ])
@@ -74,7 +74,7 @@ class StockController extends Controller
             $query->whereBetween('stock_batches.expiry_date', [$fromExpiry, $toExpiry]);
         }
 
-        $batches = $query->orderBy('stock_batches.expiry_date', 'asc')->simplePaginate($perPage);
+        $batches = $query->orderBy('stock_batches.expiry_date', 'asc')->paginate($perPage);
         return BatchResource::collection($batches);
     }
 

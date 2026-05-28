@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Calendar, ChevronLeft, ChevronRight, Trash2, Info, Package, AlertTriangle, RefreshCw, Hash, FileText } from 'lucide-react';
+import { Search, Calendar, ChevronLeft, ChevronRight, Trash2, Info, Package, AlertTriangle, Hash, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../../language/GlobalTranslate';
@@ -170,8 +170,8 @@ const StockAdjustmentTable = ({
                                         <td className="px-8 py-6">
                                             <div className="flex flex-col gap-1.5">
                                                 <span className="text-sm font-black text-slate-700">{format(new Date(item.created_at), 'MMM dd, yyyy')}</span>
-                                                <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border w-fit ${typeStyles[item.adjustment_type] || 'bg-slate-50 text-slate-500'}`}>
-                                                    {t.types[item.adjustment_type] || item.adjustment_type.replace('_', ' ')}
+                                                <span className={`px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-widest border w-fit ${typeStyles[item.adjustment?.type] || 'bg-slate-50 text-slate-500'}`}>
+                                                    {t.types[item.adjustment?.type] || item.adjustment?.type?.replace('_', ' ') || '—'}
                                                 </span>
                                             </div>
                                         </td>
@@ -193,24 +193,22 @@ const StockAdjustmentTable = ({
                                         </td>
                                         <td className="px-8 py-6 text-center">
                                             <div className="flex flex-col items-center">
-                                                <div className={`text-sm font-black ${item.adjustment_type === 'opening_balance' ? 'text-emerald-600' : 'text-rose-600'}`}>
-                                                    {item.adjustment_type === 'opening_balance' ? '+' : '-'}{item.qty_in_units} {item.adjustment_unit}
+                                                <div className={`text-sm font-black ${item.adjustment?.type === 'opening_balance' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                    {item.adjustment?.type === 'opening_balance' ? '+' : '-'}{item.adjustment?.qty_in_units} {item.adjustment?.unit}
                                                 </div>
-                                                <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
-                                                    <RefreshCw size={8} /> {item.qty_change_tablets} Tablets
-                                                </span>
+
                                             </div>
                                         </td>
                                         <td className="px-8 py-6 text-center text-sm font-black">
                                             <div className="flex items-center justify-center gap-3">
                                                 <div className="flex flex-col items-center">
                                                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{t.table.before}</span>
-                                                    <span className="text-slate-600">{item.qty_before}</span>
+                                                    <span className="text-slate-600">{item.snapshot?.qty_before}</span>
                                                 </div>
                                                 <div className="w-px h-6 bg-slate-200"></div>
                                                 <div className="flex flex-col items-center">
                                                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{t.table.after}</span>
-                                                    <span className="text-indigo-600">{item.qty_after}</span>
+                                                    <span className="text-indigo-600">{item.snapshot?.qty_after}</span>
                                                 </div>
                                             </div>
                                         </td>

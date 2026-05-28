@@ -57,7 +57,7 @@ class PurchaseOrderController extends Controller
             $query->whereDoesntHave('grns');
         }
 
-        $orders = $query->orderBy('purchase_orders.order_date', 'desc')->simplePaginate($perPage);
+        $orders = $query->orderBy('purchase_orders.order_date', 'desc')->paginate($perPage);
         return PurchaseOrderResource::collection($orders);
     }
 
@@ -76,7 +76,8 @@ class PurchaseOrderController extends Controller
                     'notes'          => $data['notes'] ?? null,
                     'total_amount'   => 0, // Will be synced
                     'status'         => PurchaseOrder::STATUS_PENDING,
-                    'payment_status' => PurchaseOrder::PAYMENT_STATUS_DUE,
+                    'payment_status' => $data['payment_status'] ?? PurchaseOrder::PAYMENT_STATUS_DUE,
+                    'paid_amount'    => $data['paid_amount'] ?? 0,
                 ]);
 
                 $po->syncItems($data['items']);
@@ -119,6 +120,8 @@ class PurchaseOrderController extends Controller
                     'supplier_id' => $data['supplier_id'],
                     'order_date'  => $data['order_date'],
                     'notes'       => $data['notes'] ?? null,
+                    'paid_amount' => $data['paid_amount'] ?? $po->paid_amount,
+                    'payment_status' => $data['payment_status'] ?? $po->payment_status,
                 ]);
 
                 $po->syncItems($data['items']);
@@ -165,6 +168,12 @@ class PurchaseOrderController extends Controller
         }
 
         $po->delete();
+        $this->clearCache();
         return response()->json(null, 204);
+    }
+
+    private function clearCache(): void
+    {
+        \Illuminate\Support\Facades\Cache::tags(['inventory', 'reports', 'dashboard', 'sales'])->flush();
     }
 }

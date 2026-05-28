@@ -39,7 +39,7 @@ class DashboardController extends Controller
         // Unique cache key based on date range
         $cacheKey = "dashboard_metrics_" . md5($start->toDateTimeString() . $end->toDateTimeString());
 
-        $data = Cache::tags(['dashboard', 'sales', 'inventory'])->remember($cacheKey, 600, function() use ($start, $end, $now) {
+        $data = Cache::remember($cacheKey, 600, function() use ($start, $end, $now) {
             
             // 2. Metrics Calculation
             $salesSummary = $this->getSalesSummary($start, $end);
@@ -135,8 +135,9 @@ class DashboardController extends Controller
 
         $inventoryValue = $this->getInventoryValuation();
 
-        // Net Profit = (Revenue - Returns - COGS) - Expenses
-        $estimatedProfit = ($salesSummary['total_revenue'] - $salesSummary['total_returns'] - $cogs) - $expenses;
+        // Net Profit = Revenue - Expenses
+        $estimatedProfit = $salesSummary['total_revenue'] - $expenses;
+
 
         return [
             'purchase_cost'       => $purchaseCost,

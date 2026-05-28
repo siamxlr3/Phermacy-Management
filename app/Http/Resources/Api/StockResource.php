@@ -27,8 +27,9 @@ class StockResource extends JsonResource
             'total_stock' => (int) ($this->total_stock ?? 0),
             'reorder_level' => (int) ($this->reorder_level ?? 0),
             
-            'tablets_per_strip' => (int) ($this->tablets_per_strip ?? 10),
-            'strips_per_box' => (int) ($this->strips_per_box ?? 10),
+            'tablets_per_strip' => (int) $this->tablets_per_strip,
+            'strips_per_box' => (int) $this->strips_per_box,
+            'sale_unit_label' => (string) $this->sale_unit_label,
             'status' => (string) ($this->is_active ? 'Active' : 'Inactive'),
             
             'created_at' => $this->created_at?->toISOString(),

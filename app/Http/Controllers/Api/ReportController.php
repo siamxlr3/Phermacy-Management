@@ -40,7 +40,7 @@ class ReportController extends Controller
         // Unique cache key per date range + trend params
         $cacheKey = "dashboard_v2_" . md5($start . $end . $trendYear . $trendFromMonth . $trendToMonth);
 
-        $data = Cache::tags(['reports', 'dashboard'])->remember($cacheKey, 600, function() use ($start, $end, $fromDate, $toDate, $trendYear, $trendFromMonth, $trendToMonth) {
+        $data = Cache::remember($cacheKey, 600, function() use ($start, $end, $fromDate, $toDate, $trendYear, $trendFromMonth, $trendToMonth) {
             
             // 1. Consolidated Sales & Returns Summary (Optimized via Model)
             $salesSummary = Sale::getDashboardSummary($start, $end);
@@ -53,14 +53,28 @@ class ReportController extends Controller
             $globalSupplierDue = PurchaseOrder::selectRaw('SUM(total_amount - paid_amount) as total_due')
                 ->value('total_due') ?? 0;
 
-            // 4. Optimized Inventory Valuation (Using Denormalized Column)
-            $inventoryValuation = StockBatch::available()->sum('total_cost_value');
+            // 4. Live Inventory Valuation — same formula as InventoryReportController
+            // Uses live SQL CASE to match the Inventory Reports page exactly.
+            $inventoryValuation = StockBatch::available()
+                ->join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id')
+                ->selectRaw('
+                    SUM(
+                        CASE
+                            WHEN medicines.dosage_form IN ("Tablet", "Capsule", "Suppository", "Patch")
+                            THEN (stock_batches.qty_tablets_remaining / (NULLIF(medicines.tablets_per_strip, 0) * NULLIF(medicines.strips_per_box, 0))) * IFNULL(stock_batches.cost_per_box, 0)
+                            ELSE stock_batches.qty_tablets_remaining * IFNULL(NULLIF(stock_batches.cost_per_unit, 0), stock_batches.cost_per_box / (NULLIF(stock_batches.qty_tablets, 0) / NULLIF(stock_batches.qty_boxes, 1)))
+                        END
+                    ) as total_value
+                ')
+                ->value('total_value') ?? 0;
 
-            // 5. Corrected Profit Calculation (Revenue - COGS - Expenses)
+            // 5. Corrected Profit Calculation (Revenue - Expenses)
             $totalRevenue = (float) ($salesSummary->total_revenue ?? 0);
             $totalCogs = (float) ($salesSummary->total_cogs ?? 0);
             $totalExpenses = (float) \App\Models\Expense::whereBetween('expense_date', [$start, $end])->sum('grand_total');
-            $estimatedProfit = $totalRevenue - $totalCogs - $totalExpenses;
+            $estimatedProfit = $totalRevenue - $totalExpenses;
+            $grossProfit = $totalRevenue - $totalCogs; // Kept for reference but not used in final profit
+
 
             // 6. Critical Inventory Alerts (Using Model Scopes)
             $lowStock = Medicine::getLowStockAlerts();
@@ -89,6 +103,8 @@ class ReportController extends Controller
                     'total_purchase_cost'=> (float) ($purchaseCost ?? 0),
                     'total_supplier_due' => (float) ($globalSupplierDue ?? 0),
                     'total_expenses'     => $totalExpenses,
+                    'total_cogs'         => $totalCogs,
+                    'gross_profit'       => $grossProfit,
                     'estimated_profit'   => (float) $estimatedProfit,
                 ],
                 'alerts' => [
@@ -133,7 +149,8 @@ class ReportController extends Controller
      */
     public function refresh(): JsonResponse
     {
-        Cache::tags(['reports'])->flush();
+        // Clear all dashboard cache keys (file driver doesn't support tags)
+        Cache::flush();
 
         return response()->json([
             'success' => true,

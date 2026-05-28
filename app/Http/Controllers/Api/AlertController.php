@@ -52,7 +52,7 @@ class AlertController extends Controller
             });
         }
 
-        $alerts = $query->latest('created_at')->simplePaginate($perPage);
+        $alerts = $query->latest('created_at')->paginate($perPage);
         return AlertResource::collection($alerts);
     }
 

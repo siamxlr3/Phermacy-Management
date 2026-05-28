@@ -6,7 +6,7 @@ import DateRangeFilter from '../Shared/DateRangeFilter';
 import toast from 'react-hot-toast';
 import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
-const GROUP_A = ['Tablet', 'Capsule', 'Suppository', 'Patch'];
+const GROUP_A = ['Tablet', 'Capsule', 'Suppository', 'Sachet'];
 
 const PaymentStatusBadge = ({ status, translations }) => {
   const styles = {
@@ -32,7 +32,7 @@ const GRNTable = ({ onAdd, onEdit }) => {
   const [page, setPage] = useState(1);
   const [perPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
-  const [fromDate, setFromDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
+  const [fromDate, setFromDate] = useState(format(subDays(new Date(), 90), 'yyyy-MM-dd'));
   const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -202,7 +202,10 @@ const GRNTable = ({ onAdd, onEdit }) => {
                                 </>
                               ) : (
                                 <>
-                                  <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.cost_per_unit).toFixed(2)}<span className="text-slate-400 font-medium">/unit</span></span>
+                                  {item.cost_per_box && (
+                                    <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.cost_per_box).toFixed(2)}<span className="text-slate-400 font-medium">{translations.grn.per_box}</span></span>
+                                  )}
+                                  <span className="text-[8px] font-bold text-indigo-600">৳{parseFloat(item.cost_per_unit).toFixed(2)}<span className="text-slate-400 font-medium">/unit</span></span>
                                   {item.package_size && (
                                     <span className="text-[8px] font-bold text-blue-500">{item.package_size}</span>
                                   )}

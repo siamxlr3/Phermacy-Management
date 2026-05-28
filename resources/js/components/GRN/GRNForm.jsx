@@ -98,6 +98,17 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
     }
 
     const isManualEntry = ['Tablet', 'Capsule'].includes(med.dosage_form);
+    const isStripBased = GROUP_A.includes(med.dosage_form);
+    
+    const initialPricePerBox = parseFloat(med.price_per_box) || 0;
+    const stripsPerBox = parseInt(med.strips_per_box) || 1;
+    const tabsPerStrip = parseInt(med.tablets_per_strip) || 1;
+    const unitsPerBox = med.qty_units_received || 1; // Fallback to 1
+
+    let initialCostPerUnit = parseFloat(med.price_per_unit) || 0;
+    let initialCostPerStripe = parseFloat(med.price_per_stripe) || 0;
+
+    // Auto-calculation disabled as per user request
 
     setItems([
       ...items,
@@ -109,14 +120,14 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
         batch_number: '',
         expiry_date: '',
         qty_boxes_received: 1,
-        qty_units_received: med.qty_units_received || 1,
+        qty_units_received: unitsPerBox,
         package_size: med.package_size || '',
-        subtotal: isManualEntry ? 0 : (med.price_per_box || 0),
-        cost_per_box: isManualEntry ? 0 : (med.price_per_box || 0),
-        cost_per_stripe: isManualEntry ? 0 : (med.price_per_stripe || 0),
-        cost_per_unit: isManualEntry ? 0 : (med.price_per_unit || 0),
-        tablets_per_strip: med.tablets_per_strip || 10,
-        strips_per_box: med.strips_per_box || 10,
+        subtotal: isManualEntry ? 0 : initialPricePerBox,
+        cost_per_box: isManualEntry ? 0 : initialPricePerBox,
+        cost_per_stripe: isManualEntry ? 0 : initialCostPerStripe,
+        cost_per_unit: isManualEntry ? 0 : initialCostPerUnit,
+        tablets_per_strip: tabsPerStrip,
+        strips_per_box: stripsPerBox,
         mrp: med.price_per_unit || 0,
         stock: med.stock || 0
       }
@@ -134,10 +145,17 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
     const item = { ...newItems[index] };
     item[field] = value;
 
-    // Only calculate subtotal based on boxes received and box cost
-    if (field === 'cost_per_box' || field === 'qty_boxes_received') {
-      item.subtotal = (parseFloat(item.qty_boxes_received) || 0) * (parseFloat(item.cost_per_box) || 0);
-    }
+    const isStripBased = GROUP_A.includes(item.dosage_form_snapshot);
+    const costPerBox = parseFloat(item.cost_per_box) || 0;
+    const qtyBoxes = parseFloat(item.qty_boxes_received) || 0;
+    const qtyUnitsPerBox = parseFloat(item.qty_units_received) || 1;
+    const strips = parseInt(item.strips_per_box) || 1;
+    const tabs = parseInt(item.tablets_per_strip) || 1;
+
+    // 1. Calculate Subtotal
+    item.subtotal = qtyBoxes * costPerBox;
+
+    // 2. Auto-calculation of unit costs disabled as per user request
 
     newItems[index] = item;
     setItems(newItems);

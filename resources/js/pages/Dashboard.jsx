@@ -74,6 +74,9 @@ const Dashboard = () => {
     stock_value: summary.total_stock_value || 0,
     purchase_cost: summary.total_purchase_cost || 0,
     estimated_profit: summary.estimated_profit || 0,
+    gross_profit: summary.gross_profit || 0,
+    total_cogs: summary.total_cogs || 0,
+    total_expenses: summary.total_expenses || 0,
     low_stock_count: alerts.low_stock?.length || 0,
     expiring_soon_count: alerts.expiring?.length || 0,
     returns_count: summary.total_returns || 0,     // Monetary value of returns (separate card)
@@ -550,9 +553,9 @@ const Dashboard = () => {
 
         {/* Row 4: Financial Deep-Dive */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          {/* Estimated Profit */}
           {[
             { label: t?.monthly_summary?.estimated_profit || 'Estimated Profit', val: metrics.estimated_profit, trend: `${metrics.total_sales > 0 ? ((metrics.estimated_profit / metrics.total_sales) * 100).toFixed(1) : 0}%`, color: 'emerald' },
-            { label: t?.monthly_summary?.stock_valuation || 'Stock Valuation', val: metrics.stock_value, sub: t?.monthly_summary?.total_investment || 'TOTAL INVESTMENT', color: 'indigo' },
             { label: t?.monthly_summary?.customer_returns || 'Customer Returns', val: metrics.returns_count, sub: t?.monthly_summary?.processed_range || 'PROCESSED IN RANGE', color: 'amber', isNumber: false },
             { label: t?.monthly_summary?.supplier_dues || 'Supplier Dues', val: summary.total_supplier_due || 0, sub: t?.monthly_summary?.total_outstanding || 'TOTAL OUTSTANDING', color: 'rose' },
           ].map((item, i) => (
@@ -561,7 +564,6 @@ const Dashboard = () => {
                 <span className="bg-slate-50 text-[9px] font-black text-slate-400 px-3 py-1.5 rounded-xl uppercase tracking-widest border border-slate-100">{item.label}</span>
                 <div className={cn(
                   "w-2 h-2 rounded-full",
-                  item.color === 'indigo' ? 'bg-indigo-500' :
                   item.color === 'emerald' ? 'bg-emerald-500' :
                   item.color === 'amber' ? 'bg-amber-500' : 
                   item.color === 'rose' ? 'bg-rose-500' : 'bg-slate-500'
@@ -573,10 +575,7 @@ const Dashboard = () => {
               </h3>
               <div className="mt-6 flex items-center">
                 {item.trend ? (
-                  <span className={cn(
-                    "text-[10px] font-black px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-sm border transition-all", 
-                    item.color === 'emerald' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100'
-                  )}>
+                  <span className="text-[10px] font-black px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-sm border transition-all bg-emerald-50 text-emerald-600 border-emerald-100">
                     <ArrowUpRight size={14} className="group-hover:rotate-45 transition-transform" /> {item.trend}
                   </span>
                 ) : (
@@ -585,6 +584,25 @@ const Dashboard = () => {
               </div>
             </div>
           ))}
+
+          {/* Stock Valuation — Gross Total (no supplier dues deducted) */}
+          <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-slate-200/40 transition-all duration-500 group">
+            <div className="flex items-center justify-between mb-6">
+              <span className="bg-slate-50 text-[9px] font-black text-slate-400 px-3 py-1.5 rounded-xl uppercase tracking-widest border border-slate-100">
+                {t?.monthly_summary?.stock_valuation || 'Stock Valuation'}
+              </span>
+              <div className="w-2 h-2 rounded-full bg-indigo-500" />
+            </div>
+            <h3 className="text-3xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5 group-hover:scale-105 transition-transform duration-500 origin-left">
+              <span className="text-xl font-bold opacity-30">৳</span>
+              {(metrics.stock_value || 0).toLocaleString()}
+            </h3>
+            <div className="mt-4">
+              <span className="text-[9px] font-black text-indigo-400 bg-indigo-50 px-3 py-1 rounded-lg uppercase tracking-widest border border-indigo-100 self-start">
+                GROSS STOCK VALUE
+              </span>
+            </div>
+          </div>
         </div>
       </div>
     </DashboardLayout>

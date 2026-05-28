@@ -26,6 +26,8 @@ class PurchaseOrderRequest extends FormRequest
             'supplier_id' => 'required|exists:suppliers,id',
             'order_date' => 'required|date',
             'notes' => 'nullable|string',
+            'paid_amount' => 'nullable|numeric|min:0',
+            'payment_status' => 'nullable|string|in:Due,Paid,Partial',
             'items' => 'required|array|min:1',
             'items.*.medicine_id' => 'required|exists:medicines,id',
             'items.*.dosage_form_snapshot' => 'required|string',

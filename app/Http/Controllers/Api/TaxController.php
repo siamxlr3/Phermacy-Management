@@ -29,7 +29,7 @@ class TaxController extends Controller
             $query->where('name', 'like', "{$search}%");
         }
 
-        $taxes = $query->orderBy('name')->simplePaginate($perPage);
+        $taxes = $query->orderBy('name')->paginate($perPage);
         return TaxResource::collection($taxes);
     }
 

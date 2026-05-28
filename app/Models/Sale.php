@@ -150,11 +150,15 @@ class Sale extends Model
                 SUM(discount_total) as total_discount,
                 SUM(due_amount) as total_due,
                 COUNT(CASE WHEN status IN ('Returned', 'Partially Returned') THEN 1 END) as returns_count,
-                (SELECT SUM(cost_price * qty_tablets) 
-                 FROM sale_items 
-                 JOIN sales ON sale_items.sale_id = sales.id 
-                 WHERE sales.sale_date BETWEEN ? AND ? 
-                 AND sales.status != 'Cancelled') as total_cogs
+                (SELECT SUM(
+                    COALESCE(si.cost_price, sb.cost_per_unit, 0) * si.qty_tablets
+                 )
+                 FROM sale_items si
+                 JOIN sales s2 ON si.sale_id = s2.id
+                 LEFT JOIN stock_batches sb ON si.stock_batch_id = sb.id
+                 WHERE s2.sale_date BETWEEN ? AND ?
+                 AND s2.status != 'Cancelled'
+                 AND si.deleted_at IS NULL) as total_cogs
             ", [$start, $end])
             ->first();
     }

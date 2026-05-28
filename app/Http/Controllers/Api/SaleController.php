@@ -78,7 +78,7 @@ class SaleController extends Controller
             ")
             ->first();
 
-        $paginator = $query->latest('sale_date')->simplePaginate($perPage);
+        $paginator = $query->latest('sale_date')->paginate($perPage);
         
         return SaleResource::collection($paginator)->additional([
             'summary' => [

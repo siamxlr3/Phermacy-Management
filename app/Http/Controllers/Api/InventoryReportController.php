@@ -30,7 +30,7 @@ class InventoryReportController extends Controller
 
         $cacheKey = "inventory_v2_" . md5($fromDate . $toDate);
 
-        $data = Cache::tags(['inventory', 'dashboard'])->remember($cacheKey, 3600, function() use ($toDate) {
+        $data = Cache::remember($cacheKey, 3600, function() use ($toDate) {
             
             // 1. Valuation and Medicine Stats
             $valuationData = $this->getValuationByCategory();
@@ -81,6 +81,7 @@ class InventoryReportController extends Controller
      */
     private function getValuationByCategory(): array
     {
+
         $valuation = StockBatch::available()
             ->join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id')
             ->selectRaw('
@@ -88,8 +89,8 @@ class InventoryReportController extends Controller
                 SUM(
                     CASE 
                         WHEN medicines.dosage_form IN ("Tablet", "Capsule", "Suppository", "Patch") 
-                        THEN (stock_batches.qty_tablets_remaining / (NULLIF(medicines.tablets_per_strip, 0) * NULLIF(medicines.strips_per_box, 0))) * IFNULL(stock_batches.cost_per_box, 0)
-                        ELSE stock_batches.qty_tablets_remaining * IFNULL(NULLIF(stock_batches.cost_per_unit, 0), stock_batches.cost_per_box / (NULLIF(stock_batches.qty_tablets, 0) / NULLIF(stock_batches.qty_boxes, 1)))
+                        THEN (stock_batches.qty_tablets_remaining / (NULLIF(medicines.tablets_per_strip, 0) * NULLIF(medicines.strips_per_box, 0))) * IFNULL(medicines.price_per_box, 0)
+                        ELSE stock_batches.qty_tablets_remaining * IFNULL(NULLIF(medicines.price_per_unit, 0), medicines.price_per_box / (NULLIF(NULLIF(medicines.tablets_per_strip, 0) * NULLIF(medicines.strips_per_box, 0), 0)))
                     END
                 ) as total_value,
                 COUNT(DISTINCT medicines.id) as unique_medicines,
@@ -176,7 +177,7 @@ class InventoryReportController extends Controller
      */
     public function refresh(): JsonResponse
     {
-        Cache::tags(['inventory'])->flush();
+        Cache::flush();
 
         return response()->json([
             'success' => true,

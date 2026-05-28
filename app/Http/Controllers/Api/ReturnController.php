@@ -53,7 +53,7 @@ class ReturnController extends Controller
             ]);
         }
 
-        $returns = $query->latest('return_date')->simplePaginate($perPage);
+        $returns = $query->latest('return_date')->paginate($perPage);
         return SalesReturnResource::collection($returns);
     }
 

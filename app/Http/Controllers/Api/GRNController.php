@@ -44,13 +44,15 @@ class GRNController extends Controller
                         ->orWhere('suppliers.name', 'like', "{$search}%");
                   })
                   ->select('grns.*');
+        } else {
+            $query->select('grns.*');
         }
 
         if ($fromDate && $toDate) {
             $query->whereBetween('received_date', [$fromDate, $toDate]);
         }
 
-        $grns = $query->distinct()->orderBy('received_date', 'desc')->simplePaginate($perPage);
+        $grns = $query->orderBy('received_date', 'desc')->orderBy('id', 'desc')->paginate($perPage);
         return GRNResource::collection($grns);
     }
 
@@ -192,7 +194,11 @@ class GRNController extends Controller
                 StockBatch::insert($stockBatchesData);
 
                 if (!empty($data['purchase_order_id'])) {
-                    PurchaseOrder::where('id', $data['purchase_order_id'])->update(['status' => 'Received']);
+                    PurchaseOrder::where('id', $data['purchase_order_id'])->update([
+                        'status' => 'Received',
+                        'paid_amount' => $data['paid_amount'] ?? 0,
+                        'payment_status' => $data['payment_status'] ?? GRN::STATUS_DUE,
+                    ]);
                 }
 
                 $grn->load('supplier');
@@ -320,6 +326,14 @@ class GRNController extends Controller
                 GRNItem::insert($grnItemsData);
                 StockBatch::insert($stockBatchesData);
 
+                // Sync payment to associated PurchaseOrder if exists
+                if ($grn->purchase_order_id) {
+                    PurchaseOrder::where('id', $grn->purchase_order_id)->update([
+                        'paid_amount' => $grn->paid_amount,
+                        'payment_status' => $grn->payment_status,
+                    ]);
+                }
+
                 $grn->load('supplier');
 
                 // Re-calculate Cash Transaction on update
@@ -431,6 +445,6 @@ class GRNController extends Controller
     private function clearCache(): void
     {
         Cache::forget('medicines.active_list');
-        Cache::tags(['inventory', 'reports'])->flush();
+        Cache::tags(['inventory', 'reports', 'dashboard'])->flush();
     }
 }

@@ -6,11 +6,30 @@ import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
 const GROUP_A = ['Tablet', 'Capsule', 'Suppository', 'Patch'];
 
-const formatQty = (total, tabletPerStripe, stripePerBox, isStripBased, translations) => {
-  if (!isStripBased) return translations.stock.units.replace('{n}', total);
+const formatQty = (total, tabletPerStripe, stripePerBox, isStripBased, translations, unitLabel) => {
+  if (!isStripBased) {
+    const label = unitLabel || (translations.stock.units?.replace('{n}', '')?.trim() || 'Units');
+    return `${total} ${label}`;
+  }
   
-  const tpS = parseInt(tabletPerStripe) || 10;
-  const spB = parseInt(stripePerBox) || 10;
+  const tpS = parseInt(tabletPerStripe) || 0;
+  const spB = parseInt(stripePerBox) || 0;
+
+  // Fallback if ratios are not set but it's marked as strip-based
+  if (tpS <= 0) {
+    return `${total} Tabs`;
+  }
+
+  // Handle case where only tablets_per_strip is set (no boxes)
+  if (spB <= 0) {
+    const strips = Math.floor(total / tpS);
+    const tabs = total % tpS;
+    let res = [];
+    if (strips > 0) res.push(`${strips} Strips`);
+    if (tabs > 0 || res.length === 0) res.push(`${tabs} Tabs`);
+    return res.join(' ');
+  }
+
   const tpB = tpS * spB;
 
   const boxes = Math.floor(total / tpB);
@@ -155,7 +174,9 @@ const BatchListTable = ({ onAdd }) => {
                 let unitCost = parseFloat(batch.cost_per_unit || 0);
                 if (unitCost === 0 && parseFloat(batch.cost_per_box || 0) > 0) {
                   if (isStripBased) {
-                    const tpB = (batch.tablets_per_strip || 10) * (batch.strips_per_box || 10);
+                    const tpS = parseInt(batch.tablets_per_strip) || 0;
+                    const spB = parseInt(batch.strips_per_box) || 0;
+                    const tpB = tpS > 0 ? (tpS * (spB || 1)) : 100; // Fallback to 100 if ratio unknown
                     unitCost = parseFloat(batch.cost_per_box) / tpB;
                   } else {
                     const unitsPerBox = (batch.qty_boxes > 0 && batch.qty_units > 0) ? (batch.qty_units / batch.qty_boxes) : 1;
@@ -193,12 +214,13 @@ const BatchListTable = ({ onAdd }) => {
                         <div className="flex items-center gap-2">
                            <span className="text-sm font-black text-slate-900">
                              {formatQty(
-                               batch.qty_tablets_remaining, 
-                               batch.tablets_per_strip, 
-                               batch.strips_per_box, 
-                               isStripBased, 
-                               translations
-                             )}
+                                batch.qty_tablets_remaining, 
+                                batch.tablets_per_strip, 
+                                batch.strips_per_box, 
+                                isStripBased, 
+                                translations,
+                                batch.sale_unit_label
+                              )}
                            </span>
                         </div>
                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">
@@ -207,7 +229,8 @@ const BatchListTable = ({ onAdd }) => {
                             batch.tablets_per_strip, 
                             batch.strips_per_box, 
                             isStripBased, 
-                            translations
+                            translations,
+                            batch.sale_unit_label
                           )} Total
                         </span>
                       </div>

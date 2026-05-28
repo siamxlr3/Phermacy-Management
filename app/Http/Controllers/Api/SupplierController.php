@@ -45,7 +45,7 @@ class SupplierController extends Controller
             $query->where('status', $status);
         }
 
-        $suppliers = $query->orderBy('name')->simplePaginate($perPage);
+        $suppliers = $query->orderBy('name')->paginate($perPage);
         return SupplierResource::collection($suppliers);
     }
 
