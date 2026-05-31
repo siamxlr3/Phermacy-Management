@@ -20,7 +20,7 @@ return new class extends Migration
             $table->foreignId('user_id')->nullable()->constrained('users')->nullOnDelete();
             $table->string('description')->nullable();
             $table->decimal('amount', 15, 2);
-            $table->enum('transaction_type', ['In', 'Out', 'sale_refund', 'expense', 'grn_payment'])->default('In');
+            $table->enum('transaction_type', ['In', 'Out', 'sale_refund', 'expense', 'grn_payment', 'grn_reversal', 'expense_reversal'])->default('In');
             $table->decimal('balance_after', 15, 2)->default(0);
             $table->string('reference_type')->nullable();
             $table->unsignedBigInteger('reference_id')->nullable();

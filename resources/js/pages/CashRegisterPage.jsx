@@ -32,6 +32,8 @@ const TX_TYPE_STYLES = {
   sale_refund: { bg: 'bg-amber-50',   text: 'text-amber-700',   label: 'Sale Refund', sign: '-', color: 'text-amber-600'   },
   expense:     { bg: 'bg-purple-50',  text: 'text-purple-700',  label: 'Expense',     sign: '-', color: 'text-purple-600'  },
   grn_payment: { bg: 'bg-indigo-50',  text: 'text-indigo-700',  label: 'GRN Payment', sign: '-', color: 'text-indigo-600'  },
+  grn_reversal: { bg: 'bg-emerald-50', text: 'text-emerald-700', label: 'GRN Reversal', sign: '+', color: 'text-emerald-600' },
+  expense_reversal: { bg: 'bg-emerald-50', text: 'text-emerald-700', label: 'Expense Reversal', sign: '+', color: 'text-emerald-600' },
 };
 
 const PARTY_TYPE_STYLES = {

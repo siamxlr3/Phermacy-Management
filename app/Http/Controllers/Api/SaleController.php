@@ -195,7 +195,7 @@ class SaleController extends Controller
                     );
                 }
 
-                Cache::tags(['sales', 'dashboard'])->flush();
+                Cache::tags(['sales', 'dashboard', 'cash'])->flush();
                 return $sale;
             });
 

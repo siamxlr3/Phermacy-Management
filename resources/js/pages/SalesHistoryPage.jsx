@@ -1,22 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '../layouts/DashboardLayout';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   Search, 
   History, 
   Calendar, 
   ChevronLeft, 
   ChevronRight, 
-  Eye, 
-  MoreHorizontal, 
-  Download,
-  ShoppingBag,
-  Printer,
   RotateCcw,
   BadgeDollarSign,
   CheckCircle2,
   AlertCircle,
-  EyeOff
+  ShoppingBag
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useGetSalesQuery, useUpdateSaleStatusMutation } from '../store/api/salesApi';
@@ -43,7 +38,6 @@ const formatSoldQty = (item) => {
   const qty = Number(item.sale_qty || 0);
   if (qty > 0) return Number.isInteger(qty) ? qty : qty.toFixed(2);
 
-  // Fallback calculation for older records
   const tablets = Number(item.qty_tablets || 0);
   if (tablets === 0) return 0;
 
@@ -56,7 +50,6 @@ const formatSoldQty = (item) => {
   }
   return tablets;
 };
-
 
 const formatReturnedQty = (item) => {
   const returnedTablets = Number(item.returned_qty_tablets || 0);
@@ -84,33 +77,27 @@ const SalesHistoryPage = () => {
   const [perPage, setPerPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [showDueOnly, setShowDueOnly] = useState(location.state?.showDueOnly || false);
-  const [expandedRow, setExpandedRow] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
   const [dateRange, setDateRange] = useState({
     from: format(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
     to: format(new Date(), 'yyyy-MM-dd')
   });
 
-  const toggleRow = (id) => setExpandedRow(prev => prev === id ? null : id);
-
-  useEffect(() => {
-    if (location.state?.showDueOnly !== undefined) {
-      setShowDueOnly(location.state.showDueOnly);
-    }
-  }, [location.state]);
-
   const { data: salesData, isLoading, isFetching } = useGetSalesQuery({
     page,
     perPage,
     search: searchTerm,
-    status: showDueOnly ? 'Due' : (statusFilter === 'all' ? '' : statusFilter),
+    status: statusFilter === 'all' ? '' : statusFilter,
     from_date: dateRange.from,
     to_date: dateRange.to
   });
 
   const [updateStatus] = useUpdateSaleStatusMutation();
 
-  const handleUpdatePayment = async (id, grandTotal) => {
+  const handleUpdatePayment = async (e, id, grandTotal) => {
+    e.stopPropagation();
+    if (updatingId === id) return;
+    setUpdatingId(id);
     try {
       await updateStatus({ 
         id, 
@@ -121,12 +108,22 @@ const SalesHistoryPage = () => {
       toast.success(translations.sales_history.payment_success);
     } catch (err) {
       toast.error(err.data?.message || translations.sales_history.payment_failed);
+    } finally {
+      setUpdatingId(null);
     }
   };
 
   const sales = salesData?.data || [];
   const meta = salesData?.meta || {};
   const isLoadingState = isLoading || isFetching;
+
+  // Status filter tabs: All, Completed, Returned, Due
+  const statusTabs = [
+    { val: 'all',                          lbl: translations.sales_history.all },
+    { val: 'Completed',                    lbl: translations.sales_history.completed },
+    { val: 'Returned,Partially Returned',  lbl: translations.sales_history.returned },
+    { val: 'Due',                          lbl: translations.sales_history.show_due || 'Due' },
+  ];
 
   return (
     <DashboardLayout noScroll>
@@ -145,106 +142,72 @@ const SalesHistoryPage = () => {
             </div>
             <p className="text-sm text-slate-500 ml-11">{translations.sales_history.subtitle}</p>
           </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                 setShowDueOnly(!showDueOnly);
-                 setStatusFilter('');
-                 setPage(1);
-              }}
-              className={cn(
-                "flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all w-full md:w-auto shadow-lg shadow-indigo-200",
-                showDueOnly 
-                  ? "bg-orange-500 text-white shadow-orange-200" 
-                  : "bg-white text-slate-600 border border-slate-200 hover:bg-slate-50 shadow-sm"
-              )}
-            >
-              <BadgeDollarSign size={16} />
-              {showDueOnly ? translations.sales_history.show_all : translations.sales_history.show_due}
-            </button>
-          </div>
         </div>
 
-        {/* Summary Stats */}
+        {/* Summary Stats — always show all 3 cards */}
         <div className="shrink-0 grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <AnimatePresence mode="wait">
-            {showDueOnly ? (
-              <motion.div 
-                key="due-stats"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-all"
-              >
-                <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 border border-orange-100">
-                  <AlertCircle size={24} />
-                </div>
-                <div className="flex-1">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{translations.sales_history.total_due}</p>
-                  <h3 className="text-xl font-black text-slate-900 tracking-tight mt-0.5">
-                    ৳{parseFloat(salesData?.summary?.total_due || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </h3>
-                </div>
-              </motion.div>
-            ) : (
-              <>
-                <motion.div 
-                  key="completed-stats"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-all"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 border border-emerald-100">
-                    <CheckCircle2 size={24} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{translations.sales_history.completed}</p>
-                    <h3 className="text-xl font-black text-slate-900 tracking-tight mt-0.5">
-                      ৳{parseFloat(salesData?.summary?.total_completed || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </h3>
-                  </div>
-                </motion.div>
-
-                <motion.div 
-                  key="returned-stats"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-all"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 border border-rose-100">
-                    <RotateCcw size={24} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{translations.sales_history.returned}</p>
-                    <h3 className="text-xl font-black text-slate-900 tracking-tight mt-0.5">
-                      ৳{parseFloat(salesData?.summary?.total_returned || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </h3>
-                  </div>
-                </motion.div>
-
-                <motion.div 
-                  key="due-stats-all"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-all"
-                >
-                  <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 border border-orange-100">
-                    <AlertCircle size={24} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{translations.sales_history.total_due}</p>
-                    <h3 className="text-xl font-black text-slate-900 tracking-tight mt-0.5">
-                      ৳{parseFloat(salesData?.summary?.total_due || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </h3>
-                  </div>
-                </motion.div>
-              </>
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            onClick={() => { setStatusFilter('Completed'); setPage(1); }}
+            className={cn(
+              "bg-white p-6 rounded-2xl border shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-all cursor-pointer",
+              statusFilter === 'Completed' ? "border-emerald-300 ring-2 ring-emerald-100" : "border-slate-200"
             )}
-          </AnimatePresence>
+          >
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 border border-emerald-100">
+              <CheckCircle2 size={24} />
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{translations.sales_history.completed}</p>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight mt-0.5">
+                ৳{parseFloat(salesData?.summary?.total_completed || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </h3>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            onClick={() => { setStatusFilter('Returned,Partially Returned'); setPage(1); }}
+            className={cn(
+              "bg-white p-6 rounded-2xl border shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-all cursor-pointer",
+              statusFilter === 'Returned,Partially Returned' ? "border-rose-300 ring-2 ring-rose-100" : "border-slate-200"
+            )}
+          >
+            <div className="w-12 h-12 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600 border border-rose-100">
+              <RotateCcw size={24} />
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{translations.sales_history.returned}</p>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight mt-0.5">
+                ৳{parseFloat(salesData?.summary?.total_returned || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </h3>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            onClick={() => { setStatusFilter('Due'); setPage(1); }}
+            className={cn(
+              "bg-white p-6 rounded-2xl border shadow-sm flex items-center gap-4 relative overflow-hidden group hover:shadow-md transition-all cursor-pointer",
+              statusFilter === 'Due' ? "border-orange-300 ring-2 ring-orange-100" : "border-slate-200"
+            )}
+          >
+            <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 border border-orange-100">
+              <AlertCircle size={24} />
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{translations.sales_history.total_due}</p>
+              <h3 className="text-xl font-black text-slate-900 tracking-tight mt-0.5">
+                ৳{parseFloat(salesData?.summary?.total_due || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </h3>
+            </div>
+          </motion.div>
         </div>
 
         {/* Main Table Card */}
@@ -264,24 +227,30 @@ const SalesHistoryPage = () => {
                 />
               </div>
 
-              {!showDueOnly && (
-                <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
-                  {[['all', translations.sales_history.all], ['Completed', translations.sales_history.completed], ['Returned,Partially Returned', translations.sales_history.returned]].map(([val, lbl]) => (
+              {/* Status filter tabs — All / Completed / Returned / Due */}
+              <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+                {statusTabs.map(({ val, lbl }) => {
+                  const isActive =
+                    (val === 'all' && statusFilter === '') ||
+                    statusFilter === val;
+                  return (
                     <button
                       key={val}
                       onClick={() => { setStatusFilter(val === 'all' ? '' : val); setPage(1); }}
                       className={cn(
                         "px-5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
-                        (statusFilter === val || (val === 'all' && statusFilter === ''))
-                          ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20"
+                        isActive
+                          ? val === 'Due'
+                            ? "bg-orange-500 text-white shadow-lg shadow-orange-200"
+                            : "bg-slate-900 text-white shadow-lg shadow-slate-900/20"
                           : "text-slate-400 hover:text-slate-600 hover:bg-slate-50"
                       )}
                     >
                       {lbl}
                     </button>
-                  ))}
-                </div>
-              )}
+                  );
+                })}
+              </div>
 
               <div className="flex items-center gap-2 bg-white px-4 py-1.5 rounded-lg border border-slate-200 shadow-sm">
                 <Calendar size={14} className="text-slate-400" />
@@ -318,23 +287,27 @@ const SalesHistoryPage = () => {
 
           {/* Table Area */}
           <div className="flex-1 overflow-x-auto custom-scrollbar min-h-0">
-            <table className="w-full text-left border-collapse min-w-[1000px]">
+            <table className="w-full text-left border-collapse min-w-[1200px]">
               <thead className="sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10 border-b border-slate-200">
                 <tr>
-                  <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{translations.sales_history.invoice} & {translations.sales_history.date}</th>
-                  <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{translations.sales_history.customer}</th>
-                  <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.payment}</th>
-                  <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.sales_history.total_amount}</th>
-                  <th className="px-6 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.status}</th>
-                  <th className="w-10"></th>
+                  <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Invoice & Date</th>
+                  <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{translations.sales_history.customer}</th>
+                  <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">{translations.medicine.medicine_name || 'Medicine Name'}</th>
+                  <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.medicine.dosage_form || 'Dosage Form'}</th>
+                  <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.qty || 'Qty'}</th>
+                  <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Returned</th>
+                  <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.expense.amount || 'Amount'}</th>
+                  <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.payment}</th>
+                  <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.sales_history.total_amount}</th>
+                  <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.status}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {isLoadingState ? (
-                  Array.from({ length: 5 }).map((_, idx) => (
+                  Array.from({ length: 6 }).map((_, idx) => (
                     <tr key={idx} className="animate-pulse">
-                      {Array.from({ length: 7 }).map((_, cellIdx) => (
-                        <td key={cellIdx} className="px-8 py-6">
+                      {Array.from({ length: 10 }).map((_, cellIdx) => (
+                        <td key={cellIdx} className="px-4 py-5">
                           <div className="h-4 bg-slate-100 rounded-md w-full"></div>
                         </td>
                       ))}
@@ -342,7 +315,7 @@ const SalesHistoryPage = () => {
                   ))
                 ) : sales.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-8 py-32 text-center">
+                    <td colSpan={10} className="px-8 py-32 text-center">
                       <div className="flex flex-col items-center justify-center grayscale opacity-40">
                         <div className="w-16 h-16 bg-slate-100 rounded-[1.5rem] flex items-center justify-center mb-4 border border-slate-200">
                           <ShoppingBag size={28} className="text-slate-400" />
@@ -353,164 +326,175 @@ const SalesHistoryPage = () => {
                     </td>
                   </tr>
                 ) : (
-                  sales.map((item) => {
-                    const isExpanded = expandedRow === item.id;
-                    return (
-                      <React.Fragment key={item.id}>
-                        <tr 
-                          onClick={() => toggleRow(item.id)}
+                  sales.map((sale) => {
+                    const items = sale.items?.length ? sale.items : [null];
+                    return items.map((ritem, idx) => {
+                      const isFirst = idx === 0;
+                      const rowSpan = items.length;
+                      return (
+                        <tr
+                          key={`${sale.id}-${idx}`}
                           className={cn(
-                            "group transition-all duration-150 cursor-pointer",
-                            isExpanded ? "bg-indigo-50/30" : "hover:bg-slate-50/50"
+                            "transition-colors duration-100 hover:bg-slate-50/60",
+                            isFirst ? "border-t-2 border-t-slate-200" : "border-t border-t-indigo-50"
                           )}
                         >
-                          <td className="px-6 py-4">
-                            <div className="flex flex-col gap-1">
-                              <span className="text-sm font-black text-indigo-600 tracking-tight font-mono">
-                                {item.invoice_number || `INV-${item.id.toString().padStart(6, '0')}`}
-                              </span>
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                                <Calendar size={10} className="text-slate-300" />
-                                {format(new Date(item.sale_date || item.date || Date.now()), 'MMM dd, yyyy')}
-                              </span>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 text-[10px] font-black shadow-sm group-hover:border-indigo-200 group-hover:text-indigo-500 transition-colors">
-                                {(item.customer_name || 'WI').substring(0, 2).toUpperCase()}
+                          {/* Invoice & Date — only on first item row */}
+                          {isFirst && (
+                            <td className="px-4 py-4 align-top" rowSpan={rowSpan}>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-sm font-black text-indigo-600 tracking-tight font-mono whitespace-nowrap">
+                                  {sale.invoice_number || `INV-${sale.id.toString().padStart(6, '0')}`}
+                                </span>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                  <Calendar size={10} className="text-slate-300 shrink-0" />
+                                  {format(new Date(sale.sale_date || sale.date || Date.now()), 'MMM dd, yyyy')}
+                                </span>
                               </div>
+                            </td>
+                          )}
+
+                          {/* Customer — only on first item row */}
+                          {isFirst && (
+                            <td className="px-4 py-4 align-top" rowSpan={rowSpan}>
+                              <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 shrink-0 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-slate-400 text-[10px] font-black shadow-sm">
+                                  {(sale.customer_name || 'WI').substring(0, 2).toUpperCase()}
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-sm font-bold text-slate-700 leading-tight truncate max-w-[110px]">{sale.customer_name || translations.sales_history.walk_in}</span>
+                                  <span className="text-[10px] font-medium text-slate-400">{sale.customer_phone || '—'}</span>
+                                </div>
+                              </div>
+                            </td>
+                          )}
+
+                          {/* Medicine Name */}
+                          <td className={cn(
+                            "px-4 py-4",
+                            !isFirst && "border-t border-slate-100"
+                          )}>
+                            {ritem ? (
                               <div className="flex flex-col">
-                                <span className="text-sm font-bold text-slate-700 leading-tight">{item.customer_name || translations.sales_history.walk_in}</span>
-                                <span className="text-[10px] font-medium text-slate-400">{item.customer_phone || 'No phone'}</span>
+                                <span className="text-sm font-bold text-slate-700 leading-tight">{ritem.medicine_name}</span>
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter mt-0.5">Batch: {ritem.batch_number}</span>
                               </div>
-                            </div>
+                            ) : <span className="text-slate-300 text-xs">—</span>}
                           </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className={cn(
-                              "px-3 py-1.5 rounded-lg text-[10px] font-black border uppercase tracking-widest shadow-sm",
-                              paymentStyle[item.payment_method] || 'bg-slate-50 text-slate-400 border-slate-100'
-                            )}>
-                              {item.payment_method}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex flex-col items-end">
-                              <span className="text-sm font-black text-slate-900 tracking-tight">
-                                ৳{parseFloat(item.grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+
+                          {/* Dosage Form */}
+                          <td className={cn("px-4 py-4 text-center", !isFirst && "border-t border-slate-100")}>
+                            {ritem ? (
+                              <span className="px-2.5 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black uppercase tracking-tighter border border-slate-200 whitespace-nowrap">
+                                {ritem.sale_unit === 'Tablet' ? (ritem.dosage_form || 'Unit') : ritem.sale_unit === 'Strip' ? 'Stripe' : 'Box'}
                               </span>
-                              {item.refunded_amount > 0 && (
-                                <span className="text-[9px] font-black text-rose-500 uppercase tracking-tighter">
-                                  Refunded: ৳{parseFloat(item.refunded_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            ) : <span className="text-slate-300 text-xs">—</span>}
+                          </td>
+
+                          {/* Qty */}
+                          <td className={cn("px-4 py-4 text-center", !isFirst && "border-t border-slate-100")}>
+                            {ritem ? (
+                              <span className="text-sm font-black text-indigo-600">{formatSoldQty(ritem)}</span>
+                            ) : <span className="text-slate-300 text-xs">—</span>}
+                          </td>
+
+                          {/* Returned */}
+                          <td className={cn("px-4 py-4 text-center", !isFirst && "border-t border-slate-100")}>
+                            {ritem ? (
+                              <span className={cn(
+                                "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter border",
+                                ritem.returned_qty_tablets > 0
+                                  ? "bg-rose-50 text-rose-500 border-rose-100"
+                                  : "bg-slate-50 text-slate-400 border-slate-100"
+                              )}>
+                                {formatReturnedQty(ritem)}
+                              </span>
+                            ) : <span className="text-slate-300 text-xs">—</span>}
+                          </td>
+
+                          {/* Item Amount (subtotal) */}
+                          <td className={cn("px-4 py-4 text-right", !isFirst && "border-t border-slate-100")}>
+                            {ritem ? (
+                              <span className="text-sm font-black text-slate-800">৳{parseFloat(ritem.subtotal).toFixed(2)}</span>
+                            ) : <span className="text-slate-300 text-xs">—</span>}
+                          </td>
+
+                          {/* Payment — only on first item row */}
+                          {isFirst && (
+                            <td className="px-4 py-4 text-center align-top" rowSpan={rowSpan}>
+                              <span className={cn(
+                                "px-3 py-1.5 rounded-lg text-[10px] font-black border uppercase tracking-widest shadow-sm whitespace-nowrap",
+                                paymentStyle[sale.payment_method] || 'bg-slate-50 text-slate-400 border-slate-100'
+                              )}>
+                                {sale.payment_method}
+                              </span>
+                            </td>
+                          )}
+
+                          {/* Grand Total — only on first item row */}
+                          {isFirst && (
+                            <td className="px-4 py-4 text-right align-top" rowSpan={rowSpan}>
+                              <div className="flex flex-col items-end gap-0.5">
+                                <span className="text-sm font-black text-slate-900 tracking-tight whitespace-nowrap">
+                                  ৳{parseFloat(sale.grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </span>
+                                {sale.refunded_amount > 0 && (
+                                  <span className="text-[9px] font-black text-rose-500 uppercase tracking-tighter whitespace-nowrap">
+                                    Refunded: ৳{parseFloat(sale.refunded_amount).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  </span>
+                                )}
+                                {sale.due_amount > 0 && (
+                                  <span className="text-[9px] font-black text-orange-500 uppercase tracking-tighter whitespace-nowrap">
+                                    Due: ৳{parseFloat(sale.due_amount).toLocaleString()}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                          )}
+
+                          {/* Status — only on first item row */}
+                          {isFirst && (
+                            <td className="px-4 py-4 text-center align-top" rowSpan={rowSpan}>
+                              {sale.status === 'Due' ? (
+                                <button
+                                  onClick={(e) => handleUpdatePayment(e, sale.id, sale.grand_total)}
+                                  disabled={updatingId === sale.id}
+                                  title="Click to mark as Completed"
+                                  className={cn(
+                                    "group/badge relative px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-widest shadow-sm transition-all duration-200 whitespace-nowrap",
+                                    updatingId === sale.id
+                                      ? "bg-orange-50 text-orange-300 border-orange-100 cursor-wait"
+                                      : "bg-orange-50 text-orange-600 border-orange-100 hover:bg-emerald-500 hover:text-white hover:border-emerald-500 hover:shadow-emerald-200 cursor-pointer"
+                                  )}
+                                >
+                                  {updatingId === sale.id ? (
+                                    <span className="flex items-center gap-1.5 justify-center">
+                                      <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                                      </svg>
+                                      Saving…
+                                    </span>
+                                  ) : (
+                                    <>
+                                      <span className="group-hover/badge:hidden">Due</span>
+                                      <span className="hidden group-hover/badge:inline">✓ Complete</span>
+                                    </>
+                                  )}
+                                </button>
+                              ) : (
+                                <span className={cn(
+                                  "px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-widest shadow-sm whitespace-nowrap",
+                                  statusStyle[sale.status] || 'bg-slate-50 text-slate-400 border-slate-100'
+                                )}>
+                                  {sale.status === 'Completed' ? translations.sales_history.completed : sale.status === 'Returned' ? translations.sales_history.returned : sale.status}
                                 </span>
                               )}
-                              {item.due_amount > 0 && (
-                                <span className="text-[9px] font-black text-orange-500 uppercase tracking-tighter">Due: ৳{parseFloat(item.due_amount).toLocaleString()}</span>
-                              )}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 text-center">
-                            <span className={cn(
-                              "px-3 py-1 rounded-full text-[10px] font-black border uppercase tracking-widest shadow-sm",
-                              statusStyle[item.status] || 'bg-slate-50 text-slate-400 border-slate-100'
-                            )}>
-                              {item.status === 'Completed' ? translations.sales_history.completed : (item.status === 'Returned' ? translations.sales_history.returned : item.status)}
-                            </span>
-                          </td>
-                          <td className="w-10 text-center pr-2">
-                            <button
-                              className={cn(
-                                "p-1.5 rounded-lg transition-all shadow-sm",
-                                isExpanded 
-                                  ? "bg-indigo-600 text-white shadow-indigo-200" 
-                                  : "text-slate-300 hover:text-indigo-600 hover:bg-white opacity-0 group-hover:opacity-100"
-                              )}
-                            >
-                              {isExpanded ? <EyeOff size={14} /> : <Eye size={14} />}
-                            </button>
-                          </td>
-                        </tr>
-
-                        {/* Expandable Items Sub-Row */}
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <tr>
-                              <td colSpan="6" className="p-0 border-b border-indigo-100">
-                                <motion.div 
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: 'auto', opacity: 1 }}
-                                  exit={{ height: 0, opacity: 0 }}
-                                  className="overflow-hidden"
-                                >
-                                  <div className="bg-indigo-50/40 px-8 py-6">
-                                    <div className="flex items-center justify-between mb-4">
-                                      <h4 className="text-[10px] font-black text-indigo-400 uppercase tracking-widest flex items-center gap-2">
-                                        <ShoppingBag size={12} />
-                                        {translations.sales_history.sold_items || 'Sold Items'} ({item.items?.length || 0})
-                                      </h4>
-                                    </div>
-                                    <div className="bg-white rounded-xl border border-indigo-100 shadow-sm overflow-hidden">
-                                      <table className="w-full text-left">
-                                        <thead className="bg-slate-50 border-b border-slate-100">
-                                          <tr>
-                                            <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest">{translations.medicine.medicine_name || 'Medicine'}</th>
-                                            <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.medicine.dosage_form || 'Unit'}</th>
-                                            <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.qty || 'Qty'}</th>
-                                            <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Returned</th>
-                                            <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.expense.amount || 'Subtotal'}</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-slate-50">
-                                          {item.items?.map((ritem, idx) => (
-                                            <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                              <td className="px-6 py-4">
-                                                <div className="flex flex-col">
-                                                  <span className="text-sm font-bold text-slate-700">{ritem.medicine_name}</span>
-                                                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter mt-0.5">Batch: {ritem.batch_number}</span>
-                                                </div>
-                                              </td>
-                                              <td className="px-6 py-4 text-center">
-                                                <span className="px-2.5 py-1 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black uppercase tracking-tighter border border-slate-200">
-                                                  {ritem.sale_unit === 'Tablet' ? (ritem.dosage_form || 'Unit') : (ritem.sale_unit === 'Strip' ? 'Stripe' : 'Box')}
-                                                </span>
-                                              </td>
-                                              <td className="px-6 py-4 text-center">
-                                                <span className="text-sm font-black text-indigo-600">{formatSoldQty(ritem)}</span>
-                                              </td>
-                                              <td className="px-6 py-4 text-center">
-                                                <span className={cn(
-                                                  "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter border",
-                                                  ritem.returned_qty_tablets > 0 
-                                                    ? "bg-rose-50 text-rose-500 border-rose-100" 
-                                                    : "bg-slate-50 text-slate-400 border-slate-100"
-                                                )}>
-                                                  {formatReturnedQty(ritem)}
-                                                </span>
-                                              </td>
-                                              <td className="px-6 py-4 text-right font-black text-slate-900 text-sm">৳{parseFloat(ritem.subtotal).toFixed(2)}</td>
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                        <tfoot className="bg-slate-50 border-t border-slate-200">
-                                          <tr>
-                                            <td colSpan="4" className="px-6 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">
-                                              {translations.sales_history.total_amount || 'Grand Total'}
-                                            </td>
-                                            <td className="px-6 py-4 text-right">
-                                              <span className="text-base font-black text-indigo-600 tracking-tight">৳{parseFloat(item.grand_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                            </td>
-                                          </tr>
-                                        </tfoot>
-                                      </table>
-                                    </div>
-                                  </div>
-                                </motion.div>
-                              </td>
-                            </tr>
+                            </td>
                           )}
-                        </AnimatePresence>
-                      </React.Fragment>
-                    );
+                        </tr>
+                      );
+                    });
                   })
                 )}
               </tbody>

@@ -30,6 +30,8 @@ class CashTransaction extends Model
     public const TYPE_SALE_REFUND  = 'sale_refund';
     public const TYPE_EXPENSE      = 'expense';
     public const TYPE_GRN_PAYMENT  = 'grn_payment';
+    public const TYPE_GRN_REVERSAL = 'grn_reversal';
+    public const TYPE_EXPENSE_REVERSAL = 'expense_reversal';
 
     // Grouping Types
     public const TYPES_OUTFLOW = [

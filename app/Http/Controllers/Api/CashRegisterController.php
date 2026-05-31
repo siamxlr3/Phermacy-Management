@@ -29,9 +29,13 @@ class CashRegisterController extends Controller
             $query->where('created_at', '<=', Carbon::parse($request->to)->endOfDay());
         }
 
-        // Default to showing only outflows if no type is specified or 'outflow' requested
+        // Default to showing only outflows (including reversals) if no type is specified or 'outflow' requested
         if (!$request->filled('transaction_type') || $request->transaction_type === 'outflow') {
-            $query->whereIn('transaction_type', CashTransaction::TYPES_OUTFLOW);
+            $query->whereIn('transaction_type', [
+                ...CashTransaction::TYPES_OUTFLOW, 
+                CashTransaction::TYPE_GRN_REVERSAL,
+                CashTransaction::TYPE_EXPENSE_REVERSAL
+            ]);
         } elseif ($request->transaction_type !== 'all') {
             $query->where('transaction_type', $request->transaction_type);
         }
@@ -58,14 +62,24 @@ class CashRegisterController extends Controller
         $summary = Cache::tags(['cash', 'dashboard'])->remember('cash_register_status', 3600, function() use ($todayStart, $todayEnd) {
             $stats = CashTransaction::selectRaw("
                 SUM(CASE WHEN transaction_type = ? THEN amount ELSE 0 END) as total_in,
-                SUM(CASE WHEN transaction_type IN (?,?,?,?) THEN amount ELSE 0 END) as total_out,
+                SUM(CASE WHEN transaction_type IN (?,?,?,?) THEN amount 
+                         WHEN transaction_type IN (?,?) THEN -amount 
+                         ELSE 0 END) as total_out,
                 SUM(CASE WHEN transaction_type = ? AND created_at >= ? AND created_at <= ? THEN amount ELSE 0 END) as today_in,
-                SUM(CASE WHEN transaction_type IN (?,?,?,?) AND created_at >= ? AND created_at <= ? THEN amount ELSE 0 END) as today_out
+                SUM(CASE WHEN (transaction_type IN (?,?,?,?) OR transaction_type IN (?,?)) AND created_at >= ? AND created_at <= ? THEN 
+                            CASE WHEN transaction_type IN (?,?) THEN -amount ELSE amount END
+                         ELSE 0 END) as today_out
             ", [
                 CashTransaction::TYPE_IN,
                 ...CashTransaction::TYPES_OUTFLOW,
+                CashTransaction::TYPE_GRN_REVERSAL,
+                CashTransaction::TYPE_EXPENSE_REVERSAL,
                 CashTransaction::TYPE_IN, $todayStart, $todayEnd,
-                ...CashTransaction::TYPES_OUTFLOW, $todayStart, $todayEnd
+                ...CashTransaction::TYPES_OUTFLOW,
+                CashTransaction::TYPE_GRN_REVERSAL,
+                CashTransaction::TYPE_EXPENSE_REVERSAL, $todayStart, $todayEnd,
+                CashTransaction::TYPE_GRN_REVERSAL,
+                CashTransaction::TYPE_EXPENSE_REVERSAL
             ])->first();
 
             return [

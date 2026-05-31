@@ -135,6 +135,7 @@ const GRNTable = ({ onAdd, onEdit }) => {
             ) : (
               grns.map((grn) => (
                 <tr key={grn.id} className="group hover:bg-slate-50/50 transition-all duration-150">
+
                   {/* Date & Receiver */}
                   <td className="px-5 py-5">
                     <div className="flex flex-col">
@@ -162,62 +163,72 @@ const GRNTable = ({ onAdd, onEdit }) => {
                     </span>
                   </td>
 
-                  {/* Items Received — inline tags */}
-                  <td className="px-5 py-5 max-w-xs">
-                    <div className="flex flex-wrap gap-2">
-                      {grn.items?.length > 0 ? grn.items.map((item, idx) => {
-                        const isStripBased = GROUP_A.includes(item.dosage_form_snapshot || item.medicine_dosage_form);
-                        return (
-                          <div key={idx} className="inline-flex flex-col bg-slate-50 border border-slate-100 rounded-xl px-3 py-2 min-w-0 gap-1">
-                            {/* Medicine name + dosage form */}
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-black text-slate-700 leading-tight truncate max-w-[130px]">{item.medicine_name}</span>
-                              <span className="text-[8px] font-bold text-slate-400 uppercase">{item.dosage_form_snapshot || item.medicine_dosage_form}</span>
-                            </div>
+                  {/* Items Received — column-based list */}
+                  <td className="px-5 py-4">
+                    {grn.items?.length > 0 ? (
+                      <div className="flex flex-col divide-y divide-slate-100">
+                        {grn.items.map((item, idx) => {
+                          const isStripBased = GROUP_A.includes(item.dosage_form_snapshot || item.medicine_dosage_form);
+                          return (
+                            <div key={idx} className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 items-center py-2 first:pt-0 last:pb-0">
 
-                            {/* Batch + Expiry */}
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-[9px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
-                                {item.batch_number}
-                              </span>
-                              <div className="flex items-center gap-0.5">
-                                <Calendar size={7} className="text-slate-300" />
-                                <span className="text-[8px] text-slate-400 font-medium">{translations.grn.exp_date.replace('{date}', item.expiry_date)}</span>
+                              {/* Col 1: Name + dosage form */}
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-[11px] font-black text-slate-700 truncate leading-tight">{item.medicine_name}</span>
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{item.dosage_form_snapshot || item.medicine_dosage_form}</span>
                               </div>
-                            </div>
 
-                            {/* Qty */}
-                            <div className="text-[9px] font-bold text-slate-500">
-                              {item.qty_boxes_received} Boxes { !isStripBased && item.qty_units_received > 1 && `(${item.qty_units_received} units/box)` }
-                            </div>
+                              {/* Col 2: Batch + Expiry */}
+                              <div className="flex flex-col items-start gap-0.5 shrink-0">
+                                <span className="text-[9px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 whitespace-nowrap">
+                                  {item.batch_number}
+                                </span>
+                                <div className="flex items-center gap-0.5">
+                                  <Calendar size={7} className="text-slate-300" />
+                                  <span className="text-[8px] text-slate-400 font-medium whitespace-nowrap">
+                                    {translations.grn.exp_date.replace('{date}', item.expiry_date)}
+                                  </span>
+                                </div>
+                              </div>
 
-                            {/* Cost Structure */}
-                            <div className="flex flex-wrap gap-x-2 gap-y-0.5 border-t border-slate-100 pt-1 mt-0.5">
-                              {isStripBased ? (
-                                <>
-                                  {item.cost_per_box && (
-                                    <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.cost_per_box).toFixed(2)}<span className="text-slate-400 font-medium">{translations.grn.per_box}</span></span>
-                                  )}
-                                  <span className="text-[8px] font-bold text-indigo-600">৳{parseFloat(item.cost_per_unit).toFixed(2)}<span className="text-slate-400 font-medium">/unit</span></span>
-                                </>
-                              ) : (
-                                <>
-                                  {item.cost_per_box && (
-                                    <span className="text-[8px] font-bold text-emerald-600">৳{parseFloat(item.cost_per_box).toFixed(2)}<span className="text-slate-400 font-medium">{translations.grn.per_box}</span></span>
-                                  )}
-                                  <span className="text-[8px] font-bold text-indigo-600">৳{parseFloat(item.cost_per_unit).toFixed(2)}<span className="text-slate-400 font-medium">/unit</span></span>
-                                  {item.package_size && (
-                                    <span className="text-[8px] font-bold text-blue-500">{item.package_size}</span>
-                                  )}
-                                </>
-                              )}
+                              {/* Col 3: Qty */}
+                              <div className="flex flex-col items-end shrink-0">
+                                <span className="text-[10px] font-black text-slate-600 whitespace-nowrap">{item.qty_boxes_received} Boxes</span>
+                                {!isStripBased && item.qty_units_received > 1 && (
+                                  <span className="text-[8px] text-slate-400 font-medium whitespace-nowrap">{item.qty_units_received} units/box</span>
+                                )}
+                              </div>
+
+                              {/* Col 4: Cost */}
+                              <div className="flex flex-col items-end shrink-0">
+                                {item.cost_per_box && (
+                                  <span className="text-[10px] font-black text-emerald-600 whitespace-nowrap">
+                                    ৳{parseFloat(item.cost_per_box).toFixed(2)}
+                                    <span className="text-[8px] text-slate-400 font-medium">{translations.grn.per_box}</span>
+                                  </span>
+                                )}
+                                {item.cost_per_stripe && (
+                                  <span className="text-[10px] font-black text-blue-600 whitespace-nowrap">
+                                    ৳{parseFloat(item.cost_per_stripe).toFixed(2)}
+                                    <span className="text-[8px] text-slate-400 font-medium">{translations.grn.per_stripe}</span>
+                                  </span>
+                                )}
+                                <span className="text-[9px] font-bold text-indigo-500 whitespace-nowrap">
+                                  ৳{parseFloat(item.cost_per_unit).toFixed(2)}
+                                  <span className="text-[8px] text-slate-400 font-medium">/unit</span>
+                                </span>
+                                {!isStripBased && item.package_size && (
+                                  <span className="text-[8px] font-bold text-blue-400 whitespace-nowrap">{item.package_size}</span>
+                                )}
+                              </div>
+
                             </div>
-                          </div>
-                        );
-                      }) : (
-                        <span className="text-xs text-slate-300 font-bold">{translations.grn.no_items}</span>
-                      )}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-300 font-bold">{translations.grn.no_items}</span>
+                    )}
                   </td>
 
                   {/* Payment Status */}
@@ -257,6 +268,7 @@ const GRNTable = ({ onAdd, onEdit }) => {
                       </button>
                     </div>
                   </td>
+
                 </tr>
               ))
             )}

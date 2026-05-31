@@ -336,30 +336,32 @@ class GRNController extends Controller
 
                 $grn->load('supplier');
 
-                // Re-calculate Cash Transaction on update
-                // Reverse the original payment if any
-                if ($oldPaidAmount > 0) {
-                    CashTransaction::record(
-                        'In',
-                        $oldPaidAmount,
-                        "Reversal of Edited GRN ({$grn->invoice_number})"
-                    );
-                }
+                // Re-calculate Cash Transaction on update ONLY if amount changed
+                if ($oldPaidAmount != $grn->paid_amount) {
+                    // Reverse the original payment if any
+                    if ($oldPaidAmount > 0) {
+                        CashTransaction::record(
+                            CashTransaction::TYPE_GRN_REVERSAL,
+                            $oldPaidAmount,
+                            "Reversal of Edited GRN ({$grn->invoice_number})"
+                        );
+                    }
 
-                // Apply the new payment if any
-                if ($grn->paid_amount > 0) {
-                     CashTransaction::record(
-                        'grn_payment',
-                        $grn->paid_amount,
-                        "Updated GRN Payment ({$grn->invoice_number})",
-                        'grn',
-                        $grn->id,
-                        $grn->invoice_number,
-                        'cash',
-                        $grn->supplier?->name,
-                        'supplier',
-                        Auth::id()
-                    );
+                    // Apply the new payment if any
+                    if ($grn->paid_amount > 0) {
+                         CashTransaction::record(
+                            'grn_payment',
+                            $grn->paid_amount,
+                            "Updated GRN Payment ({$grn->invoice_number})",
+                            'grn',
+                            $grn->id,
+                            $grn->invoice_number,
+                            'cash',
+                            $grn->supplier?->name,
+                            'supplier',
+                            Auth::id()
+                        );
+                    }
                 }
 
                 $this->clearCache();
@@ -386,7 +388,7 @@ class GRNController extends Controller
                 // If it was paid, reverse the cash transaction
                 if ($grn->paid_amount > 0) {
                     CashTransaction::record(
-                        'In',
+                        CashTransaction::TYPE_GRN_REVERSAL,
                         $grn->paid_amount,
                         "Reversal of Deleted GRN ({$grn->invoice_number})"
                     );
@@ -445,6 +447,6 @@ class GRNController extends Controller
     private function clearCache(): void
     {
         Cache::forget('medicines.active_list');
-        Cache::tags(['inventory', 'reports', 'dashboard'])->flush();
+        Cache::tags(['inventory', 'reports', 'dashboard', 'cash'])->flush();
     }
 }

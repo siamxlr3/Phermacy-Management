@@ -122,7 +122,7 @@ class ExpenseController extends Controller
                 $expense->items()->createMany($items->toArray());
 
                 // FIX 4: Only clear expense and report caches, not the whole system
-                Cache::tags(['expenses', 'reports'])->flush();
+                Cache::tags(['expenses', 'reports', 'cash'])->flush();
 
                 // Record Cash Transaction if Paid
                 if ($expense->status === 'Paid') {
@@ -169,20 +169,25 @@ class ExpenseController extends Controller
                 $oldStatus = $expense->status;
                 $oldTotal = $expense->grand_total;
 
+                $financialsChanged = ($oldStatus !== $expense->status) || ($oldStatus === 'Paid' && $oldTotal != $expense->grand_total);
+
                 // FIX 5: Prevent financial leakage on update
-                // If it was Paid, reverse the original amount back to the drawer first
-                if ($oldStatus === 'Paid') {
-                    CashTransaction::record(
-                        'In',
-                        $oldTotal,
-                        "Reversal of Edited Expense ({$expense->transaction_id})",
-                        'expense',
-                        $expense->id,
-                        $expense->transaction_id,
-                        'cash',
-                        $expense->supplier_name,
-                        'supplier'
-                    );
+                // Only record if status changed or amount of a paid expense changed
+                if ($financialsChanged) {
+                    // If it was Paid, reverse the original amount back to the drawer first
+                    if ($oldStatus === 'Paid') {
+                        CashTransaction::record(
+                            CashTransaction::TYPE_EXPENSE_REVERSAL,
+                            $oldTotal,
+                            "Reversal of Edited Expense ({$expense->transaction_id})",
+                            'expense',
+                            $expense->id,
+                            $expense->transaction_id,
+                            'cash',
+                            $expense->supplier_name,
+                            'supplier'
+                        );
+                    }
                 }
 
                 // FIX 7: Server-side calculation
@@ -214,10 +219,10 @@ class ExpenseController extends Controller
                 $expense->items()->forceDelete();
                 $expense->items()->createMany($items->toArray());
 
-                Cache::tags(['expenses', 'reports'])->flush();
+                Cache::tags(['expenses', 'reports', 'cash'])->flush();
 
-                // Apply the new Paid status
-                if ($expense->status === 'Paid') {
+                // Apply the new Paid status ONLY if financials changed
+                if ($financialsChanged && $expense->status === 'Paid') {
                     $itemNames = collect($data['items'])->pluck('items_name')->join(', ');
                     CashTransaction::record(
                         'expense',
@@ -254,7 +259,7 @@ class ExpenseController extends Controller
                 // FIX 6: If it was paid, we MUST reverse the cash transaction
                 if ($expense->status === 'Paid') {
                     CashTransaction::record(
-                        'In',
+                        CashTransaction::TYPE_EXPENSE_REVERSAL,
                         $expense->grand_total,
                         "Reversal of Deleted Expense ({$expense->transaction_id})",
                         'expense',
@@ -270,7 +275,7 @@ class ExpenseController extends Controller
                 $expense->items()->delete();
                 $expense->delete();
 
-                Cache::tags(['expenses', 'reports'])->flush();
+                Cache::tags(['expenses', 'reports', 'cash'])->flush();
             });
 
             return response()->json(['success' => true, 'message' => 'Expense deleted successfully']);

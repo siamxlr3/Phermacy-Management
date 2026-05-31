@@ -14,11 +14,11 @@ class StockBatchRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
-            'search' => ['nullable', 'string', 'max:100'],
-            'medicine_id' => ['sometimes', 'integer', 'exists:medicines,id'],
-            'from_expiry' => ['nullable', 'date', 'date_format:Y-m-d'],
-            'to_expiry' => ['nullable', 'date', 'date_format:Y-m-d', 'after_or_equal:from_expiry'],
+            'per_page' => 'nullable|integer|min:1|max:100',
+            'search' => 'nullable|string|max:255',
+            'from_expiry' => 'nullable|date',
+            'to_expiry' => 'nullable|date|after_or_equal:from_expiry',
+            'medicine_id' => 'nullable|exists:medicines,id',
         ];
     }
 }

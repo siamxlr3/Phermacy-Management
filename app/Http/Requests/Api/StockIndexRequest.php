@@ -14,10 +14,9 @@ class StockIndexRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
-            'search' => ['sometimes', 'string', 'max:100'],
-            'category' => ['sometimes', 'string'],
-            'manufacturer' => ['sometimes', 'string'],
+            'per_page' => 'nullable|integer|min:1|max:100',
+            'search' => 'nullable|string|max:255',
+            'page' => 'nullable|integer|min:1',
         ];
     }
 }

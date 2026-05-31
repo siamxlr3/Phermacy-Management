@@ -12,6 +12,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
+use App\Http\Resources\Api\StockBatchResource;
 
 class InventoryReportController extends Controller
 {
@@ -89,8 +90,13 @@ class InventoryReportController extends Controller
                 SUM(
                     CASE 
                         WHEN medicines.dosage_form IN ("Tablet", "Capsule", "Suppository", "Patch") 
-                        THEN (stock_batches.qty_tablets_remaining / (NULLIF(medicines.tablets_per_strip, 0) * NULLIF(medicines.strips_per_box, 0))) * IFNULL(medicines.price_per_box, 0)
-                        ELSE stock_batches.qty_tablets_remaining * IFNULL(NULLIF(medicines.price_per_unit, 0), medicines.price_per_box / (NULLIF(NULLIF(medicines.tablets_per_strip, 0) * NULLIF(medicines.strips_per_box, 0), 0)))
+                        THEN (stock_batches.qty_tablets_remaining / NULLIF((NULLIF(medicines.tablets_per_strip, 0) * NULLIF(medicines.strips_per_box, 0)), 0))
+                             * IFNULL(stock_batches.cost_per_box, IFNULL(medicines.cost_price, 0))
+                        ELSE stock_batches.qty_tablets_remaining
+                             * IFNULL(
+                                 NULLIF(stock_batches.cost_per_unit, 0),
+                                 IFNULL(stock_batches.cost_per_box, IFNULL(medicines.cost_price, 0))
+                               )
                     END
                 ) as total_value,
                 COUNT(DISTINCT medicines.id) as unique_medicines,
@@ -118,18 +124,18 @@ class InventoryReportController extends Controller
     private function getExpiryRisks($toDate): array
     {
         return [
-            'critical' => StockBatch::available()
+            'critical' => StockBatchResource::collection(StockBatch::available()
                 ->whereBetween('expiry_date', [Carbon::tomorrow(), Carbon::today()->addDays(30)])
                 ->with(['medicine:id,medicine_name', 'supplier:id,name'])
                 ->orderBy('expiry_date')
                 ->limit(50)
-                ->get(),
-            'warning' => StockBatch::available()
+                ->get()),
+            'warning' => StockBatchResource::collection(StockBatch::available()
                 ->where('expiry_date', '<=', $toDate)
                 ->with(['medicine:id,medicine_name', 'supplier:id,name'])
                 ->orderBy('expiry_date', 'asc')
                 ->limit(100)
-                ->get(),
+                ->get()),
         ];
     }
 

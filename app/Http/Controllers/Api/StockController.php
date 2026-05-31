@@ -8,7 +8,7 @@ use App\Http\Requests\Api\StockBatchRequest;
 use App\Models\StockBatch;
 use App\Models\Medicine;
 use App\Http\Resources\Api\StockResource;
-use App\Http\Resources\Api\BatchResource;
+use App\Http\Resources\Api\StockBatchResource;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\Cache;
 
@@ -75,7 +75,7 @@ class StockController extends Controller
         }
 
         $batches = $query->orderBy('stock_batches.expiry_date', 'asc')->paginate($perPage);
-        return BatchResource::collection($batches);
+        return StockBatchResource::collection($batches);
     }
 
     public function medicineBatches(Medicine $medicine): AnonymousResourceCollection
@@ -85,6 +85,6 @@ class StockController extends Controller
             ->orderBy('expiry_date', 'asc')
             ->simplePaginate(15); // Add pagination for memory safety
             
-        return BatchResource::collection($batches);
+        return StockBatchResource::collection($batches);
     }
 }

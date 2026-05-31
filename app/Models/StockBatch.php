@@ -52,12 +52,16 @@ class StockBatch extends Model
         if (!$medicine) return;
 
         $qty = $this->qty_tablets_remaining;
-        
+
         if (in_array($medicine->dosage_form, ["Tablet", "Capsule", "Suppository", "Patch"])) {
             $tabletsPerBox = ($medicine->tablets_per_strip ?? 1) * ($medicine->strips_per_box ?? 1);
             $this->total_cost_value = ($qty / ($tabletsPerBox ?: 1)) * ($this->cost_per_box ?? 0);
         } else {
-            $this->total_cost_value = $qty * ($this->cost_per_unit ?? 0);
+            // For liquid/inhaler/other types, prefer cost_per_box, fall back to cost_per_unit
+            $unitCost = ($this->cost_per_unit && $this->cost_per_unit > 0)
+                ? $this->cost_per_unit
+                : ($this->cost_per_box ?? $medicine->cost_price ?? 0);
+            $this->total_cost_value = $qty * $unitCost;
         }
     }
 
