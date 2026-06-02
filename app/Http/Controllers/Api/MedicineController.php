@@ -23,10 +23,14 @@ class MedicineController extends Controller
         $all = $request->boolean('all', false);
 
         if ($status === '1' && $all) {
-            $medicines = Cache::remember('medicines.active_list', 3600, function () {
+            $medicines = Cache::remember('medicines.active_with_details', 3600, function () {
                 return Medicine::active()
                     ->orderBy('medicine_name')
-                    ->get(['id', 'medicine_name', 'generic_name', 'dosage_form', 'strength']);
+                    ->get([
+                        'id', 'medicine_name', 'generic_name', 'dosage_form', 'strength',
+                        'tablets_per_strip', 'strips_per_box', 'mrp', 'stock', 'package_size',
+                        'price_per_unit', 'price_per_stripe', 'price_per_box'
+                    ]);
             });
             return MedicineResource::collection($medicines);
         }
@@ -105,6 +109,12 @@ class MedicineController extends Controller
         $request->validate([
             'file' => 'required|mimes:xlsx,xls,csv|max:10240',
         ]);
+
+        if (!class_exists('ZipArchive')) {
+            return response()->json([
+                'message' => 'The PHP Zip extension is not installed or enabled. Please contact your administrator or enable the "zip" extension in php.ini.'
+            ], 500);
+        }
 
         try {
             Excel::import(new MedicineImport, $request->file('file'));

@@ -141,8 +141,25 @@ class ReturnController extends Controller
 
                     // Only put back to stock if resellable
                     if (($itemData['return_condition'] ?? 'resellable') === 'resellable') {
-                        StockBatch::where('id', $saleItem->stock_batch_id)->increment('qty_tablets_remaining', $itemData['qty_returned']);
-                        Medicine::where('id', $saleItem->medicine_id)->increment('stock', $itemData['qty_returned']);
+                        // Use save() (not increment()) so the saving event fires and
+                        // calculateValuation() correctly updates total_cost_value.
+                        $returnedTablets = $itemData['qty_returned'];
+                        $batch = StockBatch::find($saleItem->stock_batch_id);
+                        if ($batch) {
+                            $tabletsPerBox = ($batch->qty_boxes > 0)
+                                ? ((float) $batch->qty_tablets / (float) $batch->qty_boxes)
+                                : 1;
+
+                            $batch->qty_tablets_remaining += $returnedTablets;
+                            if ($batch->qty_boxes_remaining !== null && $tabletsPerBox > 0) {
+                                $batch->qty_boxes_remaining = round(
+                                    (float) $batch->qty_tablets_remaining / $tabletsPerBox,
+                                    4
+                                );
+                            }
+                            $batch->save(); // triggers saving → calculateValuation() → total_cost_value updated
+                        }
+                        Medicine::where('id', $saleItem->medicine_id)->increment('stock', $returnedTablets);
                     }
                 }
 

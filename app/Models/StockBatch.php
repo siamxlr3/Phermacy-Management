@@ -39,30 +39,35 @@ class StockBatch extends Model
             $batch->calculateValuation();
         });
 
-        static::saved(fn () => Cache::tags(['stock', 'reports'])->flush());
-        static::deleted(fn () => Cache::tags(['stock', 'reports'])->flush());
+        static::saved(fn () => Cache::flush());
+        static::deleted(fn () => Cache::flush());
     }
 
     /**
      * Calculate and store the total valuation of this batch at cost.
+     * Uses qty_boxes_remaining * cost_per_box to stay consistent with
+     * the GRN controller formula and avoid floating-point drift from
+     * fractional-box division after partial sales.
      */
     public function calculateValuation(): void
     {
         $medicine = $this->medicine;
         if (!$medicine) return;
 
-        $qty = $this->qty_tablets_remaining;
+        $totalCost = 0;
 
-        if (in_array($medicine->dosage_form, ["Tablet", "Capsule", "Suppository", "Patch"])) {
-            $tabletsPerBox = ($medicine->tablets_per_strip ?? 1) * ($medicine->strips_per_box ?? 1);
-            $this->total_cost_value = ($qty / ($tabletsPerBox ?: 1)) * ($this->cost_per_box ?? 0);
+        if ($this->cost_per_box > 0 && $this->qty_boxes_remaining !== null) {
+            // Primary: boxes remaining × cost per box (matches GRN controller exactly)
+            $totalCost = (float) $this->qty_boxes_remaining * (float) $this->cost_per_box;
+        } elseif ($this->cost_per_unit > 0) {
+            // Fallback: tablets remaining × cost per unit
+            $totalCost = (float) $this->qty_tablets_remaining * (float) $this->cost_per_unit;
         } else {
-            // For liquid/inhaler/other types, prefer cost_per_box, fall back to cost_per_unit
-            $unitCost = ($this->cost_per_unit && $this->cost_per_unit > 0)
-                ? $this->cost_per_unit
-                : ($this->cost_per_box ?? $medicine->cost_price ?? 0);
-            $this->total_cost_value = $qty * $unitCost;
+            // Last resort: use medicine cost_price
+            $totalCost = (float) $this->qty_tablets_remaining * (float) ($medicine->cost_price ?? 0);
         }
+
+        $this->total_cost_value = round($totalCost, 2);
     }
 
     protected $fillable = [

@@ -95,8 +95,18 @@ class StockAdjustmentController extends Controller
                 ]);
 
                 // Update Batch Stock
+                $tabletsPerBox = ($batch->qty_boxes > 0)
+                    ? ((float) $batch->qty_tablets / (float) $batch->qty_boxes)
+                    : 1;
+
                 $batch->qty_tablets_remaining = $qtyAfter;
-                $batch->save();
+                if ($batch->qty_boxes_remaining !== null && $tabletsPerBox > 0) {
+                    $batch->qty_boxes_remaining = round(
+                        (float) $batch->qty_tablets_remaining / $tabletsPerBox,
+                        4
+                    );
+                }
+                $batch->save(); // triggers saving event -> calculateValuation() -> total_cost_value updated
 
                 // Update Medicine Total Stock
                 if ($isAddition) {

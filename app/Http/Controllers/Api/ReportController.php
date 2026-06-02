@@ -57,15 +57,7 @@ class ReportController extends Controller
             // Uses live SQL CASE to match the Inventory Reports page exactly.
             $inventoryValuation = StockBatch::available()
                 ->join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id')
-                ->selectRaw('
-                    SUM(
-                        CASE
-                            WHEN medicines.dosage_form IN ("Tablet", "Capsule", "Suppository", "Patch")
-                            THEN (stock_batches.qty_tablets_remaining / (NULLIF(medicines.tablets_per_strip, 0) * NULLIF(medicines.strips_per_box, 0))) * IFNULL(stock_batches.cost_per_box, 0)
-                            ELSE stock_batches.qty_tablets_remaining * IFNULL(NULLIF(stock_batches.cost_per_unit, 0), stock_batches.cost_per_box / (NULLIF(stock_batches.qty_tablets, 0) / NULLIF(stock_batches.qty_boxes, 1)))
-                        END
-                    ) as total_value
-                ')
+                ->selectRaw('SUM(stock_batches.total_cost_value) as total_value')
                 ->value('total_value') ?? 0;
 
             // 5. Corrected Profit Calculation (Revenue - Expenses)

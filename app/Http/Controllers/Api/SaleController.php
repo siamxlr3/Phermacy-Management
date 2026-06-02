@@ -166,7 +166,24 @@ class SaleController extends Controller
                             'updated_at' => now(),
                         ];
 
-                        $batch->decrement('qty_tablets_remaining', $deduct);
+                        // Update qty_tablets_remaining AND qty_boxes_remaining together via save(),
+                        // NOT decrement(). Laravel's decrement() fires updating/updated events but NOT
+                        // saving/saved — so calculateValuation() would never run.
+                        // By setting attributes then calling save(), the saving event fires and
+                        // calculateValuation() correctly computes the new total_cost_value.
+                        $tabletsPerBox = ($batch->qty_boxes > 0)
+                            ? ((float) $batch->qty_tablets / (float) $batch->qty_boxes)
+                            : 1;
+
+                        $batch->qty_tablets_remaining -= $deduct;
+                        if ($batch->qty_boxes_remaining !== null && $tabletsPerBox > 0) {
+                            $batch->qty_boxes_remaining = round(
+                                (float) $batch->qty_tablets_remaining / $tabletsPerBox,
+                                4
+                            );
+                        }
+                        $batch->save(); // triggers saving → calculateValuation() → total_cost_value updated
+
                         $medicineAdjustments[$medicineId] = ($medicineAdjustments[$medicineId] ?? 0) + $deduct;
                         $remainingToDeduct -= $deduct;
                     }

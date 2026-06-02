@@ -245,8 +245,14 @@ const Dashboard = () => {
               <div className="relative z-10">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-[2px] mb-1">{item.label}</p>
                 <h3 className="text-3xl font-black text-slate-900 tracking-tight flex items-baseline gap-1">
-                  {!item.isNumber && <span className="text-xl font-bold opacity-40">৳</span>}
-                  {(item.val || 0).toLocaleString()}
+                  {(isFetching || isRefreshing) ? (
+                    <Skeleton className="h-9 w-32" />
+                  ) : (
+                    <>
+                      {!item.isNumber && <span className="text-xl font-bold opacity-40">৳</span>}
+                      {(item.val || 0).toLocaleString()}
+                    </>
+                  )}
                 </h3>
                 
                 <div className={cn(
@@ -283,7 +289,17 @@ const Dashboard = () => {
               </div>
               
               <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                {best_selling.length > 0 ? best_selling.map((item, i) => (
+                {(isFetching || isRefreshing) ? (
+                  [1, 2, 3, 4, 5].map(i => (
+                    <div key={i} className="space-y-2">
+                      <div className="flex justify-between">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-4 w-12" />
+                      </div>
+                      <Skeleton className="h-2 w-full rounded-full" />
+                    </div>
+                  ))
+                ) : best_selling.length > 0 ? best_selling.map((item, i) => (
                   <div key={i} className="group/item">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex flex-col">
@@ -321,7 +337,11 @@ const Dashboard = () => {
                 <h4 className="text-sm font-black text-slate-900 tracking-widest uppercase">{translations?.dashboard?.sales_analysis?.payments || 'Payments'}</h4>
               </div>
               <div className="grid grid-cols-2 gap-4">
-                {payments.length > 0 ? payments.map((method, i) => (
+                {(isFetching || isRefreshing) ? (
+                  [1, 2, 3, 4].map(i => (
+                    <Skeleton key={i} className="h-10 w-full" />
+                  ))
+                ) : payments.length > 0 ? payments.map((method, i) => (
                   <div key={i} className="flex items-center justify-between p-3 rounded-2xl bg-slate-50/50 border border-slate-100 group/pay hover:bg-white hover:shadow-md transition-all">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-emerald-500 group-hover/pay:scale-125 transition-transform" />
@@ -388,7 +408,16 @@ const Dashboard = () => {
             </div>
 
             <div className="flex-1 flex items-end justify-between gap-5 px-4 mb-12">
-              {Array.from({ length: 12 }).map((_, i) => {
+              {(isFetching || isRefreshing) ? (
+                Array.from({ length: trendFilter.trend_to_month - trendFilter.trend_from_month + 1 }).map((_, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-5 h-full">
+                    <div className="w-full relative flex-1 flex items-end">
+                      <Skeleton className="w-full rounded-2xl" style={{ height: `${Math.random() * 60 + 20}%` }} />
+                    </div>
+                    <Skeleton className="h-3 w-8" />
+                  </div>
+                ))
+              ) : Array.from({ length: 12 }).map((_, i) => {
                 const month = i + 1;
                 // Only show months within the selected range
                 if (month < trendFilter.trend_from_month || month > trendFilter.trend_to_month) return null;
@@ -437,14 +466,26 @@ const Dashboard = () => {
                    <div className="w-1.5 h-1.5 rounded-full bg-slate-300 group-hover/info:bg-indigo-500 transition-colors" />
                    {translations?.dashboard?.monthly_summary?.avg_revenue || 'Average Monthly'}
                 </p>
-                <p className="text-lg font-black text-slate-800 tracking-tight">৳ {(monthly_revenue.reduce((acc, m) => acc + parseFloat(m.revenue), 0) / (monthly_revenue.length || 1)).toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                <p className="text-lg font-black text-slate-800 tracking-tight">
+                  {(isFetching || isRefreshing) ? (
+                    <Skeleton className="h-6 w-24 mt-1" />
+                  ) : (
+                    `৳ ${(monthly_revenue.reduce((acc, m) => acc + parseFloat(m.revenue), 0) / (monthly_revenue.length || 1)).toLocaleString(undefined, {maximumFractionDigits: 0})}`
+                  )}
+                </p>
               </div>
               <div className="p-6 rounded-[32px] bg-indigo-50/30 border border-indigo-50/50 hover:bg-white hover:shadow-md transition-all group/peak">
                 <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-2">
                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-300 group-hover/peak:scale-125 transition-all" />
                    {t?.peak_performance || 'Peak Performance'}
                 </p>
-                <p className="text-lg font-black text-indigo-600 tracking-tight">৳ {(Math.max(...monthly_revenue.map(m => parseFloat(m.revenue)), 0)).toLocaleString()}</p>
+                <p className="text-lg font-black text-indigo-600 tracking-tight">
+                  {(isFetching || isRefreshing) ? (
+                    <Skeleton className="h-6 w-24 mt-1" />
+                  ) : (
+                    `৳ ${(Math.max(...monthly_revenue.map(m => parseFloat(m.revenue)), 0)).toLocaleString()}`
+                  )}
+                </p>
               </div>
             </div>
           </div>
@@ -465,7 +506,14 @@ const Dashboard = () => {
                 <span className="text-[10px] font-black text-rose-500 bg-rose-50 px-3 py-1 rounded-full uppercase tracking-widest border border-rose-100">{metrics.low_stock_count} {translations?.dashboard?.alerts?.items_left || 'Items'}</span>
               </div>
               <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
-                {low_stock_items.length > 0 ? low_stock_items.map((item, i) => (
+                {(isFetching || isRefreshing) ? (
+                  [1, 2, 3, 4].map(i => (
+                    <div key={i} className="flex justify-between items-center p-2.5">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-4 w-12" />
+                    </div>
+                  ))
+                ) : low_stock_items.length > 0 ? low_stock_items.map((item, i) => (
                   <div key={i} className="flex items-center justify-between group/alert p-2.5 hover:bg-rose-50/30 rounded-xl transition-colors border border-transparent hover:border-rose-100">
                     <span className="text-xs font-bold text-slate-600 truncate mr-2 uppercase tracking-tight">{item.medicine_name}</span>
                     <span className="text-[10px] font-black text-rose-500 uppercase bg-white border border-rose-100 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">{item.qty} LEFT</span>
@@ -490,7 +538,14 @@ const Dashboard = () => {
                 <span className="text-[10px] font-black text-amber-500 bg-amber-50 px-3 py-1 rounded-full uppercase tracking-widest border border-amber-100">{metrics.expiring_soon_count} Batches</span>
               </div>
               <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
-                {expiring_items.length > 0 ? expiring_items.map((item, i) => (
+                {(isFetching || isRefreshing) ? (
+                  [1, 2, 3, 4].map(i => (
+                    <div key={i} className="flex justify-between items-center p-2.5">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-4 w-20" />
+                    </div>
+                  ))
+                ) : expiring_items.length > 0 ? expiring_items.map((item, i) => (
                   <div key={i} className="flex items-center justify-between group/alert p-2.5 hover:bg-amber-50/30 rounded-xl transition-colors border border-transparent hover:border-amber-100">
                     <span className="text-xs font-bold text-slate-600 truncate mr-2 uppercase tracking-tight">{item.medicine_name || item.medicine?.medicine_name || 'Unknown'}</span>
                     <span className="text-[10px] font-black text-amber-600 uppercase bg-white border border-amber-100 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">
@@ -522,9 +577,9 @@ const Dashboard = () => {
             <div className="space-y-5 relative z-10">
               {[
                 { label: translations?.dashboard?.sales_analysis?.new_pos || 'New POS Sale', icon: ShoppingBag, color: 'indigo', path: '/pos' },
-                { label: translations?.dashboard?.sales_analysis?.receive_inventory || 'Receive Inventory', icon: Package, color: 'emerald', path: '/grn/create' },
+                { label: translations?.dashboard?.sales_analysis?.receive_inventory || 'Receive Inventory', icon: Package, color: 'emerald', path: '/stock' },
                 { label: translations?.dashboard?.sales_analysis?.stock_reports || 'Stock Reports', icon: AlertTriangle, color: 'amber', path: '/inventory/reports' },
-                { label: translations?.dashboard?.sales_analysis?.supplier_dues || 'Supplier Dues', icon: Truck, color: 'rose', path: '/suppliers' },
+                { label: translations?.dashboard?.sales_analysis?.supplier_dues || 'Supplier Dues', icon: Truck, color: 'rose', path: '/inventory/reports' },
               ].map((action, i) => (
                 <button 
                   key={i}
@@ -570,8 +625,14 @@ const Dashboard = () => {
                 )} />
               </div>
               <h3 className="text-3xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5 group-hover:scale-105 transition-transform duration-500 origin-left">
-                {!item.isNumber && <span className="text-xl font-bold opacity-30">৳</span>}
-                {(item.val || 0).toLocaleString()}
+                {(isFetching || isRefreshing) ? (
+                  <Skeleton className="h-9 w-32" />
+                ) : (
+                  <>
+                    {!item.isNumber && <span className="text-xl font-bold opacity-30">৳</span>}
+                    {(item.val || 0).toLocaleString()}
+                  </>
+                )}
               </h3>
               <div className="mt-6 flex items-center">
                 {item.trend ? (
@@ -594,8 +655,14 @@ const Dashboard = () => {
               <div className="w-2 h-2 rounded-full bg-indigo-500" />
             </div>
             <h3 className="text-3xl font-black text-slate-900 tracking-tight flex items-baseline gap-1.5 group-hover:scale-105 transition-transform duration-500 origin-left">
-              <span className="text-xl font-bold opacity-30">৳</span>
-              {(metrics.stock_value || 0).toLocaleString()}
+              {(isFetching || isRefreshing) ? (
+                <Skeleton className="h-9 w-32" />
+              ) : (
+                <>
+                  <span className="text-xl font-bold opacity-30">৳</span>
+                  {(metrics.stock_value || 0).toLocaleString()}
+                </>
+              )}
             </h3>
             <div className="mt-4">
               <span className="text-[9px] font-black text-indigo-400 bg-indigo-50 px-3 py-1 rounded-lg uppercase tracking-widest border border-indigo-100 self-start">

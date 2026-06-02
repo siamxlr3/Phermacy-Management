@@ -87,18 +87,7 @@ class InventoryReportController extends Controller
             ->join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id')
             ->selectRaw('
                 IFNULL(medicines.category, "Uncategorized") as category_name,
-                SUM(
-                    CASE 
-                        WHEN medicines.dosage_form IN ("Tablet", "Capsule", "Suppository", "Patch") 
-                        THEN (stock_batches.qty_tablets_remaining / NULLIF((NULLIF(medicines.tablets_per_strip, 0) * NULLIF(medicines.strips_per_box, 0)), 0))
-                             * IFNULL(stock_batches.cost_per_box, IFNULL(medicines.cost_price, 0))
-                        ELSE stock_batches.qty_tablets_remaining
-                             * IFNULL(
-                                 NULLIF(stock_batches.cost_per_unit, 0),
-                                 IFNULL(stock_batches.cost_per_box, IFNULL(medicines.cost_price, 0))
-                               )
-                    END
-                ) as total_value,
+                SUM(stock_batches.total_cost_value) as total_value,
                 COUNT(DISTINCT medicines.id) as unique_medicines,
                 SUM(stock_batches.qty_tablets_remaining) as total_tablets
             ')

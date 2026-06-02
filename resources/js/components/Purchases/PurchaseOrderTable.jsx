@@ -8,7 +8,7 @@ import { format, subDays } from 'date-fns';
 import GRNForm from '../GRN/GRNForm';
 import { useLanguage } from '../../language/GlobalTranslate.jsx';
 
-const GROUP_A = ['Tablet', 'Capsule', 'Suppository', 'Patch'];
+const GROUP_A = ['Tablet', 'Capsule', 'Suppository', 'Sachet'];
 
 const StatusBadge = ({ status, translations }) => {
   const styles = {
@@ -36,10 +36,10 @@ const StatusBadge = ({ status, translations }) => {
 
 const PaymentStatusBadge = ({ status, translations }) => {
   const styles = {
-    Pending: 'bg-slate-50 text-slate-600 border-slate-100',
+    Paid: 'bg-emerald-50 text-emerald-700 border-emerald-100',
     'Partially Paid': 'bg-blue-50 text-blue-700 border-blue-100',
-    Paid: 'bg-indigo-50 text-indigo-700 border-indigo-100',
     Due: 'bg-rose-50 text-rose-700 border-rose-100',
+    Pending: 'bg-slate-50 text-slate-600 border-slate-100',
   };
   const labels = {
     Pending: translations.purchase_order.pending,
@@ -161,8 +161,9 @@ const PurchaseOrderTable = () => {
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 bg-white/95 backdrop-blur-sm z-10 border-b border-slate-200">
               <tr>
+                <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">{translations.purchase_order.date_col || 'Date'}</th>
                 <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">{translations.purchase_order.supplier_col}</th>
-                <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">Invoice #</th>
+                <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">PO #</th>
                 <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest">{translations.purchase_order.items_col}</th>
                 <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">{translations.purchase_order.payment_col}</th>
                 <th className="px-5 py-4 text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">{translations.purchase_order.value_col}</th>
@@ -173,7 +174,8 @@ const PurchaseOrderTable = () => {
               {isLoadingState ? (
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="animate-pulse">
-                    <td className="px-5 py-5"><div className="h-4 bg-slate-100 rounded w-36"></div></td>
+                    <td className="px-5 py-5"><div className="h-4 bg-slate-100 rounded w-24"></div></td>
+                    <td className="px-5 py-5"><div className="h-4 bg-slate-100 rounded w-40"></div></td>
                     <td className="px-5 py-5 text-center"><div className="h-4 bg-slate-100 rounded w-20 mx-auto"></div></td>
                     <td className="px-5 py-5"><div className="h-4 bg-slate-100 rounded w-48"></div></td>
                     <td className="px-5 py-5 text-center"><div className="h-6 bg-slate-100 rounded-full w-16 mx-auto"></div></td>
@@ -185,72 +187,99 @@ const PurchaseOrderTable = () => {
                 orders.map((order) => (
                   <tr key={order.id} className="group hover:bg-slate-50/50 transition-all duration-150">
 
-
-                    {/* Supplier */}
+                    {/* Date */}
                     <td className="px-5 py-5">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center border border-slate-100 shrink-0">
-                          <ShoppingBag size={14} className="text-slate-400" />
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold text-slate-800 truncate">{order.supplier?.name || '—'}</span>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase mt-0.5">{format(new Date(order.order_date), 'dd MMM yyyy')}</span>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-black text-slate-700">{format(new Date(order.order_date), 'dd MMM yyyy')}</span>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <ShoppingBag size={10} className="text-slate-400" />
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest truncate max-w-[100px]">
+                            {`PO-${String(order.id).padStart(6, '0')}`}
+                          </span>
                         </div>
                       </div>
                     </td>
 
-                    {/* Invoice # */}
+                    {/* Supplier */}
+                    <td className="px-5 py-5">
+                      <span className="text-sm font-bold text-slate-800 tracking-tight">
+                        {order.supplier?.name || '—'}
+                      </span>
+                    </td>
+
+                    {/* PO # */}
                     <td className="px-5 py-5 text-center">
                       <span className="text-xs font-black text-slate-600 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
                         {`PO-${String(order.id).padStart(6, '0')}`}
                       </span>
                     </td>
 
-                    {/* Items Ordered — inline tags */}
-                    <td className="px-5 py-5 max-w-xs">
-                      <div className="flex flex-wrap gap-1.5">
-                        {order.items?.length > 0 ? order.items.map((item, idx) => {
-                          const isStripBased = GROUP_A.includes(item.dosage_form_snapshot);
-                          return (
-                            <div key={idx} className="inline-flex flex-col bg-slate-50 border border-slate-100 rounded-xl px-2.5 py-1.5 min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                {isStripBased
-                                  ? <Boxes size={9} className="text-slate-400 shrink-0" />
-                                  : <Droplets size={9} className="text-slate-400 shrink-0" />
-                                }
-                                <span className="text-[10px] font-black text-slate-700 truncate max-w-[120px]">{item.medicine_name}</span>
-                              </div>
-                              <div className="flex flex-col gap-0.5 mt-0.5">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-[9px] font-bold text-slate-500">
-                                    {item.qty_boxes} <span className="text-[8px] uppercase">Boxes</span>
+                    {/* Items Ordered — column-based list */}
+                    <td className="px-5 py-4">
+                      {order.items?.length > 0 ? (
+                        <div className="flex flex-col divide-y divide-slate-100">
+                          {order.items.map((item, idx) => {
+                            const isStripBased = GROUP_A.includes(item.dosage_form_snapshot);
+                            return (
+                              <div key={idx} className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 items-center py-2 first:pt-0 last:pb-0">
+
+                                {/* Col 1: Name + dosage form */}
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-[11px] font-black text-slate-700 truncate leading-tight">{item.medicine_name}</span>
+                                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">{item.dosage_form_snapshot}</span>
+                                </div>
+
+                                {/* Col 2: Info (Placeholder/Empty if no batch) */}
+                                <div className="flex flex-col items-start gap-0.5 shrink-0 w-24">
+                                </div>
+
+                                {/* Col 3: Qty */}
+                                <div className="flex flex-col items-end shrink-0">
+                                  <span className="text-[10px] font-black text-slate-600 whitespace-nowrap">{item.qty_boxes} Boxes</span>
+                                  {item.qty_units > 1 && (
+                                    <span className="text-[8px] text-slate-400 font-medium whitespace-nowrap">{item.qty_units} units/box</span>
+                                  )}
+                                </div>
+
+                                {/* Col 4: Cost */}
+                                <div className="flex flex-col items-end shrink-0">
+                                  <span className="text-[10px] font-black text-emerald-600 whitespace-nowrap">
+                                    ৳{parseFloat(item.cost_per_box).toFixed(2)}
+                                    <span className="text-[8px] text-slate-400 font-medium">{translations.purchase_order.per_box || ' /box'}</span>
                                   </span>
-                                  <span className="text-[8px] text-slate-300">•</span>
-                                  <span className="text-[9px] font-bold text-emerald-600">
-                                    ৳{parseFloat(item.cost_per_box).toFixed(2)} / box
+                                  {isStripBased && item.cost_per_stripe && (
+                                    <span className="text-[10px] font-black text-blue-600 whitespace-nowrap">
+                                      ৳{parseFloat(item.cost_per_stripe).toFixed(2)}
+                                      <span className="text-[8px] text-slate-400 font-medium">/stripe</span>
+                                    </span>
+                                  )}
+                                  <span className="text-[9px] font-bold text-indigo-500 whitespace-nowrap">
+                                    ৳{parseFloat(item.cost_per_unit).toFixed(2)}
+                                    <span className="text-[8px] text-slate-400 font-medium">/unit</span>
                                   </span>
                                 </div>
-                                <span className="text-[8px] font-bold text-indigo-400 uppercase tracking-tighter">
-                                  ৳{parseFloat(item.cost_per_unit).toFixed(2)} / unit
-                                </span>
+
                               </div>
-                            </div>
-                          );
-                        }) : (
-                          <span className="text-xs text-slate-300 font-bold">{translations.purchase_order.no_items}</span>
-                        )}
-                      </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-300 font-bold">{translations.purchase_order.no_items}</span>
+                      )}
                     </td>
 
                     {/* Payment */}
                     <td className="px-5 py-5 text-center">
-                      <div className="flex flex-col items-center gap-1">
+                      <div className="flex flex-col items-center gap-1.5">
                         <PaymentStatusBadge status={order.payment_status} translations={translations} />
-                        {order.payment_status === 'Paid' ? (
-                          <span className="text-[9px] font-bold text-emerald-600 uppercase">৳{parseFloat(order.total_amount).toLocaleString()}</span>
-                        ) : order.paid_amount > 0 ? (
-                          <span className="text-[9px] font-bold text-blue-500 uppercase">{translations.purchase_order.pd_label}{parseFloat(order.paid_amount).toLocaleString()}</span>
-                        ) : null}
+                        {(order.payment_status === 'Paid' || order.paid_amount > 0) && (
+                          <span className="text-[9px] font-bold text-emerald-600 uppercase">
+                            {order.payment_status === 'Paid' 
+                               ? `৳${parseFloat(order.total_amount).toLocaleString()}`
+                               : `${translations.purchase_order.pd_label || 'Paid: '}৳${parseFloat(order.paid_amount).toLocaleString()}`
+                            }
+                          </span>
+                        )}
                       </div>
                     </td>
 
@@ -259,7 +288,7 @@ const PurchaseOrderTable = () => {
                       <span className="text-sm font-black text-slate-900">৳{parseFloat(order.total_amount).toLocaleString()}</span>
                     </td>
 
-                    {/* Order Status */}
+                    {/* Status */}
                     <td className="px-5 py-5 text-center">
                       <StatusBadge status={order.status} translations={translations} />
                     </td>
@@ -270,6 +299,7 @@ const PurchaseOrderTable = () => {
               )}
             </tbody>
           </table>
+
         )}
       </div>
 

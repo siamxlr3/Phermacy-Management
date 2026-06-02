@@ -69,7 +69,7 @@ const CashRegisterPage = () => {
 
   const summary = statusData?.summary || { current_balance: 0, total_in: 0, total_out: 0, today_in: 0, today_out: 0 };
   const transactions = ledgerData?.data || [];
-  const meta = ledgerData || {};
+  const meta = ledgerData?.meta || { current_page: 1, last_page: 1, total: 0 };
 
   const summaryCards = [
     { 
@@ -156,7 +156,7 @@ const CashRegisterPage = () => {
             {/* Removed Transaction type and Payment method filters as requested */}
 
             <span className="ml-auto text-[10px] font-black text-slate-400 uppercase tracking-widest">
-              {translations.cash_register.showing_records.replace('{n}', transactions.length)}
+              {translations.cash_register.showing_records.replace('{n}', meta.total || transactions.length)}
             </span>
           </div>
 
@@ -300,13 +300,24 @@ const CashRegisterPage = () => {
                   className="p-2 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-indigo-600 disabled:opacity-30 transition-all shadow-sm">
                   <ChevronLeft size={20} />
                 </button>
-                {Array.from({ length: Math.min(meta.last_page, 5) }).map((_, i) => (
-                  <button key={i} onClick={() => setPage(i + 1)}
-                    className={cn("w-9 h-9 rounded-xl text-xs font-black transition-all",
-                      page === i + 1 ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20" : "bg-white border border-slate-200 text-slate-400 hover:bg-slate-50")}>
-                    {i + 1}
-                  </button>
-                ))}
+                {(() => {
+                  const total = meta.last_page || 1;
+                  const current = meta.current_page || 1;
+                  const maxVisible = 5;
+                  let start = Math.max(1, current - Math.floor(maxVisible / 2));
+                  let end = Math.min(total, start + maxVisible - 1);
+                  if (end - start + 1 < maxVisible) {
+                    start = Math.max(1, end - maxVisible + 1);
+                  }
+                  
+                  return Array.from({ length: end - start + 1 }, (_, i) => start + i).map((p) => (
+                    <button key={p} onClick={() => setPage(p)}
+                      className={cn("w-9 h-9 rounded-xl text-xs font-black transition-all",
+                        page === p ? "bg-slate-900 text-white shadow-lg shadow-slate-900/20" : "bg-white border border-slate-200 text-slate-400 hover:bg-slate-50")}>
+                      {p}
+                    </button>
+                  ));
+                })()}
                 <button disabled={page === meta.last_page} onClick={() => setPage(page + 1)}
                   className="p-2 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-indigo-600 disabled:opacity-30 transition-all shadow-sm">
                   <ChevronRight size={20} />

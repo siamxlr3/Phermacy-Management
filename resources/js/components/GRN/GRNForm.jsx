@@ -71,7 +71,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
           cost_per_unit: item.cost_per_unit || item.unit_cost || '',
           tablets_per_strip: item.medicine?.tablets_per_strip || 10,
           strips_per_box: item.medicine?.strips_per_box || 10,
-          mrp: item.medicine?.price_per_unit || 0,
+          mrp: item.medicine?.mrp || item.medicine?.price_per_unit || 0,
           stock: item.medicine?.stock || 0
         }))
       );
@@ -128,7 +128,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
         cost_per_unit: isManualEntry ? 0 : initialCostPerUnit,
         tablets_per_strip: tabsPerStrip,
         strips_per_box: stripsPerBox,
-        mrp: med.price_per_unit || 0,
+        mrp: med.mrp || med.price_per_unit || 0,
         stock: med.stock || 0
       }
     ]);
@@ -446,8 +446,8 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
                   <div className="form-group">
                     <label>Qty (boxes)</label>
                     <input 
-                      type="number" 
-                      min="1"
+                      type="text" 
+                      inputMode="numeric"
                       value={item.qty_boxes_received}
                       onChange={(e) => handleItemChange(index, 'qty_boxes_received', e.target.value)}
                     />
@@ -460,8 +460,8 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
                   <div className="form-group">
                     <label>{isStripBased ? 'Cost/box' : 'Cost/box'} <span className="auto-tag">enter</span></label>
                     <input 
-                      type="number" 
-                      step="0.01"
+                      type="text" 
+                      inputMode="decimal"
                       value={item.cost_per_box}
                       onChange={(e) => handleItemChange(index, 'cost_per_box', e.target.value)}
                     />
@@ -471,8 +471,8 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
                       <div className="form-group">
                         <label>Cost/strip <span className="auto-tag">enter</span></label>
                         <input 
-                          type="number" 
-                          step="0.01"
+                          type="text" 
+                          inputMode="decimal"
                           value={item.cost_per_stripe} 
                           onChange={(e) => handleItemChange(index, 'cost_per_stripe', e.target.value)} 
                         />
@@ -480,8 +480,8 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
                       <div className="form-group">
                         <label>Cost/tab <span className="auto-tag">enter</span></label>
                         <input 
-                          type="number" 
-                          step="0.0001"
+                          type="text" 
+                          inputMode="decimal"
                           value={item.cost_per_unit} 
                           onChange={(e) => handleItemChange(index, 'cost_per_unit', e.target.value)} 
                         />

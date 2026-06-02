@@ -41,7 +41,10 @@ class GRNController extends Controller
             $query->join('suppliers', 'grns.supplier_id', '=', 'suppliers.id')
                   ->where(function($q) use ($search) {
                       $q->where('grns.invoice_number', 'like', "{$search}%")
-                        ->orWhere('suppliers.name', 'like', "{$search}%");
+                        ->orWhere('suppliers.name', 'like', "{$search}%")
+                        ->orWhereHas('items', function($itemQuery) use ($search) {
+                            $itemQuery->where('batch_number', 'like', "{$search}%");
+                        });
                   })
                   ->select('grns.*');
         } else {
@@ -166,6 +169,10 @@ class GRNController extends Controller
                         ? $item['qty_boxes_received'] * (($medicine?->tablets_per_strip ?? 1) * ($medicine?->strips_per_box ?? 1))
                         : $item['qty_boxes_received'] * ($item['qty_units_received'] ?? 1);
 
+                    // Use the exact subtotal from the request to ensure consistency
+                    // between the GRN total amount and the inventory valuation.
+                    $totalCostValue = (float) ($item['subtotal'] ?? 0);
+
                     $stockBatchesData[] = [
                         'medicine_id' => $item['medicine_id'],
                         'supplier_id' => $data['supplier_id'],
@@ -182,6 +189,7 @@ class GRNController extends Controller
                         'cost_per_unit' => $item['cost_per_unit'],
                         'cost_per_stripe' => $item['cost_per_stripe'] ?? null,
                         'cost_per_box' => $item['cost_per_box'] ?? null,
+                        'total_cost_value' => $totalCostValue,
                         'received_date' => $data['received_date'],
                         'created_at' => now(),
                         'updated_at' => now(),
@@ -248,13 +256,13 @@ class GRNController extends Controller
         try {
             $grn = DB::transaction(function () use ($grn, $data) {
                 $oldPaymentStatus = $grn->payment_status;
-                $oldPaidAmount = $grn->paid_amount;
+                $oldPaidAmount    = (float) $grn->paid_amount; // Cast to float to avoid string vs int mismatch
 
                 // Safety Check: Edit-Lock (Check for any movements)
                 $this->checkHasMovements($grn);
 
                 $this->reverseGrnStock($grn);
-                $grn->items()->delete();
+                $grn->items()->forceDelete();
 
                 $grn->update([
                     'purchase_order_id' => $data['purchase_order_id'] ?? $grn->purchase_order_id,
@@ -299,6 +307,10 @@ class GRNController extends Controller
                         'updated_at' => now(),
                     ];
 
+                    // Use the exact subtotal from the request to ensure consistency
+                    // between the GRN total amount and the inventory valuation.
+                    $totalCostValue = (float) ($item['subtotal'] ?? 0);
+
                     $stockBatchesData[] = [
                         'medicine_id' => $item['medicine_id'],
                         'supplier_id' => $grn->supplier_id,
@@ -315,6 +327,7 @@ class GRNController extends Controller
                         'cost_per_unit' => $item['cost_per_unit'],
                         'cost_per_stripe' => $item['cost_per_stripe'] ?? null,
                         'cost_per_box' => $item['cost_per_box'] ?? null,
+                        'total_cost_value' => $totalCostValue,
                         'received_date' => $grn->received_date,
                         'created_at' => now(),
                         'updated_at' => now(),
@@ -337,7 +350,7 @@ class GRNController extends Controller
                 $grn->load('supplier');
 
                 // Re-calculate Cash Transaction on update ONLY if amount changed
-                if ($oldPaidAmount != $grn->paid_amount) {
+                if ($oldPaidAmount !== (float) $grn->paid_amount) {
                     // Reverse the original payment if any
                     if ($oldPaidAmount > 0) {
                         CashTransaction::record(
@@ -395,7 +408,7 @@ class GRNController extends Controller
                 }
 
                 $this->reverseGrnStock($grn);
-                $grn->items()->delete();
+                $grn->items()->forceDelete();
                 $grn->delete();
 
                 $this->clearCache();
@@ -437,16 +450,15 @@ class GRNController extends Controller
         foreach ($batches as $batch) {
             $medicine = $medicines->get($batch->medicine_id);
             $medicine?->decrement('stock', $batch->qty_tablets_remaining);
-            $batch->delete();
+            $batch->forceDelete();
         }
     }
 
     /**
-     * Clear surgical cache tags.
+     * Clear all relevant caches.
      */
     private function clearCache(): void
     {
-        Cache::forget('medicines.active_list');
-        Cache::tags(['inventory', 'reports', 'dashboard', 'cash'])->flush();
+        Cache::flush();
     }
 }

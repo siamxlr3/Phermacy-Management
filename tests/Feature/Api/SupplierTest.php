@@ -15,7 +15,7 @@ class SupplierTest extends TestCase
     {
         Supplier::factory()->count(5)->create();
 
-        $response = $this->getJson('/api/suppliers');
+        $response = $this->getJson('/api/v1/suppliers');
 
         $response->assertStatus(200)
             ->assertJsonCount(5, 'data');
@@ -26,7 +26,7 @@ class SupplierTest extends TestCase
         Supplier::factory()->create(['name' => 'Acme Corp']);
         Supplier::factory()->create(['name' => 'Globex']);
 
-        $response = $this->getJson('/api/suppliers?search=Acme');
+        $response = $this->getJson('/api/v1/suppliers?search=Acme');
 
         $response->assertStatus(200)
             ->assertJsonCount(1, 'data')
@@ -37,7 +37,7 @@ class SupplierTest extends TestCase
     {
         Supplier::factory()->create(['phone' => '1234567890']);
 
-        $response = $this->postJson('/api/suppliers', [
+        $response = $this->postJson('/api/v1/suppliers', [
             'name' => 'New Supplier',
             'phone' => '1234567890',
         ]);
@@ -66,5 +66,17 @@ class SupplierTest extends TestCase
             ->atLeast()->once();
 
         $supplier->restore();
+    }
+
+    public function test_can_search_suppliers_by_phone()
+    {
+        Supplier::factory()->create(['phone' => '8801712345678']);
+        Supplier::factory()->create(['phone' => '8801812345678']);
+
+        $response = $this->getJson('/api/v1/suppliers?search=017');
+
+        $response->assertStatus(200)
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.phone', '8801712345678');
     }
 }
