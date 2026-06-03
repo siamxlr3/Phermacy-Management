@@ -33,7 +33,7 @@ return new class extends Migration
             $table->integer('qty_units_remaining')->nullable();
             
             // Financials
-            $table->decimal('cost_per_unit', 15, 4);
+            $table->decimal('cost_per_unit', 15, 4)->nullable();
             $table->decimal('cost_per_stripe', 15, 4)->nullable();
             $table->decimal('cost_per_box', 15, 4)->nullable();
             

@@ -25,7 +25,7 @@ return new class extends Migration
             
             $table->decimal('cost_per_box', 15, 4)->nullable();
             $table->decimal('cost_per_stripe', 15, 4)->nullable();
-            $table->decimal('cost_per_unit', 15, 4); // Standardized unit cost
+            $table->decimal('cost_per_unit', 15, 4)->nullable(); // Standardized unit cost
             
             $table->decimal('subtotal', 15, 2);
             

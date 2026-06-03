@@ -107,7 +107,7 @@ class GRNController extends Controller
                 }
 
                 // 2. Generate Invoice Number safely with Lock
-                $invoiceNumber = $data['invoice_number'];
+                $invoiceNumber = $data['invoice_number'] ?? null;
                 if (empty($invoiceNumber)) {
                     // Optimized lock-scan for invoice generation
                     $lastGRN = DB::table('grns')
@@ -158,8 +158,8 @@ class GRNController extends Controller
                         'package_size' => $item['package_size'] ?? null,
                         'cost_per_box' => $item['cost_per_box'] ?? null,
                         'cost_per_stripe' => $item['cost_per_stripe'] ?? null,
-                        'cost_per_unit' => $item['cost_per_unit'],
-                        'subtotal' => $item['subtotal'],
+                        'cost_per_unit' => $item['cost_per_unit'] ?? null,
+                        'subtotal' => $item['subtotal'] ?? 0,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ];
@@ -301,8 +301,8 @@ class GRNController extends Controller
                         'package_size' => $item['package_size'] ?? null,
                         'cost_per_box' => $item['cost_per_box'] ?? null,
                         'cost_per_stripe' => $item['cost_per_stripe'] ?? null,
-                        'cost_per_unit' => $item['cost_per_unit'],
-                        'subtotal' => $item['subtotal'],
+                        'cost_per_unit' => $item['cost_per_unit'] ?? null,
+                        'subtotal' => $item['subtotal'] ?? 0,
                         'created_at' => now(),
                         'updated_at' => now(),
                     ];

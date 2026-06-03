@@ -43,7 +43,7 @@ class GRNRequest extends FormRequest
             'items.*.package_size' => 'nullable|string|max:100',
             'items.*.cost_per_box' => 'nullable|numeric|min:0',
             'items.*.cost_per_stripe' => 'nullable|numeric|min:0',
-            'items.*.cost_per_unit' => 'required|numeric|min:0',
+            'items.*.cost_per_unit' => 'nullable|numeric|min:0',
             'items.*.subtotal' => 'required|numeric|min:0',
         ];
     }

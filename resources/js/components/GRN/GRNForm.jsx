@@ -97,8 +97,9 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
       return;
     }
 
-    const isManualEntry = ['Tablet', 'Capsule'].includes(med.dosage_form);
-    const isStripBased = GROUP_A.includes(med.dosage_form);
+    const dosageForm = (med.dosage_form || '').toLowerCase();
+    const isManualEntry = ['tablet', 'capsule'].includes(dosageForm);
+    const isStripBased = ['tablet', 'capsule', 'suppository', 'sachet'].includes(dosageForm);
     
     const initialPricePerBox = parseFloat(med.price_per_box) || 0;
     const stripsPerBox = parseInt(med.strips_per_box) || 1;
@@ -122,10 +123,10 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
         qty_boxes_received: 1,
         qty_units_received: unitsPerBox,
         package_size: med.package_size || '',
-        subtotal: isManualEntry ? 0 : initialPricePerBox,
-        cost_per_box: isManualEntry ? 0 : initialPricePerBox,
-        cost_per_stripe: isManualEntry ? 0 : initialCostPerStripe,
-        cost_per_unit: isManualEntry ? 0 : initialCostPerUnit,
+        subtotal: 0,
+        cost_per_box: 0,
+        cost_per_stripe: 0,
+        cost_per_unit: 0,
         tablets_per_strip: tabsPerStrip,
         strips_per_box: stripsPerBox,
         mrp: med.mrp || med.price_per_unit || 0,
