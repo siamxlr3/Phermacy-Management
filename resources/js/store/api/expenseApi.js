@@ -39,7 +39,7 @@ export const expenseApi = createApi({
         method: 'POST',
         body: data,
       }),
-      invalidatesTags: ['Expense'],
+      invalidatesTags: ['Expense', 'CashRegister'],
     }),
     updateExpense: builder.mutation({
       query: ({ id, ...data }) => ({
@@ -47,14 +47,14 @@ export const expenseApi = createApi({
         method: 'PUT',
         body: data,
       }),
-      invalidatesTags: ['Expense'],
+      invalidatesTags: ['Expense', 'CashRegister'],
     }),
     deleteExpense: builder.mutation({
       query: (id) => ({
         url: `/expenses/${id}`,
         method: 'DELETE',
       }),
-      invalidatesTags: ['Expense'],
+      invalidatesTags: ['Expense', 'CashRegister'],
     }),
   }),
 });

@@ -167,52 +167,51 @@ class ExpenseController extends Controller
         try {
             $expense = DB::transaction(function () use ($expense, $data) {
                 $oldStatus = $expense->status;
-                $oldTotal = $expense->grand_total;
+                $oldTotal  = (float) $expense->grand_total;
 
-                $financialsChanged = ($oldStatus !== $expense->status) || ($oldStatus === 'Paid' && $oldTotal != $expense->grand_total);
-
-                // FIX 5: Prevent financial leakage on update
-                // Only record if status changed or amount of a paid expense changed
-                if ($financialsChanged) {
-                    // If it was Paid, reverse the original amount back to the drawer first
-                    if ($oldStatus === 'Paid') {
-                        CashTransaction::record(
-                            CashTransaction::TYPE_EXPENSE_REVERSAL,
-                            $oldTotal,
-                            "Reversal of Edited Expense ({$expense->transaction_id})",
-                            'expense',
-                            $expense->id,
-                            $expense->transaction_id,
-                            'cash',
-                            $expense->supplier_name,
-                            'supplier'
-                        );
-                    }
-                }
-
-                // FIX 7: Server-side calculation
+                // FIX 7: Server-side calculation — compute new values BEFORE update
                 $items = collect($data['items'])->map(function ($item) {
-                    $qty = (int) $item['qty'];
+                    $qty   = (int)   $item['qty'];
                     $price = (float) $item['price'];
                     return [
-                        'items_name' => $item['items_name'],
-                        'category' => $item['category'],
-                        'qty' => $qty,
-                        'price' => $price,
+                        'items_name'  => $item['items_name'],
+                        'category'    => $item['category'],
+                        'qty'         => $qty,
+                        'price'       => $price,
                         'total_price' => $qty * $price,
                     ];
                 });
 
-                $grandTotal = $items->sum('total_price');
+                $newTotal  = (float) $items->sum('total_price');
+                $newStatus = $data['status'];
+
+                // FIX 5 (corrected): Compare old vs NEW values — not old vs old
+                $financialsChanged = ($oldStatus !== $newStatus)
+                    || ($oldStatus === 'Paid' && $oldTotal != $newTotal);
+
+                // If it was previously Paid, reverse the original amount first
+                if ($financialsChanged && $oldStatus === 'Paid') {
+                    CashTransaction::record(
+                        CashTransaction::TYPE_EXPENSE_REVERSAL,
+                        $oldTotal,
+                        "Reversal of Edited Expense ({$expense->transaction_id})",
+                        'expense',
+                        $expense->id,
+                        $expense->transaction_id,
+                        'cash',
+                        $expense->supplier_name,
+                        'supplier'
+                    );
+                }
 
                 $expense->update([
-                    'supplier_name' => $data['supplier_name'],
+                    'supplier_name'  => $data['supplier_name'],
                     'contact_person' => $data['contact_person'] ?? null,
-                    'phone' => $data['phone'] ?? null,
-                    'address' => $data['address'] ?? null,
-                    'expense_date' => $data['expense_date'],
-                    'status' => $data['status'],
-                    'grand_total' => $grandTotal,
+                    'phone'          => $data['phone'] ?? null,
+                    'address'        => $data['address'] ?? null,
+                    'expense_date'   => $data['expense_date'],
+                    'status'         => $newStatus,
+                    'grand_total'    => $newTotal,
                 ]);
 
                 // FIX 8: Force delete old items to prevent SoftDelete bloat
@@ -221,12 +220,12 @@ class ExpenseController extends Controller
 
                 Cache::tags(['expenses', 'reports', 'cash'])->flush();
 
-                // Apply the new Paid status ONLY if financials changed
-                if ($financialsChanged && $expense->status === 'Paid') {
+                // Record the new outflow if the expense is now Paid and financials changed
+                if ($financialsChanged && $newStatus === 'Paid') {
                     $itemNames = collect($data['items'])->pluck('items_name')->join(', ');
                     CashTransaction::record(
                         'expense',
-                        $expense->grand_total,
+                        $newTotal,
                         "Updated Expense ({$expense->transaction_id})",
                         'expense',
                         $expense->id,
