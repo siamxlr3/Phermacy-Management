@@ -46,6 +46,8 @@ class CashTransaction extends Model
     public const PARTY_SUPPLIER = 'supplier';
     public const PARTY_OTHER    = 'other';
 
+    public const CACHE_KEY_BALANCE = 'cash_register_current_balance';
+
     protected $fillable = [
         'user_id',
         'description',
@@ -99,8 +101,10 @@ class CashTransaction extends Model
      */
     public static function getCurrentBalance(): float
     {
-        $last = self::latest('id')->first();
-        return $last ? (float) $last->balance_after : 0.0;
+        return (float) \Illuminate\Support\Facades\Cache::tags(['cash'])->rememberForever(self::CACHE_KEY_BALANCE, function () {
+            $last = self::latest('id')->first();
+            return $last ? (float) $last->balance_after : 0.0;
+        });
     }
 
     /**
@@ -131,7 +135,7 @@ class CashTransaction extends Model
                 ? $currentBalance - $amount
                 : $currentBalance + $amount;
 
-            return self::create([
+            $transaction = self::create([
                 'user_id'          => $userId,
                 'transaction_type' => $transactionType,
                 'amount'           => $amount,
@@ -144,6 +148,11 @@ class CashTransaction extends Model
                 'party_name'       => $partyName,
                 'party_type'       => $partyType,
             ]);
+
+            // Atomic cache update
+            \Illuminate\Support\Facades\Cache::tags(['cash'])->put(self::CACHE_KEY_BALANCE, $newBalance);
+
+            return $transaction;
         });
     }
 }

@@ -12,15 +12,20 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $medicine_id
  * @property int $supplier_id
  * @property int|null $grn_id
+ * @property string $dosage_form_snapshot
  * @property string $batch_number
  * @property \Illuminate\Support\Carbon $expiry_date
  * @property int $qty_tablets
  * @property int $qty_tablets_remaining
- * @property float|null $cost_per_tablet
+ * @property int $qty_boxes
+ * @property int $qty_boxes_remaining
+ * @property int|null $qty_units
+ * @property int|null $qty_units_remaining
+ * @property float|null $cost_per_unit
  * @property float|null $cost_per_stripe
  * @property float|null $cost_per_box
- * @property string|null $volume
- * @property float|null $price
+ * @property float $total_cost_value
+ * @property float $ingested_total_cost_value
  * @property \Illuminate\Support\Carbon $received_date
  */
 class StockBatch extends Model
@@ -39,8 +44,8 @@ class StockBatch extends Model
             $batch->calculateValuation();
         });
 
-        static::saved(fn () => Cache::flush());
-        static::deleted(fn () => Cache::flush());
+        static::saved(fn () => Cache::tags(['stock'])->flush());
+        static::deleted(fn () => Cache::tags(['stock'])->flush());
     }
 
     /**
@@ -55,19 +60,37 @@ class StockBatch extends Model
         if (!$medicine) return;
 
         $totalCost = 0;
+        $ingestedCost = 0;
 
-        if ($this->cost_per_box > 0 && $this->qty_boxes_remaining !== null) {
-            // Primary: boxes remaining × cost per box (matches GRN controller exactly)
-            $totalCost = (float) $this->qty_boxes_remaining * (float) $this->cost_per_box;
+        // 1. Current Valuation (based on remaining stock)
+        if ($this->cost_per_box > 0) {
+            if ($this->qty_boxes_remaining !== null) {
+                $totalCost = (float) $this->qty_boxes_remaining * (float) $this->cost_per_box;
+            }
         } elseif ($this->cost_per_unit > 0) {
-            // Fallback: tablets remaining × cost per unit
             $totalCost = (float) $this->qty_tablets_remaining * (float) $this->cost_per_unit;
         } else {
-            // Last resort: use medicine cost_price
             $totalCost = (float) $this->qty_tablets_remaining * (float) ($medicine->cost_price ?? 0);
         }
 
+        // 2. Ingested Valuation (ignores sales, but includes adjustments)
+        // Formula: (Original Qty + Total Adjusted Qty) * Purchase Price
+        $effectiveQty = (float) $this->qty_tablets + (float) ($this->qty_adjusted ?? 0);
+        
+        if ($this->cost_per_box > 0) {
+            // Derive adjusted box count
+            $tabletsPerBox = ($this->qty_boxes > 0) ? ($this->qty_tablets / $this->qty_boxes) : 0;
+            $effectiveBoxes = ($tabletsPerBox > 0) ? ($effectiveQty / $tabletsPerBox) : 0;
+            $ingestedCost = (float) $effectiveBoxes * (float) $this->cost_per_box;
+        } elseif ($this->cost_per_unit > 0) {
+            $ingestedCost = (float) $effectiveQty * (float) $this->cost_per_unit;
+        } else {
+            $costPrice = (float) ($medicine->cost_price ?? 0);
+            $ingestedCost = (float) $effectiveQty * $costPrice;
+        }
+
         $this->total_cost_value = round($totalCost, 2);
+        $this->ingested_total_cost_value = round($ingestedCost, 2);
     }
 
     protected $fillable = [
@@ -88,6 +111,8 @@ class StockBatch extends Model
         'cost_per_box',
         'received_date',
         'total_cost_value', // Denormalized value
+        'ingested_total_cost_value', // Cumulative valuation (ignores sales, reflects adjustments)
+        'qty_adjusted',
     ];
 
     protected $casts = [
@@ -97,6 +122,8 @@ class StockBatch extends Model
         'cost_per_stripe' => 'decimal:4',
         'cost_per_box' => 'decimal:4',
         'total_cost_value' => 'decimal:2',
+        'ingested_total_cost_value' => 'decimal:2',
+        'qty_adjusted' => 'integer',
     ];
 
     public function medicine()
@@ -127,9 +154,6 @@ class StockBatch extends Model
      */
     public function scopeExpiringSoon($query, $days = 90)
     {
-        return $query->whereBetween('expiry_date', [
-            now()->toDateString(),
-            now()->addDays($days)->toDateString()
-        ]);
+        return $query->where('expiry_date', '<=', now()->addDays($days)->toDateString());
     }
 }

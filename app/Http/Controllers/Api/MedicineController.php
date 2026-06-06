@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Medicine;
+use App\Models\Category;
+use App\Models\Manufacturer;
 use Illuminate\Http\Request;
 use App\Http\Resources\Api\MedicineResource;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -23,43 +25,40 @@ class MedicineController extends Controller
         $all = $request->boolean('all', false);
 
         if ($status === '1' && $all) {
-            $medicines = Cache::remember('medicines.active_with_details', 3600, function () {
+            $medicines = Cache::tags(['medicines'])->remember('medicines.active_with_details', 3600, function () {
                 return Medicine::active()
+                    ->with(['category', 'manufacturer'])
                     ->orderBy('medicine_name')
                     ->get([
                         'id', 'medicine_name', 'generic_name', 'dosage_form', 'strength',
                         'tablets_per_strip', 'strips_per_box', 'mrp', 'stock', 'package_size',
-                        'price_per_unit', 'price_per_stripe', 'price_per_box'
+                        'price_per_unit', 'price_per_stripe', 'price_per_box', 'category_id', 'manufacturer_id'
                     ]);
             });
             return MedicineResource::collection($medicines);
         }
 
-        $query = Medicine::query()->select([
-            'id', 'medicine_name', 'generic_name', 'category', 'manufacturer', 
-            'dosage_form', 'strength', 'unit_type', 'sale_unit_label', 
-            'tablets_per_strip', 'strips_per_box', 'package_size',
-            'price_per_unit', 'price_per_stripe', 'price_per_box', 'mrp', 'cost_price',
-            'stock', 'reorder_level', 'is_active'
-        ]);
+        $query = Medicine::with(['category', 'manufacturer'])
+            ->leftJoin('categories', 'medicines.category_id', '=', 'categories.id')
+            ->leftJoin('manufacturers', 'medicines.manufacturer_id', '=', 'manufacturers.id')
+            ->select([
+                'medicines.id', 'medicines.medicine_name', 'medicines.generic_name', 'medicines.category_id', 'medicines.manufacturer_id', 
+                'medicines.dosage_form', 'medicines.strength', 'medicines.unit_type', 'medicines.sale_unit_label', 
+                'medicines.tablets_per_strip', 'medicines.strips_per_box', 'medicines.package_size',
+                'medicines.price_per_unit', 'medicines.price_per_stripe', 'medicines.price_per_box', 'medicines.mrp',
+                'medicines.stock', 'medicines.reorder_level', 'medicines.is_active'
+            ]);
 
         if ($status !== null && $status !== '') {
-            $query->where('is_active', $status);
+            $query->where('medicines.is_active', $status);
         }
 
         if ($search) {
             $query->where(function($q) use ($search) {
-                $q->where('medicine_name', 'like', "{$search}%")
-                  ->orWhere('generic_name', 'like', "{$search}%")
-                  ->orWhere('category', 'like', "{$search}%")
-                  ->orWhere('manufacturer', 'like', "{$search}%")
-                  // Use subquery for category-based matches to avoid double scan in PHP
-                  ->orWhereIn('category', function($sub) use ($search) {
-                      $sub->select('category')
-                          ->from('medicines')
-                          ->where('medicine_name', 'like', "{$search}%")
-                          ->orWhere('generic_name', 'like', "{$search}%");
-                  });
+                $q->where('medicines.medicine_name', 'like', "{$search}%")
+                  ->orWhere('medicines.generic_name', 'like', "{$search}%")
+                  ->orWhere('categories.name', 'like', "{$search}%")
+                  ->orWhere('manufacturers.name', 'like', "{$search}%");
             });
 
             // Priority: Direct matches first, then others in the same category
@@ -77,7 +76,15 @@ class MedicineController extends Controller
 
     public function store(MedicineRequest $request): MedicineResource
     {
-        $medicine = Medicine::create($request->validated());
+        $data = $request->validated();
+        
+        $category = Category::firstOrCreate(['name' => $data['category']]);
+        $manufacturer = Manufacturer::firstOrCreate(['name' => $data['manufacturer']]);
+        
+        $data['category_id'] = $category->id;
+        $data['manufacturer_id'] = $manufacturer->id;
+        
+        $medicine = Medicine::create($data);
         return new MedicineResource($medicine);
     }
 
@@ -88,7 +95,19 @@ class MedicineController extends Controller
 
     public function update(MedicineRequest $request, Medicine $medicine): MedicineResource
     {
-        $medicine->update($request->validated());
+        $data = $request->validated();
+        
+        if (isset($data['category'])) {
+            $category = Category::firstOrCreate(['name' => $data['category']]);
+            $data['category_id'] = $category->id;
+        }
+        
+        if (isset($data['manufacturer'])) {
+            $manufacturer = Manufacturer::firstOrCreate(['name' => $data['manufacturer']]);
+            $data['manufacturer_id'] = $manufacturer->id;
+        }
+        
+        $medicine->update($data);
         return new MedicineResource($medicine);
     }
 
@@ -122,5 +141,15 @@ class MedicineController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => 'Import failed: ' . $e->getMessage()], 422);
         }
+    }
+
+    public function categories(): JsonResponse
+    {
+        return response()->json(Category::orderBy('name')->get(['id', 'name']));
+    }
+
+    public function manufacturers(): JsonResponse
+    {
+        return response()->json(Manufacturer::orderBy('name')->get(['id', 'name']));
     }
 }

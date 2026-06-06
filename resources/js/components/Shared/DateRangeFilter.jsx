@@ -2,7 +2,7 @@ import React from 'react';
 import { Calendar, ChevronDown, RefreshCw } from 'lucide-react';
 import { format, subDays, startOfMonth, startOfToday } from 'date-fns';
 
-const DateRangeFilter = ({ fromDate, toDate, onChange, onReset, label = 'Order Date', hideLabel = false, hidePresets = false }) => {
+const DateRangeFilter = ({ fromDate, toDate, onChange, onReset, label = 'Order Date', hideLabel = false, hidePresets = false, hideReset = false }) => {
   const quickFilters = [
     { label: 'Today', getValue: () => ({ from: startOfToday(), to: startOfToday() }) },
     { label: 'Last 7 Days', getValue: () => ({ from: subDays(new Date(), 7), to: new Date() }) },
@@ -42,25 +42,29 @@ const DateRangeFilter = ({ fromDate, toDate, onChange, onReset, label = 'Order D
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-lg">
-        {!hidePresets && quickFilters.map((filter) => (
-          <button
-            key={filter.label}
-            onClick={() => handleQuickFilter(filter)}
-            className="px-2.5 py-1.5 text-[11px] font-semibold text-slate-500 hover:text-slate-700 hover:bg-white rounded-md transition-all active:scale-95"
-          >
-            {filter.label}
-          </button>
-        ))}
-        {!hidePresets && <div className="w-px h-3 bg-slate-200 mx-0.5" />}
-        <button
-          onClick={onReset}
-          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-white rounded-md transition-all active:rotate-180 duration-300"
-          title="Reset Filters"
-        >
-          <RefreshCw size={13} />
-        </button>
-      </div>
+      {(!hidePresets || !hideReset) && (
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-lg">
+          {!hidePresets && quickFilters.map((filter) => (
+            <button
+              key={filter.label}
+              onClick={() => handleQuickFilter(filter)}
+              className="px-2.5 py-1.5 text-[11px] font-semibold text-slate-500 hover:text-slate-700 hover:bg-white rounded-md transition-all active:scale-95"
+            >
+              {filter.label}
+            </button>
+          ))}
+          {!hidePresets && !hideReset && <div className="w-px h-3 bg-slate-200 mx-0.5" />}
+          {!hideReset && (
+            <button
+              onClick={onReset}
+              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-white rounded-md transition-all active:rotate-180 duration-300"
+              title="Reset Filters"
+            >
+              <RefreshCw size={13} />
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 };

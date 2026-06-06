@@ -42,6 +42,10 @@ const PARTY_TYPE_STYLES = {
   other:    'bg-slate-100 text-slate-500',
 };
 
+const Skeleton = ({ className }) => (
+  <div className={cn("bg-slate-200 animate-pulse rounded-md", className)} />
+);
+
 const CashRegisterPage = () => {
   const { translations } = useLanguage();
   const [page, setPage] = useState(1);
@@ -52,7 +56,10 @@ const CashRegisterPage = () => {
   const [txTypeFilter, setTxTypeFilter] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('');
 
-  const { data: statusData, isLoading: isStatusLoading, refetch: refetchStatus } = useGetRegisterStatusQuery();
+  const { data: statusData, isLoading: isStatusLoading, isFetching: isStatusFetching, refetch: refetchStatus } = useGetRegisterStatusQuery({
+    from: dateRange.from,
+    to: dateRange.to,
+  });
   const { data: ledgerData, isLoading: isLedgerLoading, isFetching: isLedgerFetching, refetch: refetchLedger } = useGetTransactionsQuery({
     from: dateRange.from,
     to: dateRange.to,
@@ -128,10 +135,12 @@ const CashRegisterPage = () => {
                 </div>
                 <div className="flex-1">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{card.label}</p>
-                  {isStatusLoading
-                    ? <div className="h-6 w-24 bg-slate-100 rounded-md animate-pulse mt-1" />
+                  {(isStatusLoading || isStatusFetching)
+                    ? <Skeleton className="h-6 w-24 mt-1" />
                     : <h3 className="text-xl font-black text-slate-900 tracking-tight mt-0.5">{card.value}</h3>}
-                  <p className="text-[10px] font-bold text-slate-400 mt-0.5">{card.desc}</p>
+                  {(isStatusLoading || isStatusFetching)
+                    ? <Skeleton className="h-3 w-32 mt-1" />
+                    : <p className="text-[10px] font-bold text-slate-400 mt-0.5">{card.desc}</p>}
                 </div>
               </motion.div>
             );
@@ -176,11 +185,13 @@ const CashRegisterPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {isLedgerLoading ? (
+                {(isLedgerLoading || isLedgerFetching) ? (
                   Array.from({ length: 6 }).map((_, i) => (
-                    <tr key={i} className="animate-pulse">
+                    <tr key={i}>
                       {Array.from({ length: 8 }).map((_, j) => (
-                        <td key={j} className="px-6 py-5"><div className="h-4 bg-slate-100 rounded-md w-full" /></td>
+                        <td key={j} className="px-6 py-5">
+                          <Skeleton className="h-4 w-full" />
+                        </td>
                       ))}
                     </tr>
                   ))

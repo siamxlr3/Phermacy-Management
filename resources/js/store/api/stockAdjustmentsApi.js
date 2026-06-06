@@ -37,7 +37,7 @@ export const stockAdjustmentsApi = createApi({
                 method: 'POST',
                 body,
             }),
-            invalidatesTags: ['StockAdjustment', 'Medicine', 'Stock'],
+            invalidatesTags: ['StockAdjustment', 'Medicine', 'Stock', 'Batch'],
         }),
         deleteStockAdjustment: builder.mutation({
             query: (id) => ({

@@ -21,21 +21,23 @@ return new class extends Migration
             $table->date('expiry_date');
             
             // Quantity in smallest units (for calculations)
-            $table->integer('qty_tablets'); 
-            $table->integer('qty_tablets_remaining');
+            $table->decimal('qty_tablets', 12, 3); 
+            $table->decimal('qty_tablets_remaining', 12, 3);
             
             // Box tracking
-            $table->integer('qty_boxes');
-            $table->integer('qty_boxes_remaining');
+            $table->decimal('qty_boxes', 12, 3);
+            $table->decimal('qty_boxes_remaining', 12, 3);
             
-            // Unit tracking (for Group B)
-            $table->integer('qty_units')->nullable();
-            $table->integer('qty_units_remaining')->nullable();
+            // Unit tracking
+            $table->decimal('qty_units', 12, 3)->nullable();
+            $table->decimal('qty_units_remaining', 12, 3)->nullable();
             
             // Financials
             $table->decimal('cost_per_unit', 15, 4)->nullable();
             $table->decimal('cost_per_stripe', 15, 4)->nullable();
             $table->decimal('cost_per_box', 15, 4)->nullable();
+            $table->decimal('ingested_total_cost_value', 15, 2)->default(0);
+            $table->decimal('total_cost_value', 15, 4)->default(0)->comment('Total valuation of remaining stock at cost');
             
             $table->date('received_date');
             $table->softDeletes();
@@ -44,6 +46,7 @@ return new class extends Migration
             $table->index('batch_number');
             $table->index('expiry_date');
             $table->index(['medicine_id', 'qty_tablets_remaining']);
+            $table->index(['qty_tablets_remaining', 'total_cost_value']);
         });
     }
 

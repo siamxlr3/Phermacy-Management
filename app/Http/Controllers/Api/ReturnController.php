@@ -163,32 +163,23 @@ class ReturnController extends Controller
                     }
                 }
 
-                // 4. Update Sale Totals and Status
+                // 4. Update Sale Totals and Status (Optimized O(1) check)
+                $returnedQty = collect($data['items'])->sum('qty_returned');
                 $sale->increment('refunded_amount', $data['total_returned']);
                 $sale->increment('refunded_subtotal', $data['subtotal_returned']);
+                $sale->increment('returned_items_count', $returnedQty);
 
-                // Optimized status check: Avoid loading all items again
-                $saleTotals = $sale->items()
-                    ->selectRaw('SUM(qty_tablets) as total_sold')
-                    ->first();
-                
-                $returnTotals = DB::table('sales_return_items')
-                    ->join('sales_returns', 'sales_return_items.sales_return_id', '=', 'sales_returns.id')
-                    ->where('sales_returns.sale_id', $sale->id)
-                    ->selectRaw('SUM(qty_returned) as total_returned')
-                    ->first();
+                // Re-fetch sale to get updated counts
+                $sale->refresh();
 
-                if (($returnTotals->total_returned ?? 0) >= ($saleTotals->total_sold ?? 0)) {
-                    $sale->update(['status' => 'Returned']);
-                } else if (($returnTotals->total_returned ?? 0) > 0) {
-                    $sale->update(['status' => 'Partially Returned']);
+                if ($sale->returned_items_count >= $sale->total_items_count) {
+                    $sale->update(['status' => Sale::STATUS_RETURNED]);
+                } else if ($sale->returned_items_count > 0) {
+                    $sale->update(['status' => Sale::STATUS_PARTIALLY_RETURNED]);
                 }
 
-                // 5. Targeted Cache Invalidation (Avoid global flush)
-                Cache::forget("sale_details_{$sale->id}");
-                Cache::forget("sales_list_page_*"); // Better than flushing everything
-                // If using tags, flush only specific necessary tags
-                // Cache::tags(['reports'])->flush(); 
+                // 5. Atomic Cache Invalidation using Tags
+                Cache::tags(['sales', 'returns', 'dashboard'])->flush();
 
                 return $salesReturn;
             });

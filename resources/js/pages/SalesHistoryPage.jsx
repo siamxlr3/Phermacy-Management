@@ -287,7 +287,7 @@ const SalesHistoryPage = () => {
 
           {/* Table Area */}
           <div className="flex-1 overflow-x-auto custom-scrollbar min-h-0">
-            <table className="w-full text-left border-collapse min-w-[1200px]">
+            <table className="w-full text-left border-collapse min-w-[1400px]">
               <thead className="sticky top-0 bg-slate-50/90 backdrop-blur-sm z-10 border-b border-slate-200">
                 <tr>
                   <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest">Invoice & Date</th>
@@ -298,6 +298,8 @@ const SalesHistoryPage = () => {
                   <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">Returned</th>
                   <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.expense.amount || 'Amount'}</th>
                   <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.payment}</th>
+                  <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.pos.receipt.subtotal || 'Subtotal'}</th>
+                  <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.pos.receipt.tax || 'Tax'}</th>
                   <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-right">{translations.sales_history.total_amount}</th>
                   <th className="px-4 py-4 text-[11px] font-bold text-slate-400 uppercase tracking-widest text-center">{translations.sales_history.status}</th>
                 </tr>
@@ -306,7 +308,7 @@ const SalesHistoryPage = () => {
                 {isLoadingState ? (
                   Array.from({ length: 6 }).map((_, idx) => (
                     <tr key={idx} className="animate-pulse">
-                      {Array.from({ length: 10 }).map((_, cellIdx) => (
+                      {Array.from({ length: 12 }).map((_, cellIdx) => (
                         <td key={cellIdx} className="px-4 py-5">
                           <div className="h-4 bg-slate-100 rounded-md w-full"></div>
                         </td>
@@ -315,7 +317,7 @@ const SalesHistoryPage = () => {
                   ))
                 ) : sales.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="px-8 py-32 text-center">
+                    <td colSpan={12} className="px-8 py-32 text-center">
                       <div className="flex flex-col items-center justify-center grayscale opacity-40">
                         <div className="w-16 h-16 bg-slate-100 rounded-[1.5rem] flex items-center justify-center mb-4 border border-slate-200">
                           <ShoppingBag size={28} className="text-slate-400" />
@@ -427,6 +429,24 @@ const SalesHistoryPage = () => {
                                 paymentStyle[sale.payment_method] || 'bg-slate-50 text-slate-400 border-slate-100'
                               )}>
                                 {sale.payment_method}
+                              </span>
+                            </td>
+                          )}
+
+                          {/* Subtotal — only on first item row */}
+                          {isFirst && (
+                            <td className="px-4 py-4 text-right align-top" rowSpan={rowSpan}>
+                              <span className="text-sm font-black text-slate-700 tracking-tight whitespace-nowrap">
+                                ৳{parseFloat(sale.subtotal).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </span>
+                            </td>
+                          )}
+
+                          {/* Tax — only on first item row */}
+                          {isFirst && (
+                            <td className="px-4 py-4 text-right align-top" rowSpan={rowSpan}>
+                              <span className="text-sm font-black text-slate-700 tracking-tight whitespace-nowrap">
+                                ৳{parseFloat(sale.tax_total).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                               </span>
                             </td>
                           )}

@@ -25,8 +25,11 @@ return new class extends Migration
             $table->softDeletes();
             $table->timestamps();
             
+            $table->decimal('cost_price', 15, 4)->nullable()->comment('Cost price per tablet at time of sale');
+
             $table->index('sale_id');
             $table->index('medicine_id');
+            $table->index('stock_batch_id');
         });
     }
 

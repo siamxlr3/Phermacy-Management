@@ -145,7 +145,6 @@ const MedicineTable = () => {
                 <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[10%]">{translations.medicine?.dosage_form || 'Unit Config'}</th>
                 <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[15%]">{translations.medicine?.packaging_volume || 'Packaging'}</th>
                 <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[10%] text-right">{translations.medicine?.pricing || 'Pricing'} (৳)</th>
-                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-amber-500 w-[10%] text-right bg-amber-50/20">{translations.expense?.price || 'Cost Price'} (৳)</th>
                 <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[8%] text-center">{translations.stock?.current_stock || 'Stock'}</th>
                 <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[10%] text-center">{translations.medicine?.status || 'Status'}</th>
                 <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-widest text-slate-400 w-[100px] text-right sticky right-0 bg-slate-50/50">{translations.medicine?.actions || 'Actions'}</th>
@@ -247,13 +246,6 @@ const MedicineTable = () => {
                        </div>
                     </td>
 
-                    {/* Cost Price */}
-                    <td className="px-6 py-4 text-right bg-amber-50/30">
-                       <div className="flex flex-col items-end">
-                          <span className="text-xs font-black text-amber-600">৳{parseFloat(med.cost_price || 0).toFixed(2)}</span>
-                          <span className="text-[9px] font-bold text-amber-400 uppercase tracking-tighter">Purchase Cost</span>
-                       </div>
-                    </td>
 
                     {/* Stock */}
                     <td className="px-6 py-4 text-center">

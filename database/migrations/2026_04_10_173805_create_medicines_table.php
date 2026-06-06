@@ -16,8 +16,8 @@ return new class extends Migration
             $table->string('medicine_name');
             $table->string('generic_name')->nullable();
             
-            $table->string('category');
-            $table->string('manufacturer');
+            $table->foreignId('category_id')->constrained('categories')->onDelete('cascade');
+            $table->foreignId('manufacturer_id')->constrained('manufacturers')->onDelete('cascade');
             
             $table->enum('dosage_form', [
                 'Tablet', 'Capsule', 'Syrup', 'Drops', 'Cream', 'Ointment', 
@@ -38,7 +38,7 @@ return new class extends Migration
             $table->decimal('price_per_box', 10, 2)->nullable();
             $table->decimal('mrp', 10, 2);
             
-            $table->decimal('cost_price', 10, 4)->nullable();
+
             $table->integer('reorder_level')->default(10);
             $table->integer('stock')->default(0);
             
@@ -49,8 +49,9 @@ return new class extends Migration
             $table->index('medicine_name');
             $table->index('generic_name');
             $table->index('dosage_form');
-            $table->index('category');
-            $table->index('manufacturer');
+            $table->index('is_active');
+            $table->timestamp('last_sold_at')->nullable();
+            $table->index('last_sold_at');
         });
     }
 

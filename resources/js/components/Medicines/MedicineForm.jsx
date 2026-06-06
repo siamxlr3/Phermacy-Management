@@ -24,7 +24,7 @@ const MedicineForm = ({ initialData, onClose }) => {
     unit_type: 'Box', sale_unit_label: 'per Piece',
     tablets_per_strip: '', strips_per_box: '', package_size: '',
     price_per_unit: '', price_per_stripe: '', price_per_box: '',
-    mrp: '', cost_price: '', reorder_level: '', is_active: true
+    mrp: '', reorder_level: '', is_active: true
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -62,12 +62,28 @@ const MedicineForm = ({ initialData, onClose }) => {
     e.preventDefault();
     if (!validate()) return;
     
+    const submissionData = { ...formData };
+    if (!isStripBased) {
+      delete submissionData.tablets_per_strip;
+      delete submissionData.strips_per_box;
+      delete submissionData.price_per_stripe;
+      delete submissionData.price_per_box;
+    } else {
+      // Ensure we send numbers or null, not empty strings
+      if (submissionData.tablets_per_strip === '') submissionData.tablets_per_strip = null;
+      if (submissionData.strips_per_box === '') submissionData.strips_per_box = null;
+    }
+
+    // Ensure we don't send IDs if we have name strings
+    delete submissionData.category_id;
+    delete submissionData.manufacturer_id;
+
     try {
       if (initialData) {
-        await updateMedicine({ id: initialData.id, ...formData }).unwrap();
+        await updateMedicine({ id: initialData.id, ...submissionData }).unwrap();
         toast.success(translations.medicine?.update_success || "Medicine updated successfully");
       } else {
-        await addMedicine(formData).unwrap();
+        await addMedicine(submissionData).unwrap();
         toast.success(translations.medicine?.create_success || "Medicine added successfully");
       }
       onClose();
@@ -78,7 +94,7 @@ const MedicineForm = ({ initialData, onClose }) => {
   };
 
   const isLoading = isAdding || isUpdating;
-  const isStripBased = ['Tablet', 'Capsule', 'Suppository', 'Sachet'].includes(formData.dosage_form);
+  const isStripBased = ['Tablet', 'Capsule', 'Suppository', 'Patch', 'Sachet'].includes(formData.dosage_form);
 
   return (
     <div className="bg-white flex flex-col w-full max-h-[85vh]">
@@ -166,12 +182,12 @@ const MedicineForm = ({ initialData, onClose }) => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-2">Unit Type</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine?.unit_type || 'Unit Type'}</label>
                 <input type="text" placeholder="e.g. Box, Strip" value={formData.unit_type} onChange={(e) => setFormData({ ...formData, unit_type: e.target.value })}
                   className={`w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 ${errors.unit_type ? 'border-red-300' : 'border-slate-200 focus:ring-emerald-500/20'}`} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-2">Sale Unit Label</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine?.sale_unit_label || 'Sale Unit Label'}</label>
                 <input type="text" placeholder="e.g. per Piece, per Strip" value={formData.sale_unit_label} onChange={(e) => setFormData({ ...formData, sale_unit_label: e.target.value })}
                   className={`w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 ${errors.sale_unit_label ? 'border-red-300' : 'border-slate-200 focus:ring-emerald-500/20'}`} />
               </div>
@@ -212,14 +228,17 @@ const MedicineForm = ({ initialData, onClose }) => {
             <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 flex items-center gap-2">
                <Droplets size={12} /> {translations.medicine?.pricing || 'Pricing'} (৳)
             </h4>
+            
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine?.price_tab || 'Price per Unit'}</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-2">
+                  {isStripBased ? (translations.medicine?.price_tab || 'Price/Tablet') : (translations.medicine?.price_per_unit || 'Price/Unit')}
+                </label>
                 <input type="number" step="0.01" placeholder="0.00" value={formData.price_per_unit} onChange={(e) => setFormData({ ...formData, price_per_unit: e.target.value })}
                   className={`w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 ${errors.price_per_unit ? 'border-red-300' : 'border-slate-200 focus:ring-emerald-500/20'}`} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-2">MRP</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine?.mrp || 'MRP'}</label>
                 <input type="number" step="0.01" placeholder="0.00" value={formData.mrp} onChange={(e) => setFormData({ ...formData, mrp: e.target.value })}
                   className={`w-full px-3.5 py-2.5 text-sm bg-white border rounded-xl focus:outline-none focus:ring-2 ${errors.mrp ? 'border-red-300' : 'border-slate-200 focus:ring-emerald-500/20'}`} />
               </div>
@@ -228,19 +247,18 @@ const MedicineForm = ({ initialData, onClose }) => {
             {isStripBased && (
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine?.price_strip || 'Price per Strip'}</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine?.price_strip || 'Price/Strip'}</label>
                   <input type="number" step="0.01" placeholder="0.00" value={formData.price_per_stripe} onChange={(e) => setFormData({ ...formData, price_per_stripe: e.target.value })}
                     className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl" />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine?.price_box || 'Price per Box'}</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-2">{translations.medicine?.price_box || 'Price/Box'}</label>
                   <input type="number" step="0.01" placeholder="0.00" value={formData.price_per_box} onChange={(e) => setFormData({ ...formData, price_per_box: e.target.value })}
                     className="w-full px-3.5 py-2.5 text-sm bg-white border border-slate-200 rounded-xl" />
                 </div>
               </div>
             )}
-
-            </div>
+          </div>
 
           {/* Logistics */}
           <div className="space-y-4">

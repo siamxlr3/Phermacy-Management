@@ -113,7 +113,6 @@ class DashboardController extends Controller
             ')
             ->groupBy('sale_items.medicine_id', 'medicines.medicine_name', 'medicines.generic_name', 'medicines.dosage_form')
             ->orderByDesc('total_qty')
-            ->limit(5)
             ->get();
     }
 
@@ -154,19 +153,9 @@ class DashboardController extends Controller
      */
     private function getInventoryValuation(): float
     {
-        // This is a heavy query - consider indexing stock_batches on (qty_tablets_remaining, medicine_id)
-        return (float) StockBatch::available()
-            ->join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id')
-            ->selectRaw('
-                SUM(
-                    CASE 
-                        WHEN medicines.dosage_form IN ("Tablet", "Capsule", "Suppository", "Patch") 
-                        THEN (stock_batches.qty_tablets_remaining / (NULLIF(medicines.tablets_per_strip, 0) * NULLIF(medicines.strips_per_box, 0))) * IFNULL(stock_batches.cost_per_box, 0)
-                        ELSE stock_batches.qty_tablets_remaining * IFNULL(NULLIF(stock_batches.cost_per_unit, 0), stock_batches.cost_per_box / (NULLIF(stock_batches.qty_tablets, 0) / NULLIF(stock_batches.qty_boxes, 1)))
-                    END
-                ) as total_value
-            ')
-            ->value('total_value') ?? 0;
+        // Use pre-calculated ingested_total_cost_value from StockBatch model.
+        // This includes Adjustments but ignores Sales/Returns volume (matching Inventory Report).
+        return (float) StockBatch::sum('ingested_total_cost_value');
     }
 
     private function getLowStockMetrics(): array

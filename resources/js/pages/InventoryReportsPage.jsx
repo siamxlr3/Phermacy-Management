@@ -8,6 +8,7 @@ import {
     AlertTriangle,
     CreditCard,
     Package,
+    Calendar,
 } from 'lucide-react';
 import { useGetInventoryReportQuery, useRefreshInventoryReportsMutation } from '../store/api/inventoryReportsApi';
 import { useGetAlertSummaryQuery } from '../store/api/alertsApi';
@@ -23,9 +24,10 @@ const InventoryReportsPage = () => {
     const { translations } = useLanguage();
     const [activeTab, setActiveTab] = useState('alerts');
 
+    // Default date range: 2026-05-06 to 2026-06-05
     const [dateRange, setDateRange] = useState({
-        from_date: new Date().toISOString().split('T')[0],
-        to_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        from_date: '2026-05-06',
+        to_date: '2026-06-05',
     });
 
     const { data: reportData, isLoading, isFetching } = useGetInventoryReportQuery(dateRange);
@@ -41,6 +43,7 @@ const InventoryReportsPage = () => {
             toast.error(translations.reports.refresh_failed);
         }
     };
+
 
 
     const tabs = [
@@ -81,17 +84,39 @@ const InventoryReportsPage = () => {
                     </div>
 
                     {/* Action buttons */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                        {/* Date Range Picker */}
+                        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-2xl px-4 py-3 shadow-sm">
+                            <Calendar size={16} className="text-slate-400 shrink-0" />
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="date"
+                                    value={dateRange.from_date}
+                                    onChange={(e) => setDateRange(prev => ({ ...prev, from_date: e.target.value }))}
+                                    className="bg-transparent border-none outline-none text-xs font-black text-slate-600"
+                                />
+                                <span className="text-slate-300 font-bold text-[10px] uppercase">to</span>
+                                <input
+                                    type="date"
+                                    value={dateRange.to_date}
+                                    onChange={(e) => setDateRange(prev => ({ ...prev, to_date: e.target.value }))}
+                                    className="bg-transparent border-none outline-none text-xs font-black text-slate-600"
+                                />
+                            </div>
+                        </div>
+
                         <button
                             onClick={handleRefresh}
                             disabled={isRefreshing}
-                            className="p-3 bg-white border border-slate-200 rounded-xl text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm disabled:opacity-50"
+                            className="w-12 h-12 bg-white border border-slate-200 rounded-2xl flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm active:scale-95 disabled:opacity-50"
                             title={translations.reports.sync_data}
                         >
                             <RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />
                         </button>
                     </div>
                 </div>
+
+
 
                 {/* Summary Cards */}
                 <div className="shrink-0 mb-6">

@@ -56,6 +56,7 @@ const GRNForm = ({ onClose, grn, mode = 'GRN' }) => {
       setNotes(grn.notes || '');
       setItems(
         (grn.items || []).map(item => ({
+          id: item.id,
           medicine_id: item.medicine_id,
           name: item.medicine_name,
           generic: item.medicine?.generic_name || '',

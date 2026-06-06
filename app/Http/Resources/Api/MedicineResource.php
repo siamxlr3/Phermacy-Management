@@ -19,8 +19,10 @@ class MedicineResource extends JsonResource
             'medicine_name' => (string) $this->medicine_name,
             'generic_name' => (string) $this->generic_name,
             
-            'category' => (string) $this->category,
-            'manufacturer' => (string) $this->manufacturer,
+            'category_id' => (int) $this->category_id,
+            'category' => (string) ($this->category->name ?? $this->category), // Fallback for transition
+            'manufacturer_id' => (int) $this->manufacturer_id,
+            'manufacturer' => (string) ($this->manufacturer->name ?? $this->manufacturer),
             
             'dosage_form' => (string) $this->dosage_form,
             'strength' => (string) $this->strength,
@@ -37,8 +39,6 @@ class MedicineResource extends JsonResource
             'price_per_box' => (float) $this->price_per_box,
             'mrp' => (float) $this->mrp,
             
-            // Sensitive data: only visible to admins/authorized users
-            'cost_price' => (float) $this->cost_price,
             
             'reorder_level' => (int) $this->reorder_level,
             'stock' => (int) ($this->stock ?? 0),

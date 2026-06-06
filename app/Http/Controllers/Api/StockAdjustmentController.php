@@ -33,8 +33,12 @@ class StockAdjustmentController extends Controller
             $query = StockAdjustment::with(['medicine:id,medicine_name', 'stockBatch:id,batch_number']);
 
             if ($search) {
-                $query->whereHas('medicine', function ($q) use ($search) {
-                    $q->where('medicine_name', 'like', "%{$search}%");
+                // Optimized join/exists to utilize medicine name index
+                $query->whereExists(function ($q) use ($search) {
+                    $q->select(DB::raw(1))
+                      ->from('medicines')
+                      ->whereColumn('medicines.id', 'stock_adjustments.medicine_id')
+                      ->where('medicine_name', 'like', "{$search}%");
                 });
             }
 
@@ -68,8 +72,8 @@ class StockAdjustmentController extends Controller
                 $medicine = Medicine::lockForUpdate()->findOrFail($data['medicine_id']);
                 $batch = StockBatch::lockForUpdate()->findOrFail($data['stock_batch_id']);
 
-                // Calculate tablet conversion
-                $qtyChangeTablets = $this->calculateTabletEquivalent($medicine, $data['adjustment_unit'], $data['qty_in_units']);
+                // Calculate tablet conversion via Model helper
+                $qtyChangeTablets = StockAdjustment::calculateTablets($medicine, $data['adjustment_unit'], $data['qty_in_units']);
 
                 // Determine if it's an increase or decrease
                 $isAddition = ($data['adjustment_type'] === StockAdjustment::TYPE_OPENING_BALANCE);
@@ -99,14 +103,44 @@ class StockAdjustmentController extends Controller
                     ? ((float) $batch->qty_tablets / (float) $batch->qty_boxes)
                     : 1;
 
+                // Update Remaining Quantities
                 $batch->qty_tablets_remaining = $qtyAfter;
+                
+                // Track cumulative adjustments for valuation logic (Addition = +, Reduction = -)
+                $deltaValuation = $isAddition ? (int) $qtyChangeTablets : -(int) $qtyChangeTablets;
+                $batch->qty_adjusted = ($batch->qty_adjusted ?? 0) + $deltaValuation;
+
+                // Keep qty_units_remaining in sync for non-strip medicines
+                if ($batch->qty_units_remaining !== null) {
+                    $batch->qty_units_remaining = $qtyAfter;
+                }
+
                 if ($batch->qty_boxes_remaining !== null && $tabletsPerBox > 0) {
                     $batch->qty_boxes_remaining = round(
                         (float) $batch->qty_tablets_remaining / $tabletsPerBox,
                         4
                     );
                 }
-                $batch->save(); // triggers saving event -> calculateValuation() -> total_cost_value updated
+
+                // Update Original Quantities ONLY for opening_balance additions.
+                // qty_tablets / qty_boxes represent the original GRN receipt total and
+                // must remain immutable for reductions — the Batch Inventory table uses
+                // qty_tablets as the "Of X Total" denominator.
+                if ($isAddition) {
+                    $batch->qty_tablets += $qtyChangeTablets;
+                    
+                    // Keep qty_units (original total) in sync for non-strip medicines
+                    if ($batch->qty_units !== null) {
+                        $batch->qty_units += $qtyChangeTablets;
+                    }
+
+                    if ($batch->qty_boxes !== null && $tabletsPerBox > 0) {
+                        $batch->qty_boxes = round((float) $batch->qty_tablets / $tabletsPerBox, 4);
+                    }
+                }
+                // For reductions: qty_tablets / qty_boxes intentionally left unchanged.
+
+                $batch->save(); // triggers saving event -> calculateValuation() -> ingested_total_cost_value updated
 
                 // Update Medicine Total Stock
                 if ($isAddition) {
@@ -147,39 +181,32 @@ class StockAdjustmentController extends Controller
      */
     public function destroy(StockAdjustment $stockAdjustment): JsonResponse
     {
-        $stockAdjustment->delete();
-        $this->clearCache();
+        try {
+            $stockAdjustment->reverseStockImpact();
+            $stockAdjustment->delete();
+            $this->clearCache();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Adjustment record deleted successfuly'
-        ]);
-    }
-
-    /**
-     * Helper to calculate tablet equivalent based on unit and medicine configuration.
-     */
-    private function calculateTabletEquivalent(Medicine $medicine, string $unit, int $qty): int
-    {
-        switch (strtolower($unit)) {
-            case StockAdjustment::UNIT_PIECE:
-                return $qty;
-            case StockAdjustment::UNIT_STRIP:
-                return $qty * ($medicine->tablets_per_strip ?? 1);
-            case StockAdjustment::UNIT_BOX:
-                $perBox = ($medicine->strips_per_box ?? 1) * ($medicine->tablets_per_strip ?? 1);
-                return $qty * $perBox;
-            default:
-                return $qty;
+            return response()->json([
+                'success' => true,
+                'message' => 'Adjustment record deleted and stock reversed successfully'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete adjustment: ' . $e->getMessage()
+            ], 422);
         }
     }
+
+
 
     /**
      * Flush inventory-related caches.
      */
     private function clearCache(): void
     {
-        Cache::tags(['inventory', 'dashboard'])->flush();
+        // Flush 'reports' so InventoryReportController returns live data after adjustments.
+        Cache::tags(['inventory', 'dashboard', 'stock', 'reports'])->flush();
         Cache::forget('medicines.active_list');
     }
 }

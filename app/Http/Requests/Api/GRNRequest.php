@@ -34,6 +34,7 @@ class GRNRequest extends FormRequest
             'payment_status' => 'required|in:' . implode(',', [\App\Models\GRN::STATUS_PAID, \App\Models\GRN::STATUS_DUE, \App\Models\GRN::STATUS_PARTIAL]),
             'notes' => 'nullable|string',
             'items' => 'required|array|min:1',
+            'items.*.id' => 'nullable|exists:grn_items,id',
             'items.*.medicine_id' => 'required|exists:medicines,id',
             'items.*.dosage_form_snapshot' => 'required|string',
             'items.*.batch_number' => 'nullable|string|max:255',

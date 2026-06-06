@@ -156,7 +156,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       items: [
         { icon: ShoppingCart, label: s.pos || 'Point of Sale', path: '/pos' },
         { icon: LayoutDashboard, label: s.all_sales || 'All Sales', path: '/sales' },
-        { icon: Calculator, label: s.cash_register || 'Cash Register', path: '/cash-register' },
+        { icon: Calculator, label: s.cash_register || 'Cash Counter', path: '/cash-register' },
         { icon: ArrowRightLeft, label: s.returns_refunds || 'Returns & Refunds', path: '/sales/returns' },
         { icon: BarChart3, label: s.reports || 'Reports', path: '/sales/reports' },
       ]

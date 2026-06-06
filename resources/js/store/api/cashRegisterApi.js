@@ -20,7 +20,10 @@ export const cashRegisterApi = createApi({
       providesTags: ['CashRegister'],
     }),
     getRegisterStatus: builder.query({
-      query: () => '/cash-registers/status',
+      query: (params) => ({
+        url: '/cash-registers/status',
+        params,
+      }),
       providesTags: ['CashRegister'],
     }),
     recordTransaction: builder.mutation({

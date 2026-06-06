@@ -3,6 +3,8 @@
 namespace App\Imports;
 
 use App\Models\Medicine;
+use App\Models\Category;
+use App\Models\Manufacturer;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithStartRow;
 
@@ -25,7 +27,6 @@ use Maatwebsite\Excel\Concerns\WithStartRow;
  * 12  price_per_stripe
  * 13  price_per_box
  * 14  mrp
- * 15  cost_price
  * 16  reorder_level
  * 17  stock
  * 18  is_active
@@ -88,11 +89,17 @@ class MedicineImport implements ToModel, WithStartRow
             return null; // Skip rows with invalid dosage form
         }
 
+        $categoryName = $this->col($row, 2, 'General');
+        $manufacturerName = $this->col($row, 3, 'Unknown');
+
+        $category = Category::firstOrCreate(['name' => $categoryName]);
+        $manufacturer = Manufacturer::firstOrCreate(['name' => $manufacturerName]);
+
         return new Medicine([
             'medicine_name'     => $medicineName,
             'generic_name'      => $this->col($row, 1),
-            'category'          => $this->col($row, 2, 'General'),
-            'manufacturer'      => $this->col($row, 3, 'Unknown'),
+            'category_id'       => $category->id,
+            'manufacturer_id'   => $manufacturer->id,
             'dosage_form'       => $form,
             'strength'          => $this->col($row, 5),
             'unit_type'         => $this->col($row, 6, 'Piece'),
@@ -104,7 +111,6 @@ class MedicineImport implements ToModel, WithStartRow
             'price_per_stripe'  => $this->num($row, 12),
             'price_per_box'     => $this->num($row, 13),
             'mrp'               => $this->num($row, 14, 0),
-            'cost_price'        => $this->num($row, 15, 0),
             'reorder_level'     => $this->int($row, 16, 10),
             'stock'             => $this->int($row, 17, 0),
             'is_active'         => $this->int($row, 18, 1) == 1,

@@ -26,15 +26,15 @@ class InventoryReportController extends Controller
             'to_date'   => 'nullable|date|after_or_equal:from_date',
         ]);
 
-        $fromDate = $request->get('from_date', Carbon::now()->toDateString());
-        $toDate = $request->get('to_date', Carbon::now()->addDays(90)->toDateString());
-
+        // Default to a wide range if not provided (All time conceptually)
+        $fromDate = $request->get('from_date') ?? '2000-01-01'; 
+        $toDate = $request->get('to_date') ?? Carbon::now()->addDays(365)->toDateString();
         $cacheKey = "inventory_v2_" . md5($fromDate . $toDate);
-
-        $data = Cache::remember($cacheKey, 3600, function() use ($toDate) {
+        
+        $data = Cache::tags(['inventory', 'reports'])->remember($cacheKey, 3600, function() use ($fromDate, $toDate) {
             
             // 1. Valuation and Medicine Stats
-            $valuationData = $this->getValuationByCategory();
+            $valuationData = $this->getValuationByCategory($fromDate, $toDate);
             
             // 2. Slow Moving Inventory (Optimized via last_sold_at field)
             $slowMoving = Medicine::slowMoving(90)
@@ -59,15 +59,15 @@ class InventoryReportController extends Controller
 
             return [
                 'valuation'    => $valuationData['breakdown'],
-                'expiry_risks' => $this->getExpiryRisks($toDate),
-                'dues'         => $this->getOutstandingDues(),
+                'expiry_risks' => $this->getExpiryRisks($fromDate, $toDate),
+                'dues'         => $this->getOutstandingDues($fromDate, $toDate),
                 'slow_moving'  => $slowMoving,
                 'low_stock'    => $lowStockItems,
                 'summaries'    => [
                     'total_stock_value'      => (float) $valuationData['total_value'],
-                    'total_pending_payments' => (float) $this->getPendingPaymentsTotal(),
-                    'expiry_count'           => (int) $this->getExpiryCount(90),
-                    'expired_count'          => (int) $this->getExpiredCount(),
+                    'total_pending_payments' => (float) $this->getPendingPaymentsTotal($fromDate, $toDate),
+                    'expiry_count'           => (int) $this->getExpiryCount(90, $fromDate, $toDate),
+                    'expired_count'          => (int) $this->getExpiredCount($fromDate, $toDate),
                     'low_stock_count'        => (int) $lowStockItems->count(),
                     'total_items'            => (int) $valuationData['total_unique'],
                 ],
@@ -80,14 +80,23 @@ class InventoryReportController extends Controller
     /**
      * Categorized stock valuation with optimized SQL math.
      */
-    private function getValuationByCategory(): array
+    private function getValuationByCategory(?string $fromDate = null, ?string $toDate = null): array
     {
-
-        $valuation = StockBatch::available()
+        // Use ingested_total_cost_value (Original + Adjustments).
+        // This field ignores sales/returns volume as requested, but responds to stock adjustments.
+        $query = StockBatch::query()
             ->join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id')
-            ->selectRaw('
-                IFNULL(medicines.category, "Uncategorized") as category_name,
-                SUM(stock_batches.total_cost_value) as total_value,
+            ->leftJoin('categories', 'medicines.category_id', '=', 'categories.id')
+            ->where('stock_batches.qty_tablets', '>', 0); // Include batches that were received
+
+        // Respect the user-selected date range — filter by the batch received date.
+        if ($fromDate && $toDate) {
+            $query->whereBetween('stock_batches.received_date', [$fromDate, $toDate]);
+        }
+
+        $valuation = $query->selectRaw('
+                IFNULL(categories.name, "Uncategorized") as category_name,
+                SUM(stock_batches.ingested_total_cost_value) as total_value,
                 COUNT(DISTINCT medicines.id) as unique_medicines,
                 SUM(stock_batches.qty_tablets_remaining) as total_tablets
             ')
@@ -110,17 +119,24 @@ class InventoryReportController extends Controller
     /**
      * Focused retrieval of expiring batches. Limit applied for scalability.
      */
-    private function getExpiryRisks($toDate): array
+    private function getExpiryRisks(?string $fromDate = null, ?string $toDate = null): array
     {
+        $expiryLimit = Carbon::parse($toDate)->max(Carbon::today()->addDays(90));
+
+        $query = StockBatch::available();
+        if ($fromDate && $toDate) {
+            $query->whereBetween('expiry_date', [$fromDate, $toDate]);
+        }
+
         return [
-            'critical' => StockBatchResource::collection(StockBatch::available()
-                ->whereBetween('expiry_date', [Carbon::tomorrow(), Carbon::today()->addDays(30)])
+            'critical' => StockBatchResource::collection((clone $query)
+                ->where('expiry_date', '<=', Carbon::today()->addDays(30))
                 ->with(['medicine:id,medicine_name', 'supplier:id,name'])
                 ->orderBy('expiry_date')
                 ->limit(50)
                 ->get()),
-            'warning' => StockBatchResource::collection(StockBatch::available()
-                ->where('expiry_date', '<=', $toDate)
+            'warning' => StockBatchResource::collection((clone $query)
+                ->where('expiry_date', '<=', $expiryLimit)
                 ->with(['medicine:id,medicine_name', 'supplier:id,name'])
                 ->orderBy('expiry_date', 'asc')
                 ->limit(100)
@@ -131,14 +147,19 @@ class InventoryReportController extends Controller
     /**
      * Efficient retrieval of balance dues, fetching only required columns.
      */
-    private function getOutstandingDues()
+    private function getOutstandingDues(?string $fromDate = null, ?string $toDate = null)
     {
-        return PurchaseOrder::with('supplier:id,name')
+        $query = PurchaseOrder::with('supplier:id,name')
             ->select(['id', 'supplier_id', 'total_amount', 'paid_amount', 'order_date'])
             ->where('status', '!=', PurchaseOrder::STATUS_CANCELLED)
             ->where('payment_status', '!=', PurchaseOrder::PAYMENT_STATUS_PAID)
-            ->whereRaw('total_amount > paid_amount')
-            ->orderBy('order_date')
+            ->whereRaw('total_amount > paid_amount');
+
+        if ($fromDate && $toDate) {
+            $query->whereBetween('order_date', [$fromDate, $toDate]);
+        }
+
+        return $query->orderBy('order_date')
             ->get()
             ->map(fn($po) => [
                 'id' => $po->id,
@@ -150,21 +171,58 @@ class InventoryReportController extends Controller
             ]);
     }
 
-    private function getPendingPaymentsTotal(): float
+    private function getPendingPaymentsTotal(?string $fromDate = null, ?string $toDate = null): float
     {
-        return (float) PurchaseOrder::where('status', '!=', PurchaseOrder::STATUS_CANCELLED)
-            ->where('payment_status', '!=', PurchaseOrder::PAYMENT_STATUS_PAID)
-            ->sum(DB::raw('total_amount - paid_amount'));
+        $query = PurchaseOrder::where('status', '!=', PurchaseOrder::STATUS_CANCELLED)
+            ->where('payment_status', '!=', PurchaseOrder::PAYMENT_STATUS_PAID);
+
+        if ($fromDate && $toDate) {
+            $query->whereBetween('order_date', [$fromDate, $toDate]);
+        }
+
+        return (float) $query->sum(DB::raw('total_amount - paid_amount'));
     }
 
-    private function getExpiryCount($days): int
+    private function getExpiryCount(int $days, ?string $fromDate = null, ?string $toDate = null): int
     {
-        return (int) StockBatch::available()->expiringSoon($days)->count();
+        $query = StockBatch::available();
+        
+        if ($fromDate && $toDate) {
+            $start = Carbon::today()->addDay();
+            $rangeStart = Carbon::parse($fromDate);
+            $rangeEnd = Carbon::parse($toDate);
+            
+            // Effect: items expiring in the future part of the selected range
+            $effectiveStart = $rangeStart->max($start);
+            if ($effectiveStart->gt($rangeEnd)) return 0;
+
+            $query->whereBetween('expiry_date', [$effectiveStart->toDateString(), $rangeEnd->toDateString()]);
+        } else {
+            $query->expiringSoon($days);
+        }
+
+        return (int) $query->count();
     }
 
-    private function getExpiredCount(): int
+    private function getExpiredCount(?string $fromDate = null, ?string $toDate = null): int
     {
-        return (int) StockBatch::available()->where('expiry_date', '<=', Carbon::today())->count();
+        $query = StockBatch::available();
+
+        if ($fromDate && $toDate) {
+            $today = Carbon::today();
+            $rangeStart = Carbon::parse($fromDate);
+            $rangeEnd = Carbon::parse($toDate);
+
+            // Effect: items that expired in the past part of the selected range
+            $effectiveEnd = $rangeEnd->min($today);
+            if ($rangeStart->gt($effectiveEnd)) return 0;
+
+            $query->whereBetween('expiry_date', [$rangeStart->toDateString(), $effectiveEnd->toDateString()]);
+        } else {
+            $query->where('expiry_date', '<=', Carbon::today());
+        }
+
+        return (int) $query->count();
     }
 
     /**
@@ -172,7 +230,7 @@ class InventoryReportController extends Controller
      */
     public function refresh(): JsonResponse
     {
-        Cache::flush();
+        Cache::tags(['inventory', 'reports', 'stock', 'medicines'])->flush();
 
         return response()->json([
             'success' => true,

@@ -32,6 +32,17 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Sale extends Model
 {
     use HasFactory, SoftDeletes;
+    
+    protected static function booted()
+    {
+        static::saved(function ($sale) {
+            \App\Jobs\UpdateDailySummary::dispatch($sale->sale_date);
+        });
+
+        static::deleted(function ($sale) {
+            \App\Jobs\UpdateDailySummary::dispatch($sale->sale_date);
+        });
+    }
 
     // Status Constants
     const STATUS_COMPLETED          = 'Completed';
@@ -62,6 +73,8 @@ class Sale extends Model
         'payment_method',
         'status',
         'notes',
+        'total_items_count',
+        'returned_items_count',
     ];
 
     protected $casts = [
@@ -75,6 +88,8 @@ class Sale extends Model
         'due_amount' => 'decimal:2',
         'refunded_amount' => 'decimal:2',
         'refunded_subtotal' => 'decimal:2',
+        'total_items_count' => 'integer',
+        'returned_items_count' => 'integer',
     ];
 
     public function user()
@@ -140,33 +155,13 @@ class Sale extends Model
      */
     public static function getDashboardSummary($start, $end)
     {
-        return self::whereBetween('sale_date', [$start, $end])
-            ->selectRaw("
-                COUNT(*) as total_transactions,
-                SUM(CASE WHEN status != 'Cancelled' THEN grand_total ELSE 0 END) as total_revenue,
-                SUM(COALESCE(refunded_subtotal, 0)) as total_returns,
-                SUM(grand_total) as total_sales,
-                SUM(tax_total) as total_tax,
-                SUM(discount_total) as total_discount,
-                SUM(due_amount) as total_due,
-                COUNT(CASE WHEN status IN ('Returned', 'Partially Returned') THEN 1 END) as returns_count,
-                (SELECT SUM(
-                    COALESCE(si.cost_price, sb.cost_per_unit, 0) * si.qty_tablets
-                 )
-                 FROM sale_items si
-                 JOIN sales s2 ON si.sale_id = s2.id
-                 LEFT JOIN stock_batches sb ON si.stock_batch_id = sb.id
-                 WHERE s2.sale_date BETWEEN ? AND ?
-                 AND s2.status != 'Cancelled'
-                 AND si.deleted_at IS NULL) as total_cogs
-            ", [$start, $end])
-            ->first();
+        return app(\App\Services\SaleReportService::class)->getSummary($start, $end);
     }
 
     /**
      * Get top performing medicines.
      */
-    public static function getTopPerformers($start, $end, $limit = 5)
+    public static function getTopPerformers($start, $end, $limit = 50)
     {
         return SaleItem::selectRaw('
                 medicines.medicine_name,

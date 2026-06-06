@@ -170,16 +170,21 @@ const BatchListTable = ({ onAdd }) => {
               batches.map((batch) => {
                 const isStripBased = GROUP_A.includes(batch.dosage_form_snapshot);
                 
-                // Fallback for missing unit cost from GRN
+                // Fallback for missing unit cost from GRN.
+                // cost_per_unit / cost_per_box are static purchase-price fields — never mutated after receipt.
                 let unitCost = parseFloat(batch.cost_per_unit || 0);
                 if (unitCost === 0 && parseFloat(batch.cost_per_box || 0) > 0) {
                   if (isStripBased) {
                     const tpS = parseInt(batch.tablets_per_strip) || 0;
                     const spB = parseInt(batch.strips_per_box) || 0;
-                    const tpB = tpS > 0 ? (tpS * (spB || 1)) : 100; // Fallback to 100 if ratio unknown
+                    const tpB = tpS > 0 ? (tpS * (spB || 1)) : 100;
                     unitCost = parseFloat(batch.cost_per_box) / tpB;
                   } else {
-                    const unitsPerBox = (batch.qty_boxes > 0 && batch.qty_units > 0) ? (batch.qty_units / batch.qty_boxes) : 1;
+                    // Guard: only derive ratio from original box/unit quantities, never from remaining quantities,
+                    // to prevent stock adjustments from changing the displayed purchase price.
+                    const origUnits = parseFloat(batch.qty_units || 0);
+                    const origBoxes = parseFloat(batch.qty_boxes || 0);
+                    const unitsPerBox = (origBoxes > 0 && origUnits > 0) ? (origUnits / origBoxes) : 1;
                     unitCost = parseFloat(batch.cost_per_box) / unitsPerBox;
                   }
                 }

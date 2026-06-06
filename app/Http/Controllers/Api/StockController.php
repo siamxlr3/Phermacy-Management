@@ -51,39 +51,45 @@ class StockController extends Controller
         $toExpiry = $request->get('to_expiry');
         $medicineId = $request->get('medicine_id');
 
-        $query = StockBatch::query()
-            ->select('stock_batches.*')
-            ->with([
-                'medicine:id,medicine_name,dosage_form,strength,tablets_per_strip,strips_per_box,sale_unit_label', 
-                'supplier:id,name', 
-                'grn:id,invoice_number'
-            ])
-            ->join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id');
+        $cacheKey = 'stock_batches_' . md5(serialize([$perPage, $search, $fromExpiry, $toExpiry, $medicineId, $request->get('page', 1)]));
 
-        if ($search) {
-            $query->where(function($q) use ($search) {
-                $q->where('medicines.medicine_name', 'like', "{$search}%")
-                  ->orWhere('stock_batches.batch_number', 'like', "{$search}%");
-            });
-        }
+        $batches = Cache::tags(['stock'])->remember($cacheKey, 3600, function () use ($perPage, $search, $fromExpiry, $toExpiry, $medicineId) {
+            $query = StockBatch::query()
+                ->select('stock_batches.*')
+                ->with([
+                    'medicine:id,medicine_name,dosage_form,strength,tablets_per_strip,strips_per_box,sale_unit_label', 
+                    'supplier:id,name', 
+                    'grn:id,invoice_number'
+                ])
+                ->join('medicines', 'stock_batches.medicine_id', '=', 'medicines.id');
 
-        if ($medicineId) {
-            $query->where('stock_batches.medicine_id', $medicineId);
-        }
-        if ($fromExpiry && $toExpiry) {
-            $query->whereBetween('stock_batches.expiry_date', [$fromExpiry, $toExpiry]);
-        }
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->where('medicines.medicine_name', 'like', "{$search}%")
+                      ->orWhere('stock_batches.batch_number', 'like', "{$search}%");
+                });
+            }
 
-        $batches = $query->orderBy('stock_batches.expiry_date', 'asc')->paginate($perPage);
+            if ($medicineId) {
+                $query->where('stock_batches.medicine_id', $medicineId);
+            }
+            if ($fromExpiry && $toExpiry) {
+                $query->whereBetween('stock_batches.expiry_date', [$fromExpiry, $toExpiry]);
+            }
+
+            return $query->orderBy('stock_batches.expiry_date', 'asc')->paginate($perPage);
+        });
+
         return StockBatchResource::collection($batches);
     }
 
     public function medicineBatches(Medicine $medicine): AnonymousResourceCollection
     {
         $batches = StockBatch::where('medicine_id', $medicine->id)
+            ->with(['medicine', 'supplier'])
             ->available()
             ->orderBy('expiry_date', 'asc')
-            ->simplePaginate(15); // Add pagination for memory safety
+            ->simplePaginate(15);
             
         return StockBatchResource::collection($batches);
     }

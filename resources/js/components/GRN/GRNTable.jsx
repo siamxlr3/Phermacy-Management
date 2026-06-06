@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useGetGRNsQuery, useDeleteGRNMutation } from '../../store/api/grnApi';
 import { Search, Receipt, User, ChevronLeft, ChevronRight, Trash2, Edit2, CreditCard, Calendar } from 'lucide-react';
-import { format, subDays } from 'date-fns';
-import DateRangeFilter from '../Shared/DateRangeFilter';
+import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import { useLanguage } from '../../language/GlobalTranslate.jsx';
+import DateRangeFilter from '../Shared/DateRangeFilter';
 
 const GROUP_A = ['Tablet', 'Capsule', 'Suppository', 'Sachet'];
 
@@ -32,9 +32,9 @@ const GRNTable = ({ onAdd, onEdit }) => {
   const [page, setPage] = useState(1);
   const [perPage] = useState(10);
   const [searchTerm, setSearchTerm] = useState('');
-  const [fromDate, setFromDate] = useState(format(subDays(new Date(), 90), 'yyyy-MM-dd'));
-  const [toDate, setToDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   useEffect(() => {
     const handler = setTimeout(() => { setDebouncedSearch(searchTerm); setPage(1); }, 500);
@@ -70,15 +70,6 @@ const GRNTable = ({ onAdd, onEdit }) => {
     <div className="flex flex-col h-full min-h-0 bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
       {/* Header & Filters */}
       <div className="shrink-0 p-6 border-b border-slate-100 flex flex-col xl:flex-row xl:items-center justify-between gap-6 bg-slate-50/30">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          <DateRangeFilter
-            fromDate={fromDate}
-            toDate={toDate}
-            hideLabel={true}
-            onChange={(from, to) => { setFromDate(from); setToDate(to); setPage(1); }}
-            onReset={() => { setFromDate(format(subDays(new Date(), 30), 'yyyy-MM-dd')); setToDate(format(new Date(), 'yyyy-MM-dd')); setPage(1); }}
-          />
-        </div>
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 sm:flex-initial">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -90,6 +81,25 @@ const GRNTable = ({ onAdd, onEdit }) => {
               className="pl-9 pr-3 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/5 focus:border-indigo-400 outline-none w-full sm:w-64 placeholder:text-slate-400 transition-all"
             />
           </div>
+
+          <DateRangeFilter
+            fromDate={fromDate}
+            toDate={toDate}
+            onChange={(from, to) => {
+              setFromDate(from);
+              setToDate(to);
+              setPage(1);
+            }}
+            onReset={() => {
+              setFromDate('');
+              setToDate('');
+              setSearchTerm('');
+              setPage(1);
+            }}
+            label={translations.grn.received_date}
+            hidePresets={true}
+            hideReset={true}
+          />
         </div>
       </div>
 
@@ -207,16 +217,18 @@ const GRNTable = ({ onAdd, onEdit }) => {
                                     <span className="text-[8px] text-slate-400 font-medium">{translations.grn.per_box}</span>
                                   </span>
                                 )}
-                                {item.cost_per_stripe && (
+                                {parseFloat(item.cost_per_stripe) > 0 && (
                                   <span className="text-[10px] font-black text-blue-600 whitespace-nowrap">
                                     ৳{parseFloat(item.cost_per_stripe).toFixed(2)}
                                     <span className="text-[8px] text-slate-400 font-medium">{translations.grn.per_stripe}</span>
                                   </span>
                                 )}
-                                <span className="text-[9px] font-bold text-indigo-500 whitespace-nowrap">
-                                  ৳{parseFloat(item.cost_per_unit).toFixed(2)}
-                                  <span className="text-[8px] text-slate-400 font-medium">/unit</span>
-                                </span>
+                                {parseFloat(item.cost_per_unit) > 0 && (
+                                  <span className="text-[9px] font-bold text-indigo-500 whitespace-nowrap">
+                                    ৳{parseFloat(item.cost_per_unit).toFixed(2)}
+                                    <span className="text-[8px] text-slate-400 font-medium">/unit</span>
+                                  </span>
+                                )}
                                 {!isStripBased && item.package_size && (
                                   <span className="text-[8px] font-bold text-blue-400 whitespace-nowrap">{item.package_size}</span>
                                 )}

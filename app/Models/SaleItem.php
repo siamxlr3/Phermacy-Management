@@ -81,10 +81,11 @@ class SaleItem extends Model
     {
         return self::join('sales', 'sale_items.sale_id', '=', 'sales.id')
             ->join('medicines', 'sale_items.medicine_id', '=', 'medicines.id')
+            ->leftJoin('categories', 'medicines.category_id', '=', 'categories.id')
             ->whereIn('sales.status', [Sale::STATUS_COMPLETED, Sale::STATUS_PARTIALLY_RETURNED])
             ->whereBetween('sales.sale_date', [$start, $end])
-            ->selectRaw('medicines.category as category_name, SUM(sale_items.subtotal) as total_revenue, COUNT(sale_items.id) as total_items')
-            ->groupBy('medicines.category')
+            ->selectRaw('IFNULL(categories.name, "Uncategorized") as category_name, SUM(sale_items.subtotal) as total_revenue, COUNT(sale_items.id) as total_items')
+            ->groupBy('category_name')
             ->orderByDesc('total_revenue')
             ->get();
     }

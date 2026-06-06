@@ -89,4 +89,76 @@ class StockAdjustment extends Model
     {
         return $this->belongsTo(StockBatch::class);
     }
+
+    /**
+     * Calculate tablet equivalent based on unit and medicine configuration.
+     */
+    public static function calculateTablets(Medicine $medicine, string $unit, int $qty): int
+    {
+        return match (strtolower($unit)) {
+            self::UNIT_PIECE => $qty,
+            self::UNIT_STRIP => $qty * ($medicine->tablets_per_strip ?? 1),
+            self::UNIT_BOX => $qty * ($medicine->strips_per_box ?? 1) * ($medicine->tablets_per_strip ?? 1),
+            default => $qty,
+        };
+    }
+
+    /**
+     * reverse the stock impact of this adjustment.
+     */
+    public function reverseStockImpact(): void
+    {
+        \Illuminate\Support\Facades\DB::transaction(function () {
+            $batch = StockBatch::lockForUpdate()->findOrFail($this->stock_batch_id);
+            $medicine = Medicine::lockForUpdate()->findOrFail($this->medicine_id);
+
+            $isAddition = ($this->adjustment_type === self::TYPE_OPENING_BALANCE);
+            $qtyChangeTablets = $this->qty_change_tablets;
+
+            // Update Remaining Quantities
+            if ($isAddition) {
+                $batch->qty_tablets_remaining -= $qtyChangeTablets;
+                if ($batch->qty_units_remaining !== null) {
+                    $batch->qty_units_remaining -= $qtyChangeTablets;
+                }
+                $medicine->decrement('stock', $qtyChangeTablets);
+            } else {
+                $batch->qty_tablets_remaining += $qtyChangeTablets;
+                if ($batch->qty_units_remaining !== null) {
+                    $batch->qty_units_remaining += $qtyChangeTablets;
+                }
+                $medicine->increment('stock', $qtyChangeTablets);
+            }
+
+            // Reverse Original Quantities ONLY for opening_balance additions.
+            // For reductions, qty_tablets / qty_boxes were never changed, so nothing to reverse.
+            if ($isAddition) {
+                $batch->qty_tablets -= $qtyChangeTablets;
+                if ($batch->qty_units !== null) {
+                    $batch->qty_units -= $qtyChangeTablets;
+                }
+                if ($batch->qty_boxes !== null) {
+                    $tabletsPerBoxCalc = ($batch->qty_boxes > 0)
+                        ? ((float) $batch->qty_tablets_remaining / (float) $batch->qty_boxes_remaining)
+                        : 1;
+                    $batch->qty_boxes = round((float) $batch->qty_tablets / max($tabletsPerBoxCalc, 1), 4);
+                }
+            }
+
+            // Restore qty_adjusted (valuation tracker for Inventory Reports)
+            $deltaValuation = $isAddition ? $qtyChangeTablets : -$qtyChangeTablets;
+            $batch->qty_adjusted -= $deltaValuation;
+
+            // Recalculate remaining boxes using the original batch ratio (qty_tablets / qty_boxes)
+            $tabletsPerBox = ($batch->qty_boxes > 0 && $batch->qty_tablets > 0)
+                ? ((float) $batch->qty_tablets / (float) $batch->qty_boxes)
+                : 1;
+
+            if ($batch->qty_boxes_remaining !== null && $tabletsPerBox > 0) {
+                $batch->qty_boxes_remaining = round((float) $batch->qty_tablets_remaining / $tabletsPerBox, 4);
+            }
+
+            $batch->save();
+        });
+    }
 }

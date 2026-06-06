@@ -7,7 +7,7 @@ const CategoryRevenue = ({ categories }) => {
     const maxRevenue = Math.max(...(categories?.map(c => Number(c.total_revenue)) || [1]));
 
     return (
-        <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full">
+        <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full max-h-[500px]">
             <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-100">

@@ -275,7 +275,7 @@ const Dashboard = () => {
           {/* Left Stacked Column (lg:col-span-2) */}
           <div className="lg:col-span-2 flex flex-col gap-8">
             {/* Top Card: Best Selling */}
-            <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm flex-1 flex flex-col min-h-[340px] group">
+            <div className="bg-white p-8 rounded-[40px] border border-slate-100 shadow-sm flex-1 flex flex-col min-h-[340px] group overflow-hidden">
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-[20px] bg-amber-50 flex items-center justify-center shadow-sm group-hover:rotate-12 transition-transform duration-500">
@@ -288,7 +288,7 @@ const Dashboard = () => {
                 </div>
               </div>
               
-              <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+              <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar max-h-[320px]">
                 {(isFetching || isRefreshing) ? (
                   [1, 2, 3, 4, 5].map(i => (
                     <div key={i} className="space-y-2">
@@ -535,7 +535,14 @@ const Dashboard = () => {
                    </div>
                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">{translations?.dashboard?.alerts?.expiring || 'Expiring Soon'}</h4>
                 </div>
-                <span className="text-[10px] font-black text-amber-500 bg-amber-50 px-3 py-1 rounded-full uppercase tracking-widest border border-amber-100">{metrics.expiring_soon_count} Batches</span>
+                <span className={cn(
+                  "text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest border",
+                  expiring_items.some(item => item.date && new Date(item.date) <= new Date()) 
+                    ? "text-rose-500 bg-rose-50 border-rose-100" 
+                    : "text-amber-500 bg-amber-50 border-amber-100"
+                )}>
+                  {metrics.expiring_soon_count} Batches
+                </span>
               </div>
               <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar space-y-3">
                 {(isFetching || isRefreshing) ? (
@@ -545,14 +552,33 @@ const Dashboard = () => {
                       <Skeleton className="h-4 w-20" />
                     </div>
                   ))
-                ) : expiring_items.length > 0 ? expiring_items.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between group/alert p-2.5 hover:bg-amber-50/30 rounded-xl transition-colors border border-transparent hover:border-amber-100">
-                    <span className="text-xs font-bold text-slate-600 truncate mr-2 uppercase tracking-tight">{item.medicine_name || item.medicine?.medicine_name || 'Unknown'}</span>
-                    <span className="text-[10px] font-black text-amber-600 uppercase bg-white border border-amber-100 px-2 py-0.5 rounded-lg shrink-0 shadow-sm">
-                      {item.date ? format(new Date(item.date), 'MMM dd, yy') : 'N/A'}
-                    </span>
-                  </div>
-                )) : (
+                ) : expiring_items.length > 0 ? expiring_items.map((item, i) => {
+                  const isExpired = item.date && new Date(item.date) <= new Date();
+                  return (
+                    <div key={i} className={cn(
+                      "flex items-center justify-between group/alert p-2.5 rounded-xl transition-colors border border-transparent",
+                      isExpired ? "hover:bg-rose-50/30 hover:border-rose-100" : "hover:bg-amber-50/30 hover:border-amber-100"
+                    )}>
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-slate-600 truncate mr-2 uppercase tracking-tight">
+                          {item.medicine_name || item.medicine?.medicine_name || 'Unknown'}
+                        </span>
+                        <span className={cn(
+                          "text-[9px] font-black uppercase tracking-widest",
+                          isExpired ? "text-rose-400" : "text-amber-400"
+                        )}>
+                          {isExpired ? (translations?.reports?.expired_status || 'EXPIRED') : (translations?.reports?.expiring_soon_status || 'EXPIRING SOON')}
+                        </span>
+                      </div>
+                      <span className={cn(
+                        "text-[10px] font-black uppercase bg-white border px-2 py-0.5 rounded-lg shrink-0 shadow-sm",
+                        isExpired ? "text-rose-500 border-rose-100" : "text-amber-600 border-amber-100"
+                      )}>
+                        {item.date ? format(new Date(item.date), 'MMM dd, yy') : 'N/A'}
+                      </span>
+                    </div>
+                  );
+                }) : (
                    <p className="text-[10px] font-black text-slate-400 text-center uppercase tracking-widest py-10 opacity-30">No expiring items</p>
                 )}
               </div>
