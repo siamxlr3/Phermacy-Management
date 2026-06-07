@@ -192,4 +192,15 @@ class Medicine extends Model
             ->orderBy('stock', 'asc')
             ->get();
     }
+
+    /**
+     * Check if the medicine has any available but expired stock.
+     */
+    public function getHasExpiredStockAttribute(): bool
+    {
+        return $this->stockBatches()
+            ->available()
+            ->where('expiry_date', '<=', now()->toDateString())
+            ->exists();
+    }
 }

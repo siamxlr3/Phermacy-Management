@@ -42,6 +42,7 @@ class MedicineResource extends JsonResource
             
             'reorder_level' => (int) $this->reorder_level,
             'stock' => (int) ($this->stock ?? 0),
+            'has_expired_stock' => (bool) $this->has_expired_stock,
             'is_active' => (bool) $this->is_active,
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),

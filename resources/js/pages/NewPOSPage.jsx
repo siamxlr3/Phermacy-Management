@@ -135,6 +135,10 @@ const NewPOSPage = () => {
   };
 
   const handleAddToCart = (med, unit) => {
+    if (med.has_expired_stock) {
+      toast.error(`${med.medicine_name} is expired!`);
+      return;
+    }
     dispatch(addItem({ medicine: med, selectedUnit: unit }));
   };
 
@@ -269,16 +273,22 @@ const NewPOSPage = () => {
                           <div className="flex items-center gap-1">
                             <div className="text-[9px] font-bold uppercase tracking-tight truncate flex-1" style={{ color: T.tealD }} title={med.manufacturer}>{med.manufacturer || '—'}</div>
                             {med.category && (
-                              <div className="text-[8px] font-black uppercase bg-slate-100 text-slate-500 px-1 rounded truncate max-w-[60px]" title={med.category}>{med.category}</div>
+                              <div className="text-[8px] font-black uppercase bg-slate-100 text-slate-500 px-1 rounded" title={med.category}>{med.category}</div>
                             )}
                           </div>
                         </div>
 
                         {/* Badges */}
-                        {isLow && (
-                          <span className="pos-mono inline-block text-[9px] px-1.5 py-px rounded mb-1.5 self-start shrink-0"
-                            style={{ background: T.amberL, color: T.amber, border: '1px solid #fcd34d' }}>LOW</span>
-                        )}
+                        <div className="flex gap-1.5 mb-1.5 min-h-[16px]">
+                          {med.has_expired_stock && (
+                            <span className="pos-mono inline-block text-[9px] px-1.5 py-px rounded font-bold"
+                              style={{ background: T.redL, color: T.red, border: '1px solid #fecaca' }}>EXPIRED</span>
+                          )}
+                          {isLow && (
+                            <span className="pos-mono inline-block text-[9px] px-1.5 py-px rounded self-start shrink-0"
+                              style={{ background: T.amberL, color: T.amber, border: '1px solid #fcd34d' }}>LOW</span>
+                          )}
+                        </div>
 
                         {/* Unit Selector (Group A only) */}
                         {isGA && (

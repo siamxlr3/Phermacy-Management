@@ -131,6 +131,16 @@ class SaleController extends Controller
 
                     if ($medicineBatches->sum('qty_tablets_remaining') < $remainingToDeduct) {
                         $medicineName = Medicine::where('id', $medicineId)->value('medicine_name') ?? "ID: {$medicineId}";
+                        
+                        // Check if stock exists but is expired
+                        $totalStockIncludingExpired = StockBatch::where('medicine_id', $medicineId)
+                            ->available()
+                            ->sum('qty_tablets_remaining');
+
+                        if ($totalStockIncludingExpired >= $remainingToDeduct) {
+                            throw new Exception("Stock expired for {$medicineName}. Please check batch expiry.");
+                        }
+
                         throw new Exception("Insufficient stock for {$medicineName}");
                     }
 
