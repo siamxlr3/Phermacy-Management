@@ -25,7 +25,7 @@ class MedicineController extends Controller
         $all = $request->boolean('all', false);
 
         if ($status === '1' && $all) {
-            $medicines = Cache::tags(['medicines'])->remember('medicines.active_with_details', 3600, function () {
+            $medicines = Cache::remember('medicines.active_with_details', 3600, function () {
                 return Medicine::active()
                     ->with(['category', 'manufacturer'])
                     ->orderBy('medicine_name')

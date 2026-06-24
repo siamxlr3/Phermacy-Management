@@ -76,7 +76,7 @@ class Medicine extends Model
 
     protected static function booted(): void
     {
-        $clearCache = fn() => Cache::tags(['medicines'])->flush();
+        $clearCache = fn() => Cache::forget('medicines.active_with_details');
 
         static::saved($clearCache);
         static::deleted($clearCache);
