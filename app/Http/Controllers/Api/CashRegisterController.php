@@ -61,9 +61,15 @@ class CashRegisterController extends Controller
 
         $cacheKey = 'cash_register_status_' . ($from?->toDateString() ?? 'all') . '_' . ($to?->toDateString() ?? 'all');
 
-        $summary = Cache::tags(['cash', 'dashboard'])->remember($cacheKey, 3600, function() use ($from, $to) {
+        $callback = function() use ($from, $to) {
             return app(\App\Queries\CashRegisterStatusQuery::class)->getSummary($from, $to);
-        });
+        };
+
+        if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+            $summary = Cache::tags(['cash', 'dashboard'])->remember($cacheKey, 3600, $callback);
+        } else {
+            $summary = Cache::remember($cacheKey, 3600, $callback);
+        }
 
         return response()->json([
             'success' => true,
@@ -110,7 +116,11 @@ class CashRegisterController extends Controller
             Auth::id()
         );
 
-        Cache::tags(['cash', 'dashboard'])->flush();
+        if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+            Cache::tags(['cash', 'dashboard'])->flush();
+        } else {
+            Cache::flush();
+        }
 
         return response()->json([
             'success' => true,

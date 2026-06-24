@@ -210,7 +210,11 @@ class SaleController extends Controller
                     );
                 }
 
-                Cache::tags(['sales', 'dashboard', 'cash'])->flush();
+                if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+                    Cache::tags(['sales', 'dashboard', 'cash'])->flush();
+                } else {
+                    Cache::flush();
+                }
                 return $sale;
             });
 
@@ -263,7 +267,11 @@ class SaleController extends Controller
                 }
             });
             
-            Cache::tags(['sales', 'dashboard'])->flush();
+            if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+                Cache::tags(['sales', 'dashboard'])->flush();
+            } else {
+                Cache::flush();
+            }
             return response()->json([
                 'success' => true,
                 'message' => 'Sale status updated successfully',

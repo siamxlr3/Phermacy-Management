@@ -55,7 +55,7 @@ class ExpenseController extends Controller
     {
         $today = now()->toDateString();
 
-        $data = Cache::tags(['expenses', 'reports'])->remember('expense_summary_' . $today, 3600, function() use ($today) {
+        $callback = function() use ($today) {
             // FIX 1: Convert 4 separate queries into a single aggregation query
             // Optimized: Direct date comparison instead of DATE() function for index usage
             $summary = Expense::selectRaw("
@@ -71,7 +71,13 @@ class ExpenseController extends Controller
                 'total_unpaid' => (float) ($summary->total_unpaid ?? 0),
                 'today_expenses' => (float) ($summary->today_expenses ?? 0),
             ];
-        });
+        };
+
+        if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+            $data = Cache::tags(['expenses', 'reports'])->remember('expense_summary_' . $today, 3600, $callback);
+        } else {
+            $data = Cache::remember('expense_summary_' . $today, 3600, $callback);
+        }
 
         return response()->json([
             'success' => true,
@@ -122,7 +128,11 @@ class ExpenseController extends Controller
                 $expense->items()->createMany($items->toArray());
 
                 // FIX 4: Only clear expense and report caches, not the whole system
-                Cache::tags(['expenses', 'reports', 'cash'])->flush();
+                if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+                    Cache::tags(['expenses', 'reports', 'cash'])->flush();
+                } else {
+                    Cache::flush();
+                }
 
                 // Record Cash Transaction if Paid
                 if ($expense->status === 'Paid') {
@@ -218,7 +228,11 @@ class ExpenseController extends Controller
                 $expense->items()->forceDelete();
                 $expense->items()->createMany($items->toArray());
 
-                Cache::tags(['expenses', 'reports', 'cash'])->flush();
+                if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+                    Cache::tags(['expenses', 'reports', 'cash'])->flush();
+                } else {
+                    Cache::flush();
+                }
 
                 // Record the new outflow if the expense is now Paid and financials changed
                 if ($financialsChanged && $newStatus === 'Paid') {
@@ -274,7 +288,11 @@ class ExpenseController extends Controller
                 $expense->items()->delete();
                 $expense->delete();
 
-                Cache::tags(['expenses', 'reports', 'cash'])->flush();
+                if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+                    Cache::tags(['expenses', 'reports', 'cash'])->flush();
+                } else {
+                    Cache::flush();
+                }
             });
 
             return response()->json(['success' => true, 'message' => 'Expense deleted successfully']);

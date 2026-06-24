@@ -573,6 +573,10 @@ class GRNController extends Controller
      */
     private function clearCache(): void
     {
-        Cache::tags(['medicines', 'stock', 'inventory', 'reports', 'dashboard', 'sales', 'cash'])->flush();
+        if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+            Cache::tags(['medicines', 'stock', 'inventory', 'reports', 'dashboard', 'sales', 'cash'])->flush();
+        } else {
+            Cache::flush();
+        }
     }
 }

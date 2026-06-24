@@ -12,6 +12,7 @@ use App\Http\Resources\Api\PurchaseOrderResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class PurchaseOrderController extends Controller
 {
@@ -174,6 +175,10 @@ class PurchaseOrderController extends Controller
 
     private function clearCache(): void
     {
-        \Illuminate\Support\Facades\Cache::tags(['inventory', 'reports', 'dashboard', 'sales'])->flush();
+        if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+            \Illuminate\Support\Facades\Cache::tags(['inventory', 'reports', 'dashboard', 'sales'])->flush();
+        } else {
+            \Illuminate\Support\Facades\Cache::flush();
+        }
     }
 }

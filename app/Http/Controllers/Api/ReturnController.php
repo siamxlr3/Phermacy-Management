@@ -179,7 +179,11 @@ class ReturnController extends Controller
                 }
 
                 // 5. Atomic Cache Invalidation using Tags
-                Cache::tags(['sales', 'returns', 'dashboard'])->flush();
+                if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+                    Cache::tags(['sales', 'returns', 'dashboard'])->flush();
+                } else {
+                    Cache::flush();
+                }
 
                 return $salesReturn;
             });

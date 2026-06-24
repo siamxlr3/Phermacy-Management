@@ -29,7 +29,7 @@ class StockAdjustmentController extends Controller
 
         $cacheKey = "stock_adjustments.list." . md5(serialize($request->all()));
 
-        $adjustments = Cache::tags(['inventory'])->remember($cacheKey, 120, function () use ($perPage, $search, $type, $fromDate, $toDate) {
+        $callback = function () use ($perPage, $search, $type, $fromDate, $toDate) {
             $query = StockAdjustment::with(['medicine:id,medicine_name', 'stockBatch:id,batch_number']);
 
             if ($search) {
@@ -54,7 +54,13 @@ class StockAdjustmentController extends Controller
             }
 
             return $query->latest()->paginate($perPage);
-        });
+        };
+
+        if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+            $adjustments = Cache::tags(['inventory'])->remember($cacheKey, 120, $callback);
+        } else {
+            $adjustments = Cache::remember($cacheKey, 120, $callback);
+        }
 
         return StockAdjustmentResource::collection($adjustments);
     }
@@ -206,7 +212,11 @@ class StockAdjustmentController extends Controller
     private function clearCache(): void
     {
         // Flush 'reports' so InventoryReportController returns live data after adjustments.
-        Cache::tags(['inventory', 'dashboard', 'stock', 'reports'])->flush();
+        if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+            Cache::tags(['inventory', 'dashboard', 'stock', 'reports'])->flush();
+        } else {
+            Cache::flush();
+        }
         Cache::forget('medicines.active_list');
     }
 }

@@ -25,7 +25,7 @@ class StockController extends Controller
             $request->get('page', 1)
         ]));
 
-        $medicines = Cache::tags(['stock'])->remember($cacheKey, 3600, function () use ($perPage, $search) {
+        $callback = function () use ($perPage, $search) {
             $query = Medicine::query()
                 ->select(['id', 'medicine_name', 'generic_name', 'dosage_form', 'strength', 'category', 'manufacturer', 'is_active', 'reorder_level', 'tablets_per_strip', 'strips_per_box', 'sale_unit_label'])
                 ->withSum('stockBatches as total_stock', 'qty_tablets_remaining');
@@ -38,7 +38,13 @@ class StockController extends Controller
             }
 
             return $query->orderBy('medicine_name')->simplePaginate($perPage);
-        });
+        };
+
+        if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+            $medicines = Cache::tags(['stock'])->remember($cacheKey, 3600, $callback);
+        } else {
+            $medicines = Cache::remember($cacheKey, 3600, $callback);
+        }
 
         return StockResource::collection($medicines);
     }
@@ -53,7 +59,7 @@ class StockController extends Controller
 
         $cacheKey = 'stock_batches_' . md5(serialize([$perPage, $search, $fromExpiry, $toExpiry, $medicineId, $request->get('page', 1)]));
 
-        $batches = Cache::tags(['stock'])->remember($cacheKey, 3600, function () use ($perPage, $search, $fromExpiry, $toExpiry, $medicineId) {
+        $callback = function () use ($perPage, $search, $fromExpiry, $toExpiry, $medicineId) {
             $query = StockBatch::query()
                 ->select('stock_batches.*')
                 ->with([
@@ -78,7 +84,13 @@ class StockController extends Controller
             }
 
             return $query->orderBy('stock_batches.expiry_date', 'asc')->paginate($perPage);
-        });
+        };
+
+        if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+            $batches = Cache::tags(['stock'])->remember($cacheKey, 3600, $callback);
+        } else {
+            $batches = Cache::remember($cacheKey, 3600, $callback);
+        }
 
         return StockBatchResource::collection($batches);
     }

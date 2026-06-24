@@ -101,7 +101,15 @@ class CashTransaction extends Model
      */
     public static function getCurrentBalance(): float
     {
-        return (float) \Illuminate\Support\Facades\Cache::tags(['cash'])->rememberForever(self::CACHE_KEY_BALANCE, function () {
+        $cache = \Illuminate\Support\Facades\Cache::getStore();
+        if ($cache instanceof \Illuminate\Cache\TaggableStore) {
+            return (float) \Illuminate\Support\Facades\Cache::tags(['cash'])->rememberForever(self::CACHE_KEY_BALANCE, function () {
+                $last = self::latest('id')->first();
+                return $last ? (float) $last->balance_after : 0.0;
+            });
+        }
+
+        return (float) \Illuminate\Support\Facades\Cache::rememberForever(self::CACHE_KEY_BALANCE, function () {
             $last = self::latest('id')->first();
             return $last ? (float) $last->balance_after : 0.0;
         });
@@ -150,7 +158,12 @@ class CashTransaction extends Model
             ]);
 
             // Atomic cache update
-            \Illuminate\Support\Facades\Cache::tags(['cash'])->put(self::CACHE_KEY_BALANCE, $newBalance);
+            $cache = \Illuminate\Support\Facades\Cache::getStore();
+            if ($cache instanceof \Illuminate\Cache\TaggableStore) {
+                \Illuminate\Support\Facades\Cache::tags(['cash'])->put(self::CACHE_KEY_BALANCE, $newBalance);
+            } else {
+                \Illuminate\Support\Facades\Cache::put(self::CACHE_KEY_BALANCE, $newBalance);
+            }
 
             return $transaction;
         });

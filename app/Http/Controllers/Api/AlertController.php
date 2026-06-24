@@ -65,7 +65,11 @@ class AlertController extends Controller
         $alert->update(['status' => Alert::STATUS_DISMISSED]);
         
         // Surgical cache invalidation is preferred, but following project pattern:
-        Cache::tags(['inventory', 'dashboard'])->flush();
+        if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+            Cache::tags(['inventory', 'dashboard'])->flush();
+        } else {
+            Cache::flush();
+        }
         
         return response()->json([
             'success' => true, 

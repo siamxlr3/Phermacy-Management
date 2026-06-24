@@ -44,8 +44,8 @@ class StockBatch extends Model
             $batch->calculateValuation();
         });
 
-        static::saved(fn () => Cache::tags(['stock'])->flush());
-        static::deleted(fn () => Cache::tags(['stock'])->flush());
+        static::saved(fn () => Cache::getStore() instanceof \Illuminate\Cache\TaggableStore ? Cache::tags(['stock'])->flush() : Cache::flush());
+        static::deleted(fn () => Cache::getStore() instanceof \Illuminate\Cache\TaggableStore ? Cache::tags(['stock'])->flush() : Cache::flush());
     }
 
     /**

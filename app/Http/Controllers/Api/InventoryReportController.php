@@ -31,7 +31,7 @@ class InventoryReportController extends Controller
         $toDate = $request->get('to_date') ?? Carbon::now()->addDays(365)->toDateString();
         $cacheKey = "inventory_v2_" . md5($fromDate . $toDate);
         
-        $data = Cache::tags(['inventory', 'reports'])->remember($cacheKey, 3600, function() use ($fromDate, $toDate) {
+        $callback = function() use ($fromDate, $toDate) {
             
             // 1. Valuation and Medicine Stats
             $valuationData = $this->getValuationByCategory($fromDate, $toDate);
@@ -72,7 +72,13 @@ class InventoryReportController extends Controller
                     'total_items'            => (int) $valuationData['total_unique'],
                 ],
             ];
-        });
+        };
+
+        if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+            $data = Cache::tags(['inventory', 'reports'])->remember($cacheKey, 3600, $callback);
+        } else {
+            $data = Cache::remember($cacheKey, 3600, $callback);
+        }
 
         return response()->json(['success' => true, 'data' => $data]);
     }
@@ -230,7 +236,11 @@ class InventoryReportController extends Controller
      */
     public function refresh(): JsonResponse
     {
-        Cache::tags(['inventory', 'reports', 'stock', 'medicines'])->flush();
+        if (Cache::getStore() instanceof \Illuminate\Cache\TaggableStore) {
+            Cache::tags(['inventory', 'reports', 'stock', 'medicines'])->flush();
+        } else {
+            Cache::flush();
+        }
 
         return response()->json([
             'success' => true,
